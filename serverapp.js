@@ -7,8 +7,11 @@ const cors = require('cors');
 //const path = require('path');
 const WebSocket = require('ws');
 
+require('dotenv').config({ path: './conf.env' });
+
 const servPORT = process.env.SERVER_PORT || 3010;
-const wsPORT = process.env.WS_PORT || 9200;
+const wsRedPORT = process.env.WSR_PORT || 9200;
+const wsDashPORT = process.env.WSD_PORT || 9202;
 
 const app = express();
 app.set(servPORT);
@@ -19,7 +22,25 @@ server.listen(servPORT, () => {
 });
 
 //устанавливаем соединение через Web Socket
-const WSServer = new WebSocket.Server ({port:wsPORT}); 
+const WSSNodeRED = new WebSocket.Server ({port:wsRedPORT});
+const WSSDash = new WebSocket.Server ({port:wsDashPORT});
+
+// Работаем с NodeRED
+WSSNodeRED.on('connection', ws => {
+    // проверяем соединение (контроль сообщения)
+        ws.on('message', message => {
+                try {
+                    console.log(`На порт ${wsRedPORT} от NodRED получено сообщение: ${message} `);
+                    ws.send(JSON.stringify({ message }));
+                } catch (err) {
+                    console.error(err);
+                }
+                ws.send ('Сообщение получено'); 
+            });
+});
+
+
+
 // WSServer.on ('connection', ws => {
 //    ws.on ('message', message => {
 //        console.log (`Message:  ${message}`); 
@@ -35,13 +56,31 @@ const WSServer = new WebSocket.Server ({port:wsPORT});
 //    ws.send ('first mess'); 
 
 // });
-WSServer.on ('connection', ws => {
+WSSNodeRED.on ('connection', ws => {
   // проверяем соединение (контроль сообщения)
       ws.on('message', message => {
               try {
-                  console.log(`На порт ${wsPORT} от NodRED получено сообщение: ${message} `);
+                  console.log(`На порт ${wsRedPORT} от NodRED получено сообщение: ${message} `);
+                  ws.send(JSON.stringify({ message }));
               } catch (err) {
                   console.error(err);
               }
+              ws.send ('Сообщение получено'); 
           });
-        });
+});
+WSSNodeRED.onmessage = (message) => {
+    console.log(message.data);
+};
+
+WSSDash.on ('connection', ws => {
+  // проверяем соединение (контроль сообщения)
+      ws.on('message', message => {
+              try {
+                  console.log(`На порт ${wsDashPORT} от Dashboard получено сообщение: ${message} `);
+                  ws.send(JSON.stringify({ message }));
+              } catch (err) {
+                  console.error(err);
+              }
+              ws.send ('Сообщение получено'); 
+          });
+});
