@@ -6,6 +6,31 @@ const morgan = require('morgan');
 const cors = require('cors');
 //const path = require('path');
 
+const pino = require('pino');
+const logDirectory = process.env.LOG_DIRECTORY || './pino_logs';
+const transport = pino.transport({
+  target: 'pino-pretty',
+  options: { colorize: true }, // Настройки для pino-pretty
+  debug: pino.transport({
+    target: 'pino/file',
+    options: { destination: `${logDirectory}/debug.log` },
+  }),
+  info: pino.transport({
+    target: 'pino/file',
+    options: { destination: `${logDirectory}/info.log` },
+  }),
+  warn: pino.transport({
+    target: 'pino/file',
+    options: { destination: `${logDirectory}/warn.log` },
+  }),
+  error: pino.transport({
+    target: 'pino/file',
+    options: { destination: `${logDirectory}/error.log` },
+  }),
+});
+
+const logger = pino({ level: 'debug' }, transport);
+module.exports = logger;
 
 require('dotenv').config({ path: './conf.env' });
 
@@ -41,9 +66,10 @@ let activeSocket = null; // Переменная для хранения акт�
 
 WSSNodeRED.on('connection', (ws) => {
 
-  console.log('Client connected to NodeRED');
+  //console.log('Client connected to NodeRED');
+  logger.info('Client connected to NodeRED');
   const connectedClients = WSSNodeRED.clients.size;
-  console.log(`Количество подключенных клиентов NodeRED: ${connectedClients}`);
+  logger.info(`Количество подключенных клиентов NodeRED: ${connectedClients}`);
   // if (connectedClients > 1) {
   //   ws.close();
   // } else {
@@ -53,16 +79,16 @@ WSSNodeRED.on('connection', (ws) => {
 
   ws.on('message', (message) => {
       const data = message;
-      console.log(`На порт ${wsRedPORT} от NodRED получено сообщение: ${message} `);
+      logger.info(`На порт ${wsRedPORT} от NodRED получено сообщение: ${message} `);
       sendToDash = true;
       // Передача сообщения на WSSDash
       WSSDash.clients.forEach((client) => {
         if (client.readyState === WebSocket.OPEN && sendToDash === true) {
             client.send(data, (error) => {
                 if (error) {
-                    console.error('Ошибка пересылки сообщения c NodeRED на Dashboard:', error);
+                    logger.error('Ошибка пересылки сообщения c NodeRED на Dashboard:', error);
                 } else {
-                    console.log(`На порт ${wsDashPORT} от NodeRED к Dashboard отправлено сообщение: ${data}`);                   
+                    logger.info(`На порт ${wsDashPORT} от NodeRED к Dashboard отправлено сообщение: ${data}`);                   
                 }
                 this.sendToDash = false;
             });
@@ -71,11 +97,11 @@ WSSNodeRED.on('connection', (ws) => {
   });
 
   ws.on('error', (error) => {
-      console.error('WebSocket error on NodeRED:', error);
+      logger.error('WebSocket error on NodeRED:', error);
   });
 
   ws.on('close', () => {
-      console.log('NodeRED WebSocket connection closed');
+      logger.info('NodeRED WebSocket connection closed');
       redConnection = false;
   });
 //}
@@ -86,19 +112,19 @@ WSSNodeRED.on('connection', (ws) => {
 
 // Работаем с Dashboard
 WSSDash.on('connection', (ws) => {
-  console.log('Client connected to Dashboard');
+  logger.info('Client connected to Dashboard');
 
   ws.on('message', (message) => {
-      console.log(`На порт ${wsDashPORT} от Dashboard получено сообщение: ${message} `);
+      logger.info(`На порт ${wsDashPORT} от Dashboard получено сообщение: ${message} `);
       sendToRed = true;
       // Передача сообщения на WSSDash
       WSSDash.clients.forEach((client) => {
         if (client.readyState === WebSocket.OPEN && sendToRed === true) {
             client.send(message, (error) => {
                 if (error) {
-                    console.error('Ошибка пересылки сообщения c Dashboard на NodeRED :', error);
+                    logger.error('Ошибка пересылки сообщения c Dashboard на NodeRED :', error);
                 } else {
-                    console.log(`На порт ${wsRedPORT} от Dashboard к NodeREDотправлено сообщение: ${message}`);
+                    logger.info(`На порт ${wsRedPORT} от Dashboard к NodeREDотправлено сообщение: ${message}`);
                 }
                 sendToDash = false;
             });
@@ -107,11 +133,11 @@ WSSDash.on('connection', (ws) => {
   });
 
   ws.on('error', (error) => {
-      console.error('WebSocket error on Dashboard:', error);
+      logger.error('WebSocket error on Dashboard:', error);
   });
 
   ws.on('close', () => {
-      console.log('Dash WebSocket connection closed');
+      logger.info('Dash WebSocket connection closed');
   });
 });
 
@@ -121,7 +147,7 @@ WSSDash.on('connection', (ws) => {
 
 
 
-console.log(`WebSocket servers are running on ws://localhost:${wsRedPORT} and ws://localhost:${wsDashPORT}`);
+logger.info(`WebSocket servers are running on ws://localhost:${wsRedPORT} and ws://localhost:${wsDashPORT}`);
 
 setTimeout(() => {
     this.sendToDash = false;
