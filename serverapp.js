@@ -5,13 +5,24 @@ const { v4: uuidv4 } = require('uuid');
 const morgan = require('morgan');
 const cors = require('cors');
 const path = require('path');
+const bodyParser = require('body-parser');
+const fs = require('fs');
 
 const pino = require('pino');
 const logDirectory = process.env.LOG_DIRECTORY || './logs';
+const log_level = process.env.PINO_LOG_LEVEL || 'info';
 
-
-const transport = pino.transport({
+// Логирование Сервера
+const ServerTransport = pino.transport({
   targets: [
+    {
+      target: 'pino-pretty',
+      options: {
+        destination: path.join(logDirectory, 'fatal.log'), // Логи уровня fatal
+        level: 'fatal',
+        mkdir: true,
+      },
+    },
     {
       target: 'pino-pretty',
       options: {
@@ -53,13 +64,72 @@ const transport = pino.transport({
         destination: process.stdout.fd,
       },
     },
+    
   ],
 });
 
+const Slogger = pino({ level: log_level }, ServerTransport);
+module.exports = Slogger;
 
+// Логирование Клиента
+const ClientTransport = pino.transport({
+  targets: [
+    {
+      target: 'pino-pretty',
+      options: {
+        destination: path.join(logDirectory, 'client_fatal.log'), // Логи уровня fatal
+        level: 'fatal',
+        mkdir: true,
+      },
+    },
+    {
+      target: 'pino-pretty',
+      options: {
+        destination: path.join(logDirectory, 'client_error.log'), // Логи уровня error
+        level: 'error',
+        mkdir: true,
+      },
+    },
+    {
+      target: 'pino-pretty',
+      options: {
+        destination: path.join(logDirectory, 'client_warn.log'), // Логи уровня warn
+        level: 'warn',
+        mkdir: true,
+      },
+    },
+    {
+      target: 'pino-pretty',
+      options: {
+        destination: path.join(logDirectory, 'client_info.log'), // Логи уровня info
+        level: 'info',
+        mkdir: true,
+        colorize: false,
+      },
+    },
+    // {
+    //   target: 'pino-pretty',
+    //   options: {
+    //     destination: path.join(logDirectory, 'client_debug.log'), // Логи уровня debug
+    //     level: 'debug',
+    //     mkdir: true,
+    //     colorize: false,
+    //   },
+    // },
+    // {
+    //   target: 'pino-pretty', // Консольный вывод
+    //   options: {
+    //     level: 'debug',
+    //     colorize: true,
+    //     destination: process.stdout.fd,
+    //   },
+    // },
+    
+  ],
+});
 
-const logger = pino({ level: 'debug' }, transport);
-module.exports = logger;
+const Clogger = pino({ level: log_level }, ClientTransport);
+module.exports = Clogger;
 
 require('dotenv').config({ path: './conf.env' });
 
@@ -67,13 +137,56 @@ const servPORT = process.env.SERVER_PORT || 3010;
 const wsRedPORT = process.env.WSR_PORT || 9200;
 const wsDashPORT = process.env.WSD_PORT || 9202;
 
-const app = express();
-// app.set(servPORT);
-// const server = http.createServer(app);
+// Создаем директорию, если она не существует
+const clientLogDir = './logs';
+if (!fs.existsSync(clientLogDir)) {
+    fs.mkdirSync(clientLogDir);
+}
 
-// server.listen(servPORT, () => {
-//     console.log(`MyHome Server is running on port ${servPORT}`);
-// });
+const app = express();
+app.set(servPORT);
+const server = http.createServer(app);
+app.use(cors());
+app.use(express.json());
+app.use(bodyParser.json());
+
+
+//Работа с логами с Клиента
+app.post('/log', (req, res) => {
+    if (req.body.type === 'error') {
+        Clogger.error(req.body.message);
+    } else if (req.body.type === 'warn') {
+        Clogger.warn(req.body.message);
+    } else if (req.body.type === 'info') {
+        Clogger.info(req.body.message);
+    } else if (req.body.type === 'fatal') {
+        Clogger.fatal(req.body.message);
+    } else {
+        Clogger.info('Получено сообщение неопределенного ТИПА с Логами от Клиента (VUE js):', req.body.message);
+    }
+
+
+    // const clientLogsMess = req.body.message;
+    // const logFilePath = path.join('./logs', 'client.log');
+    // // fs.appendFile(logFilePath, ${new Date().toISOString()} - ${clientLogsMess}\n, (err) => {
+      
+    //   fs.appendFile(logFilePath, clientLogsMess, (err) => {
+    //     if (err) {
+    //         Slogger.error('Ошибка записи логов с клиента',err);
+    //         return res.status(500).send('Ошибка записи логов с клиента');
+    //     } else {
+    //         res.status(200).send('Логи с клиента успешно записаны');
+    //     }
+    // });
+});
+
+
+
+//Запуск сервера
+server.listen(servPORT, () => {
+    console.log(`MyHome Server is running on port ${servPORT}`);
+});
+
 
 const WebSocket = require('ws');
 const { mkdir } = require('fs');
@@ -97,9 +210,9 @@ let activeSocket = null; // Переменная для хранения акт�
 WSSNodeRED.on('connection', (ws) => {
 
   //console.log('Client connected to NodeRED');
-  logger.info('Client connected to NodeRED');
+  Slogger.info('Client connected to NodeRED');
   const connectedClients = WSSNodeRED.clients.size;
-  logger.info(`Количество подключенных клиентов NodeRED: ${connectedClients}`);
+  Slogger.info(`Количество подключенных клиентов NodeRED: ${connectedClients}`);
   // if (connectedClients > 1) {
   //   ws.close();
   // } else {
@@ -109,16 +222,16 @@ WSSNodeRED.on('connection', (ws) => {
 
   ws.on('message', (message) => {
       const data = message;
-      logger.info(`На порт ${wsRedPORT} от NodRED получено сообщение: ${message} `);
+      Slogger.info(`На порт ${wsRedPORT} от NodRED получено сообщение: ${message} `);
       sendToDash = true;
       // Передача сообщения на WSSDash
       WSSDash.clients.forEach((client) => {
         if (client.readyState === WebSocket.OPEN && sendToDash === true) {
             client.send(data, (error) => {
                 if (error) {
-                    logger.error('Ошибка пересылки сообщения c NodeRED на Dashboard:', error);
+                    Slogger.error('Ошибка пересылки сообщения c NodeRED на Dashboard:', error);
                 } else {
-                    logger.info(`На порт ${wsDashPORT} от NodeRED к Dashboard отправлено сообщение: ${data}`);                   
+                    Slogger.info(`На порт ${wsDashPORT} от NodeRED к Dashboard отправлено сообщение: ${data}`);                   
                 }
                 this.sendToDash = false;
             });
@@ -127,11 +240,11 @@ WSSNodeRED.on('connection', (ws) => {
   });
 
   ws.on('error', (error) => {
-      logger.error('WebSocket error on NodeRED:', error);
+      Slogger.error('WebSocket error on NodeRED:', error);
   });
 
   ws.on('close', () => {
-      logger.info('NodeRED WebSocket connection closed');
+      Slogger.info('NodeRED WebSocket connection closed');
       redConnection = false;
   });
 //}
@@ -142,19 +255,19 @@ WSSNodeRED.on('connection', (ws) => {
 
 // Работаем с Dashboard
 WSSDash.on('connection', (ws) => {
-  logger.info('Client connected to Dashboard');
+  Slogger.info('Client connected to Dashboard');
 
   ws.on('message', (message) => {
-      logger.info(`На порт ${wsDashPORT} от Dashboard получено сообщение: ${message} `);
+      Slogger.info(`На порт ${wsDashPORT} от Dashboard получено сообщение: ${message} `);
       sendToRed = true;
       // Передача сообщения на WSSDash
       WSSDash.clients.forEach((client) => {
         if (client.readyState === WebSocket.OPEN && sendToRed === true) {
             client.send(message, (error) => {
                 if (error) {
-                    logger.error('Ошибка пересылки сообщения c Dashboard на NodeRED :', error);
+                    Slogger.error('Ошибка пересылки сообщения c Dashboard на NodeRED :', error);
                 } else {
-                    logger.info(`На порт ${wsRedPORT} от Dashboard к NodeREDотправлено сообщение: ${message}`);
+                    Slogger.info(`На порт ${wsRedPORT} от Dashboard к NodeREDотправлено сообщение: ${message}`);
                 }
                 sendToDash = false;
             });
@@ -163,16 +276,16 @@ WSSDash.on('connection', (ws) => {
   });
 
   ws.on('error', (error) => {
-      logger.error('WebSocket error on Dashboard:', error);
+      Slogger.error('WebSocket error on Dashboard:', error);
   });
 
   ws.on('close', () => {
-      logger.info('Dash WebSocket connection closed');
+      Slogger.info('Dash WebSocket connection closed');
   });
 });
 
 
-logger.info(`WebSocket servers are running on ws://localhost:${wsRedPORT} and ws://localhost:${wsDashPORT}`);
+Slogger.info(`WebSocket servers are running on ws://localhost:${wsRedPORT} and ws://localhost:${wsDashPORT}`);
 //logger.debug(`WebSocket servers are running on ws://localhost:${wsRedPORT} and ws://localhost:${wsDashPORT}`);
 setTimeout(() => {
     this.sendToDash = false;

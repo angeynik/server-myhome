@@ -4,3 +4,235 @@
 [13:25:00.675] INFO (22230): WebSocket servers are running on ws://localhost:9200 and ws://localhost:9202
 [13:39:11.103] INFO (24871): WebSocket servers are running on ws://localhost:9200 and ws://localhost:9202
 [13:39:15.606] INFO (24924): WebSocket servers are running on ws://localhost:9200 and ws://localhost:9202
+[14:37:07.579] INFO (35839): WebSocket servers are running on ws://localhost:9200 and ws://localhost:9202
+[14:47:42.871] INFO (38218): WebSocket servers are running on ws://localhost:9200 and ws://localhost:9202
+[14:47:44.089] INFO (38218): Client connected to Dashboard
+[14:47:50.282] INFO (38218): Dash WebSocket connection closed
+[14:47:50.376] INFO (38218): Client connected to Dashboard
+[14:47:50.380] INFO (38218): Dash WebSocket connection closed
+[14:47:51.632] INFO (38218): Client connected to Dashboard
+[14:47:51.638] INFO (38218): Dash WebSocket connection closed
+[14:47:53.644] INFO (38218): Client connected to Dashboard
+[14:49:00.385] INFO (38218): Dash WebSocket connection closed
+[15:03:57.357] INFO (38218): Client connected to Dashboard
+[15:05:17.733] INFO (38218): Dash WebSocket connection closed
+[15:05:17.816] INFO (38218): Client connected to Dashboard
+[15:19:59.454] INFO (38218): Dash WebSocket connection closed
+[15:20:48.487] INFO (38218): Client connected to Dashboard
+[15:22:10.662] INFO (38218): Dash WebSocket connection closed
+[15:24:24.587] INFO (38218): Client connected to Dashboard
+[15:26:05.281] INFO (38218): Dash WebSocket connection closed
+[15:26:05.282] INFO (38218): Client connected to Dashboard
+[15:26:07.291] INFO (38218): Client connected to Dashboard
+[15:26:51.930] INFO (38218): Dash WebSocket connection closed
+[15:26:51.930] INFO (38218): Client connected to Dashboard
+[15:26:53.939] INFO (38218): Client connected to Dashboard
+[15:27:17.938] INFO (38218): Dash WebSocket connection closed
+[15:27:17.940] INFO (38218): Client connected to Dashboard
+[15:27:19.945] INFO (38218): Client connected to Dashboard
+[15:40:39.797] INFO (48703): WebSocket servers are running on ws://localhost:9200 and ws://localhost:9202
+[15:40:39.878] INFO (48703): Client connected to Dashboard
+[15:40:39.992] INFO (48703): Client connected to Dashboard
+[15:40:41.968] INFO (48703): Client connected to Dashboard
+[15:40:43.093] INFO (48703): Client connected to Dashboard
+[15:40:59.267] INFO (48703): Dash WebSocket connection closed
+[15:40:59.268] INFO (48703): Dash WebSocket connection closed
+[15:40:59.268] INFO (48703): Dash WebSocket connection closed
+[15:40:59.268] INFO (48703): Dash WebSocket connection closed
+[15:41:03.784] INFO (48703): Client connected to Dashboard
+[16:03:40.422] INFO (48703): Dash WebSocket connection closed
+[16:10:15.882] INFO (48703): Client connected to Dashboard
+[16:14:30.043] INFO (48703): Dash WebSocket connection closed
+[16:14:32.060] INFO (48703): Client connected to Dashboard
+[18:59:09.292] INFO (62569): WebSocket servers are running on ws://localhost:9200 and ws://localhost:9202
+[19:00:00.960] INFO (62814): WebSocket servers are running on ws://localhost:9200 and ws://localhost:9202
+[19:01:18.048] INFO (63117): WebSocket servers are running on ws://localhost:9200 and ws://localhost:9202
+[19:05:16.036] INFO (63894): WebSocket servers are running on ws://localhost:9200 and ws://localhost:9202
+[19:07:32.877] INFO (64361): WebSocket servers are running on ws://localhost:9200 and ws://localhost:9202
+[19:07:45.011] INFO (64435): WebSocket servers are running on ws://localhost:9200 and ws://localhost:9202
+[19:09:01.558] INFO (64700): WebSocket servers are running on ws://localhost:9200 and ws://localhost:9202
+[19:12:38.010] INFO (64700): Client connected to Dashboard
+[19:13:18.214] INFO (64700): Dash WebSocket connection closed
+[19:13:20.224] INFO (64700): Client connected to Dashboard
+[19:15:41.439] INFO (64700): Dash WebSocket connection closed
+[19:15:41.542] INFO (64700): Client connected to Dashboard
+[19:15:47.709] INFO (64700): Dash WebSocket connection closed
+[19:15:47.781] INFO (64700): Client connected to Dashboard
+[19:16:23.112] INFO (64700): Dash WebSocket connection closed
+[19:16:23.114] INFO (64700): Client connected to Dashboard
+[19:16:25.123] INFO (64700): Client connected to Dashboard
+[19:20:34.669] INFO (64700): Dash WebSocket connection closed
+[19:20:34.669] INFO (64700): Dash WebSocket connection closed
+[19:20:34.747] INFO (64700): Client connected to Dashboard
+[19:20:45.426] INFO (64700): Dash WebSocket connection closed
+[19:20:45.427] INFO (64700): Client connected to Dashboard
+[19:20:47.442] INFO (64700): Client connected to Dashboard
+[19:21:00.951] INFO (64700): Dash WebSocket connection closed
+[19:21:00.953] INFO (64700): Client connected to Dashboard
+[19:21:02.962] INFO (64700): Client connected to Dashboard
+[19:22:03.840] INFO (64700): Dash WebSocket connection closed
+[19:22:03.841] INFO (64700): Client connected to Dashboard
+[19:22:05.849] INFO (64700): Client connected to Dashboard
+[19:23:10.904] INFO (67866): WebSocket servers are running on ws://localhost:9200 and ws://localhost:9202
+[19:23:12.752] INFO (67866): Client connected to Dashboard
+[19:23:12.764] INFO (67866): Client connected to Dashboard
+[19:23:12.777] INFO (67866): Client connected to Dashboard
+[19:23:12.790] INFO (67866): Client connected to Dashboard
+[19:23:23.227] INFO (67866): Dash WebSocket connection closed
+[19:23:23.231] INFO (67866): Client connected to Dashboard
+[19:23:25.232] INFO (67866): Client connected to Dashboard
+[19:28:16.905] INFO (67866): Dash WebSocket connection closed
+[19:28:16.908] INFO (67866): Client connected to Dashboard
+[19:28:18.911] INFO (67866): Client connected to Dashboard
+[19:28:42.148] INFO (67866): Dash WebSocket connection closed
+[19:28:42.149] INFO (67866): Dash WebSocket connection closed
+[19:28:42.149] INFO (67866): Dash WebSocket connection closed
+[19:28:42.149] INFO (67866): Dash WebSocket connection closed
+[19:28:42.149] INFO (67866): Dash WebSocket connection closed
+[19:28:42.149] INFO (67866): Dash WebSocket connection closed
+[19:28:42.225] INFO (67866): Client connected to Dashboard
+[19:31:06.250] INFO (69397): WebSocket servers are running on ws://localhost:9200 and ws://localhost:9202
+[19:31:08.026] INFO (69397): Client connected to Dashboard
+[19:32:03.781] INFO (69397): Client connected to Dashboard
+[19:32:03.781] INFO (69397): Dash WebSocket connection closed
+[19:32:05.786] INFO (69397): Client connected to Dashboard
+[19:35:28.528] INFO (69397): Dash WebSocket connection closed
+[19:35:28.528] INFO (69397): Dash WebSocket connection closed
+[19:35:28.604] INFO (69397): Client connected to Dashboard
+[19:37:06.598] INFO (69397): Dash WebSocket connection closed
+[19:37:06.600] INFO (69397): Client connected to Dashboard
+[19:37:08.610] INFO (69397): Client connected to Dashboard
+[19:39:58.028] INFO (69397): Dash WebSocket connection closed
+[19:39:58.030] INFO (69397): Client connected to Dashboard
+[19:40:00.035] INFO (69397): Client connected to Dashboard
+[19:44:11.316] INFO (69397): Dash WebSocket connection closed
+[19:44:11.319] INFO (69397): Client connected to Dashboard
+[19:44:13.318] INFO (69397): Client connected to Dashboard
+[19:46:51.275] INFO (69397): Dash WebSocket connection closed
+[19:46:51.275] INFO (69397): Dash WebSocket connection closed
+[19:46:51.275] INFO (69397): Dash WebSocket connection closed
+[19:46:51.276] INFO (69397): Dash WebSocket connection closed
+[19:46:51.358] INFO (69397): Client connected to Dashboard
+[19:47:08.656] INFO (69397): Dash WebSocket connection closed
+[19:47:08.659] INFO (69397): Client connected to Dashboard
+[19:47:10.670] INFO (69397): Client connected to Dashboard
+[19:47:18.413] INFO (69397): Dash WebSocket connection closed
+[19:47:18.416] INFO (69397): Client connected to Dashboard
+[19:47:20.426] INFO (69397): Client connected to Dashboard
+[19:48:06.538] INFO (69397): Dash WebSocket connection closed
+[19:48:08.543] INFO (69397): Client connected to Dashboard
+[19:48:45.081] INFO (69397): Dash WebSocket connection closed
+[19:48:45.081] INFO (69397): Dash WebSocket connection closed
+[19:48:45.081] INFO (69397): Dash WebSocket connection closed
+[19:57:47.211] INFO (75245): WebSocket servers are running on ws://localhost:9200 and ws://localhost:9202
+[19:59:16.376] INFO (75688): WebSocket servers are running on ws://localhost:9200 and ws://localhost:9202
+[20:00:07.514] INFO (75688): Client connected to Dashboard
+[20:00:07.528] INFO (75688): Client connected to Dashboard
+[20:00:28.583] INFO (75688): Dash WebSocket connection closed
+[20:00:28.681] INFO (75688): Client connected to Dashboard
+[20:05:43.811] INFO (77106): WebSocket servers are running on ws://localhost:9200 and ws://localhost:9202
+[20:05:45.645] INFO (77106): Client connected to Dashboard
+[20:05:46.402] INFO (77106): Client connected to Dashboard
+[20:06:55.031] INFO (77368): WebSocket servers are running on ws://localhost:9200 and ws://localhost:9202
+[20:06:56.863] INFO (77368): Client connected to Dashboard
+[20:06:57.400] INFO (77368): Client connected to Dashboard
+[20:13:51.938] INFO (78695): WebSocket servers are running on ws://localhost:9200 and ws://localhost:9202
+[20:13:53.674] INFO (78695): Client connected to Dashboard
+[20:13:54.387] INFO (78695): Client connected to Dashboard
+[20:17:11.223] INFO (79337): WebSocket servers are running on ws://localhost:9200 and ws://localhost:9202
+[20:17:12.997] INFO (79337): Client connected to Dashboard
+[20:17:13.385] INFO (79337): Client connected to Dashboard
+[20:21:38.997] INFO (80235): WebSocket servers are running on ws://localhost:9200 and ws://localhost:9202
+[20:21:39.062] INFO (80235): Client connected to Dashboard
+[20:21:42.863] INFO (80235): Client connected to Dashboard
+[20:23:45.561] INFO (80680): WebSocket servers are running on ws://localhost:9200 and ws://localhost:9202
+[20:23:48.606] INFO (80680): Client connected to Dashboard
+[20:23:50.674] INFO (80680): Client connected to Dashboard
+[20:24:55.919] INFO (80935): WebSocket servers are running on ws://localhost:9200 and ws://localhost:9202
+[20:24:57.749] INFO (80935): Client connected to Dashboard
+[20:24:58.388] INFO (80935): Client connected to Dashboard
+[20:25:02.356] INFO (80935): Dash WebSocket connection closed
+[20:25:02.458] INFO (80935): Client connected to Dashboard
+[20:28:15.057] INFO (81624): WebSocket servers are running on ws://localhost:9200 and ws://localhost:9202
+[20:28:16.882] INFO (81624): Client connected to Dashboard
+[20:28:17.385] INFO (81624): Client connected to Dashboard
+[20:30:48.366] INFO (81624): Dash WebSocket connection closed
+[20:30:48.438] INFO (81624): Client connected to Dashboard
+[20:39:45.060] INFO (81624): Dash WebSocket connection closed
+[20:45:14.081] INFO (81624): Client connected to Dashboard
+[20:45:31.895] INFO (85269): WebSocket servers are running on ws://localhost:9200 and ws://localhost:9202
+[20:45:32.922] INFO (85269): Client connected to Dashboard
+[20:45:34.386] INFO (85269): Client connected to Dashboard
+[20:47:04.206] INFO (85619): WebSocket servers are running on ws://localhost:9200 and ws://localhost:9202
+[20:47:06.022] INFO (85619): Client connected to Dashboard
+[20:47:06.381] INFO (85619): Client connected to Dashboard
+[20:47:54.953] INFO (85873): WebSocket servers are running on ws://localhost:9200 and ws://localhost:9202
+[20:47:56.779] INFO (85873): Client connected to Dashboard
+[20:47:57.383] INFO (85873): Client connected to Dashboard
+[20:48:40.765] INFO (86079): WebSocket servers are running on ws://localhost:9200 and ws://localhost:9202
+[20:48:42.551] INFO (86079): Client connected to Dashboard
+[20:48:43.387] INFO (86079): Client connected to Dashboard
+[20:49:07.138] INFO (86209): WebSocket servers are running on ws://localhost:9200 and ws://localhost:9202
+[20:49:08.969] INFO (86209): Client connected to Dashboard
+[20:49:09.403] INFO (86209): Client connected to Dashboard
+[20:51:49.284] INFO (86762): WebSocket servers are running on ws://localhost:9200 and ws://localhost:9202
+[20:51:51.096] INFO (86762): Client connected to Dashboard
+[20:51:51.411] INFO (86762): Client connected to Dashboard
+[20:53:50.807] INFO (86762): Dash WebSocket connection closed
+[20:53:50.822] INFO (86762): Client connected to Dashboard
+[20:53:52.819] INFO (86762): Client connected to Dashboard
+[20:55:39.175] INFO (86762): Dash WebSocket connection closed
+[20:55:39.176] INFO (86762): Client connected to Dashboard
+[20:55:41.180] INFO (86762): Client connected to Dashboard
+[20:55:55.567] INFO (86762): Dash WebSocket connection closed
+[20:55:55.568] INFO (86762): Client connected to Dashboard
+[20:55:57.573] INFO (86762): Client connected to Dashboard
+[20:56:06.782] INFO (86762): Dash WebSocket connection closed
+[20:56:06.784] INFO (86762): Client connected to Dashboard
+[20:56:08.791] INFO (86762): Client connected to Dashboard
+[20:56:16.250] INFO (86762): Dash WebSocket connection closed
+[20:56:16.250] INFO (86762): Dash WebSocket connection closed
+[20:56:16.250] INFO (86762): Dash WebSocket connection closed
+[20:56:16.250] INFO (86762): Dash WebSocket connection closed
+[20:56:16.250] INFO (86762): Dash WebSocket connection closed
+[20:56:16.344] INFO (86762): Client connected to Dashboard
+[20:56:27.301] INFO (86762): Dash WebSocket connection closed
+[20:56:27.370] INFO (86762): Client connected to Dashboard
+[20:58:51.562] INFO (88373): WebSocket servers are running on ws://localhost:9200 and ws://localhost:9202
+[20:58:53.341] INFO (88373): Client connected to Dashboard
+[20:58:53.411] INFO (88373): Client connected to Dashboard
+[20:59:12.415] INFO (88373): Dash WebSocket connection closed
+[20:59:12.502] INFO (88373): Client connected to Dashboard
+[21:01:55.662] INFO (88373): Client connected to Dashboard
+[21:01:55.662] INFO (88373): Dash WebSocket connection closed
+[21:01:57.670] INFO (88373): Client connected to Dashboard
+[21:01:59.198] INFO (88373): Dash WebSocket connection closed
+[21:01:59.198] INFO (88373): Dash WebSocket connection closed
+[21:01:59.273] INFO (88373): Client connected to Dashboard
+[21:04:10.074] INFO (88373): Dash WebSocket connection closed
+[21:04:10.076] INFO (88373): Client connected to Dashboard
+[21:04:12.085] INFO (88373): Client connected to Dashboard
+[21:04:21.630] INFO (89593): WebSocket servers are running on ws://localhost:9200 and ws://localhost:9202
+[21:04:23.546] INFO (89593): Client connected to Dashboard
+[21:04:23.560] INFO (89593): Client connected to Dashboard
+[21:04:24.417] INFO (89593): Client connected to Dashboard
+[21:04:32.576] INFO (89593): Dash WebSocket connection closed
+[21:04:32.577] INFO (89593): Dash WebSocket connection closed
+[21:04:32.658] INFO (89593): Client connected to Dashboard
+[21:07:04.230] INFO (89593): Dash WebSocket connection closed
+[21:07:04.231] INFO (89593): Client connected to Dashboard
+[21:07:06.243] INFO (89593): Client connected to Dashboard
+[21:08:06.484] INFO (90594): WebSocket servers are running on ws://localhost:9200 and ws://localhost:9202
+[21:08:08.229] INFO (90594): Client connected to Dashboard
+[21:08:08.243] INFO (90594): Client connected to Dashboard
+[21:08:08.412] INFO (90594): Client connected to Dashboard
+[21:08:20.598] INFO (90698): WebSocket servers are running on ws://localhost:9200 and ws://localhost:9202
+[21:08:22.438] INFO (90698): Client connected to Dashboard
+[21:08:22.452] INFO (90698): Client connected to Dashboard
+[21:08:23.413] INFO (90698): Client connected to Dashboard
+[21:08:25.147] INFO (90698): Dash WebSocket connection closed
+[21:08:25.147] INFO (90698): Dash WebSocket connection closed
+[21:08:25.242] INFO (90698): Client connected to Dashboard
+[21:09:09.128] INFO (90698): Dash WebSocket connection closed
+[21:09:09.131] INFO (90698): Client connected to Dashboard
+[21:09:11.140] INFO (90698): Client connected to Dashboard
