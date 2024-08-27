@@ -1,0 +1,11 @@
+{"level":30,"time":1724753701999,"pid":19964,"hostname":"MacBook-Pro-Angey.local","msg":"WebSocket servers are running on ws://localhost:9200 and ws://localhost:9202"}
+{"level":30,"time":1724754015981,"pid":21024,"hostname":"MacBook-Pro-Angey.local","msg":"WebSocket servers are running on ws://localhost:9200 and ws://localhost:9202"}
+{"level":30,"time":1724754089868,"pid":21302,"hostname":"MacBook-Pro-Angey.local","msg":"WebSocket servers are running on ws://localhost:9200 and ws://localhost:9202"}
+[13:22:01.966] INFO (21442): WebSocket servers are running on ws://localhost:9200 and ws://localhost:9202
+[13:22:53.248] INFO (21651): WebSocket servers are running on ws://localhost:9200 and ws://localhost:9202
+[13:23:42.014] INFO (21866): WebSocket servers are running on ws://localhost:9200 and ws://localhost:9202
+[13:24:09.836] INFO (22004): WebSocket servers are running on ws://localhost:9200 and ws://localhost:9202
+[13:24:38.602] INFO (22129): WebSocket servers are running on ws://localhost:9200 and ws://localhost:9202
+[13:25:00.675] INFO (22230): WebSocket servers are running on ws://localhost:9200 and ws://localhost:9202
+[13:39:11.103] INFO (24871): WebSocket servers are running on ws://localhost:9200 and ws://localhost:9202
+[13:39:15.606] INFO (24924): WebSocket servers are running on ws://localhost:9200 and ws://localhost:9202

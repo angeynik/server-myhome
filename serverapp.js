@@ -4,30 +4,59 @@ const axios = require('axios');
 const { v4: uuidv4 } = require('uuid');
 const morgan = require('morgan');
 const cors = require('cors');
-//const path = require('path');
+const path = require('path');
 
 const pino = require('pino');
-const logDirectory = process.env.LOG_DIRECTORY || './pino_logs';
+const logDirectory = process.env.LOG_DIRECTORY || './logs';
+
+
 const transport = pino.transport({
-  target: 'pino-pretty',
-  options: { colorize: true }, // Настройки для pino-pretty
-  debug: pino.transport({
-    target: 'pino/file',
-    options: { destination: `${logDirectory}/debug.log` },
-  }),
-  info: pino.transport({
-    target: 'pino/file',
-    options: { destination: `${logDirectory}/info.log` },
-  }),
-  warn: pino.transport({
-    target: 'pino/file',
-    options: { destination: `${logDirectory}/warn.log` },
-  }),
-  error: pino.transport({
-    target: 'pino/file',
-    options: { destination: `${logDirectory}/error.log` },
-  }),
+  targets: [
+    {
+      target: 'pino-pretty',
+      options: {
+        destination: path.join(logDirectory, 'error.log'), // Логи уровня error
+        level: 'error',
+        mkdir: true,
+      },
+    },
+    {
+      target: 'pino-pretty',
+      options: {
+        destination: path.join(logDirectory, 'warn.log'), // Логи уровня warn
+        level: 'warn',
+        mkdir: true,
+      },
+    },
+    {
+      target: 'pino-pretty',
+      options: {
+        destination: path.join(logDirectory, 'info.log'), // Логи уровня info
+        level: 'info',
+        mkdir: true,
+        colorize: false,
+      },
+    },
+    {
+      target: 'pino-pretty',
+      options: {
+        destination: path.join(logDirectory, 'debug.log'), // Логи уровня debug
+        level: 'debug',
+        mkdir: true,
+      },
+    },
+    {
+      target: 'pino-pretty', // Консольный вывод
+      options: {
+        level: 'debug',
+        colorize: true,
+        destination: process.stdout.fd,
+      },
+    },
+  ],
 });
+
+
 
 const logger = pino({ level: 'debug' }, transport);
 module.exports = logger;
@@ -47,6 +76,7 @@ const app = express();
 // });
 
 const WebSocket = require('ws');
+const { mkdir } = require('fs');
 
 //устанавливаем соединение через Web Socket
 const WSSNodeRED = new WebSocket.Server ({port:wsRedPORT});
@@ -142,13 +172,8 @@ WSSDash.on('connection', (ws) => {
 });
 
 
-
-
-
-
-
 logger.info(`WebSocket servers are running on ws://localhost:${wsRedPORT} and ws://localhost:${wsDashPORT}`);
-
+//logger.debug(`WebSocket servers are running on ws://localhost:${wsRedPORT} and ws://localhost:${wsDashPORT}`);
 setTimeout(() => {
     this.sendToDash = false;
 }, this.reconnectInterval);
