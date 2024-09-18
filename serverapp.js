@@ -1,14 +1,14 @@
 const express = require('express');
 const http = require('http');
-const axios = require('axios');
-const { v4: uuidv4 } = require('uuid');
-const morgan = require('morgan');
+// const axios = require('axios');
+// const { v4: uuidv4 } = require('uuid');
+// const morgan = require('morgan');
 const cors = require('cors');
 const path = require('path');
 const bodyParser = require('body-parser');
 const fs = require('fs');
 
-const pino = require('pino');
+const pino = require('pino'); // Подключаем pino для логирования
 const logDirectory = process.env.LOG_DIRECTORY || './logs';
 const log_level = process.env.PINO_LOG_LEVEL || 'info';
 
@@ -128,10 +128,10 @@ const ClientTransport = pino.transport({
   ],
 });
 
-const Clogger = pino({ level: log_level }, ClientTransport);
+const Clogger = pino({ level: log_level }, ClientTransport); 
 module.exports = Clogger;
 
-require('dotenv').config({ path: './conf.env' });
+require('dotenv').config({ path: './conf.env' }); // Подключаем .ENV файл с переменными окружения
 
 const servPORT = process.env.SERVER_PORT || 3010;
 const wsRedPORT = process.env.WSR_PORT || 9200;
@@ -164,22 +164,7 @@ app.post('/log', (req, res) => {
     } else {
         Clogger.info('Получено сообщение неопределенного ТИПА с Логами от Клиента (VUE js):', req.body.message);
     }
-
-
-    // const clientLogsMess = req.body.message;
-    // const logFilePath = path.join('./logs', 'client.log');
-    // // fs.appendFile(logFilePath, ${new Date().toISOString()} - ${clientLogsMess}\n, (err) => {
-      
-    //   fs.appendFile(logFilePath, clientLogsMess, (err) => {
-    //     if (err) {
-    //         Slogger.error('Ошибка записи логов с клиента',err);
-    //         return res.status(500).send('Ошибка записи логов с клиента');
-    //     } else {
-    //         res.status(200).send('Логи с клиента успешно записаны');
-    //     }
-    // });
 });
-
 
 
 //Запуск сервера
@@ -251,8 +236,6 @@ WSSNodeRED.on('connection', (ws) => {
 
 });
 
-
-
 // Работаем с Dashboard
 WSSDash.on('connection', (ws) => {
   Slogger.info('Client connected to Dashboard');
@@ -284,22 +267,8 @@ WSSDash.on('connection', (ws) => {
   });
 });
 
-
 Slogger.info(`WebSocket servers are running on ws://localhost:${wsRedPORT} and ws://localhost:${wsDashPORT}`);
 //logger.debug(`WebSocket servers are running on ws://localhost:${wsRedPORT} and ws://localhost:${wsDashPORT}`);
 setTimeout(() => {
     this.sendToDash = false;
 }, this.reconnectInterval);
-
-
-//   // проверяем соединение (контроль сообщения)
-//       ws.on('message', message => {
-//               try {
-//                   console.log(`На порт ${wsDashPORT} от Dashboard получено сообщение: ${message} `);
-//                   ws.send(JSON.stringify({ message }));
-//               } catch (err) {
-//                   console.error(err);
-//               }
-//               ws.send ('Сообщение получено'); 
-//           });
-// });
