@@ -1,0 +1,88 @@
+{
+    "Гостинная": {
+        "id": 001,
+        "title": "Гостинная",
+        "group": "parent",
+        "temperature":"dTemp01",
+        "humidity": "dHum01",
+        "movement": "dMov01"
+    },
+    "Кухня": {
+        "id": 002,
+        "title": "Кухня",
+        "group": "parent",
+        "temperature": "dTemp02",
+        "humidity": "dHum02",
+        "movement": "dMov02",
+        "fire": "dFire01"
+    },
+    "Спальня (родители)": {
+        "id": 003,
+        "title": "Спальня (родители)",
+        "group": "parent",
+        "temperature": "dTemp03",
+        "humidity": "dHum03",
+        "movement": "dMov03"
+    },
+    "Гардероб": {
+        "id": 004,
+        "title": "Гардероб",
+        "group": "parent",
+        "temperature": "dTemp04",
+        "movement": "dMov04"
+    },
+    "Прихожая (родители)": {
+        "id": 005,
+        "title": "Прихожая (родители)",
+        "group": "parent",
+        "movement": "dMov05"
+    },
+    "Санузел (родители)": {
+        "id": 006,
+        "title": "Санузел (родители)",
+        "group": "parent",
+        "leakage": "dLeakage01",
+        "movement": "dMov06"
+    },
+    "Ванная (родители)": {
+        "id": 007,
+        "title": "Ванная (родители)",
+        "group": "parent",
+        "movement": "dMov07"
+    },
+    "Спальня (Михаил)": {
+        "id": 008,
+        "title": "Спальня (Михаил)",
+        "group": "children",
+        "temperature": "dTemp08",
+        "humidity": "dHum08",
+        "movement": "dMov08"
+    },
+    "Спальня (Алексей)": {
+        "id": 009,
+        "title": "Спальня (Алексей)",
+        "group": "children",
+        "temperature": "dTemp09",
+        "humidity": "dHum09",
+        "movement": "dMov09"
+    },
+    "Прихожая (дети)": {
+        "id": 010,
+        "title": "Прихожая (дети)",
+        "group": "children",
+        "movement": "dMov10"
+    },
+    "Санузел (дети)": {
+        "id": 011,
+        "title": "Санузел (дети)",
+        "group": "children",
+        "movement": "dMov11"
+    },
+    "Ванная (дети)": {
+        "id": 012,
+        "title": "Ванная (дети)",
+        "group": "children",
+        "leakage": "dLeakage02",
+        "movement": "dMov12"
+    },
+}

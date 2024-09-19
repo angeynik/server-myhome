@@ -198,16 +198,9 @@ WSSNodeRED.on('connection', (ws) => {
   Slogger.info('Client connected to NodeRED');
   const connectedClients = WSSNodeRED.clients.size;
   Slogger.info(`Количество подключенных клиентов NodeRED: ${connectedClients}`);
-  // if (connectedClients > 1) {
-  //   ws.close();
-  // } else {
-  //   activeSocket = ws; // Сохраняем активное подключение
-  // }
-
-
   ws.on('message', (message) => {
       const data = message;
-      Slogger.info(`На порт ${wsRedPORT} от NodRED получено сообщение: ${message} `);
+      Slogger.info(`На порт ${wsRedPORT} от NodRED получено сообщение: ${data}, ${data.name} `);
       sendToDash = true;
       // Передача сообщения на WSSDash
       WSSDash.clients.forEach((client) => {
