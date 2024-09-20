@@ -17,7 +17,7 @@
         "fire": "dFire01"
     },
     "room_03": {
-        "id": 003,
+        "id": 3,
         "title": "Спальня (родители)",
         "group": "parent",
         "temperature": "dTemp03",
@@ -32,7 +32,7 @@
         "movement": "dMov04"
     },
     "room_05": {
-        "id": 005,
+        "id": 5,
         "title": "Прихожая (родители)",
         "group": "parent",
         "movement": "dMov05"
@@ -59,7 +59,7 @@
         "movement": "dMov08"
     },
     "room_09": {
-        "id": 009,
+        "id": 9,
         "title": "Спальня (Алексей)",
         "group": "children",
         "temperature": "dTemp09",
