@@ -1,14 +1,14 @@
 {
-    "Гостинная": {
-        "id": 001,
+    "room_01": {
+        "id": 1,
         "title": "Гостинная",
         "group": "parent",
         "temperature":"dTemp01",
         "humidity": "dHum01",
         "movement": "dMov01"
     },
-    "Кухня": {
-        "id": 002,
+    "room_02": {
+        "id": 2,
         "title": "Кухня",
         "group": "parent",
         "temperature": "dTemp02",
@@ -16,7 +16,7 @@
         "movement": "dMov02",
         "fire": "dFire01"
     },
-    "Спальня (родители)": {
+    "room_03": {
         "id": 003,
         "title": "Спальня (родители)",
         "group": "parent",
@@ -24,41 +24,41 @@
         "humidity": "dHum03",
         "movement": "dMov03"
     },
-    "Гардероб": {
-        "id": 004,
+    "room_04": {
+        "id": 4,
         "title": "Гардероб",
         "group": "parent",
         "temperature": "dTemp04",
         "movement": "dMov04"
     },
-    "Прихожая (родители)": {
+    "room_05": {
         "id": 005,
         "title": "Прихожая (родители)",
         "group": "parent",
         "movement": "dMov05"
     },
-    "Санузел (родители)": {
-        "id": 006,
+    "room_06": {
+        "id": 6,
         "title": "Санузел (родители)",
         "group": "parent",
         "leakage": "dLeakage01",
         "movement": "dMov06"
     },
-    "Ванная (родители)": {
-        "id": 007,
+    "room_07": {
+        "id": 7,
         "title": "Ванная (родители)",
         "group": "parent",
         "movement": "dMov07"
     },
-    "Спальня (Михаил)": {
-        "id": 008,
+    "room_08": {
+        "id": 8,
         "title": "Спальня (Михаил)",
         "group": "children",
         "temperature": "dTemp08",
         "humidity": "dHum08",
         "movement": "dMov08"
     },
-    "Спальня (Алексей)": {
+    "room_09": {
         "id": 009,
         "title": "Спальня (Алексей)",
         "group": "children",
@@ -66,23 +66,23 @@
         "humidity": "dHum09",
         "movement": "dMov09"
     },
-    "Прихожая (дети)": {
-        "id": 010,
+    "room_10": {
+        "id": 10,
         "title": "Прихожая (дети)",
         "group": "children",
         "movement": "dMov10"
     },
-    "Санузел (дети)": {
-        "id": 011,
+    "room_11": {
+        "id": 11,
         "title": "Санузел (дети)",
         "group": "children",
         "movement": "dMov11"
     },
-    "Ванная (дети)": {
-        "id": 012,
+    "room_12": {
+        "id": 12,
         "title": "Ванная (дети)",
         "group": "children",
         "leakage": "dLeakage02",
         "movement": "dMov12"
-    },
+    }
 }

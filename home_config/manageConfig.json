@@ -1,0 +1,26 @@
+{
+    "common": {
+        "id": 0,
+        "tempLimitDown": 10, 
+        "tempLimitUp": 32,
+        "tempLimitStep": 0.5,
+        "tempManage": true,
+        "humidLimitDown": 18,
+        "humidLimitUp": 55,
+        "humidLimitStep": 0.5,
+        "humidManage": false,
+        "securityControl": false
+    },
+    "room_01": {
+        "id": 1,
+        "tempLimitDown": 10, 
+        "tempLimitUp": 32,
+        "tempLimitStep": 0.5,
+        "tempManage": true,
+        "humidLimitDown": 18,
+        "humidLimitUp": 55,
+        "humidLimitStep": 0.5,
+        "humidManage": false,
+        "securityControl": false
+    }
+}

@@ -107,24 +107,7 @@ const ClientTransport = pino.transport({
         colorize: false,
       },
     },
-    // {
-    //   target: 'pino-pretty',
-    //   options: {
-    //     destination: path.join(logDirectory, 'client_debug.log'), // Логи уровня debug
-    //     level: 'debug',
-    //     mkdir: true,
-    //     colorize: false,
-    //   },
-    // },
-    // {
-    //   target: 'pino-pretty', // Консольный вывод
-    //   options: {
-    //     level: 'debug',
-    //     colorize: true,
-    //     destination: process.stdout.fd,
-    //   },
-    // },
-    
+   
   ],
 });
 
@@ -200,7 +183,7 @@ WSSNodeRED.on('connection', (ws) => {
   Slogger.info(`Количество подключенных клиентов NodeRED: ${connectedClients}`);
   ws.on('message', (message) => {
       const data = message;
-      Slogger.info(`На порт ${wsRedPORT} от NodRED получено сообщение: ${data}, ${data.name} `);
+      Slogger.info(`На порт ${wsRedPORT} от NodRED получено сообщение: ${data},`);
       sendToDash = true;
       // Передача сообщения на WSSDash
       WSSDash.clients.forEach((client) => {
