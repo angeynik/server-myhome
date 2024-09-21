@@ -1,26 +1,32 @@
 {
     "common": {
         "id": 0,
+        "title": "Общие настройки",
+        "setTemp": 24,
+        "setHumid": 45,
+        "setTempManage": true,
+        "setHumidManage": false,
+        "setSecurityManage": false,
         "tempLimitDown": 10, 
         "tempLimitUp": 32,
-        "tempLimitStep": 0.5,
-        "tempManage": true,
+        "tempLimitStep": 0.5,   
         "humidLimitDown": 18,
         "humidLimitUp": 55,
         "humidLimitStep": 0.5,
-        "humidManage": false,
-        "securityControl": false
     },
     "room_01": {
         "id": 1,
+        "title": "Гостинная",
+        "setTemp": 24,
+        "setHumid": 45,
+        "setTempManage": true,
+        "setHumidManage": false,
+        "setSecurityManage": false,
         "tempLimitDown": 10, 
         "tempLimitUp": 32,
         "tempLimitStep": 0.5,
-        "tempManage": true,
         "humidLimitDown": 18,
         "humidLimitUp": 55,
-        "humidLimitStep": 0.5,
-        "humidManage": false,
-        "securityControl": false
+        "humidLimitStep": 0.5
     }
 }
