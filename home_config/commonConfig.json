@@ -3,86 +3,110 @@
         "id": 1,
         "title": "Гостинная",
         "group": "parent",
-        "temperature":"dTemp01",
-        "humidity": "dHum01",
-        "movement": "dMov01"
+        "sensors": {
+            "dTemp01": "temperature",
+            "dHum01":"humidity",
+            "dMov01":"movement"
+        }
     },
     "room_02": {
         "id": 2,
         "title": "Кухня",
         "group": "parent",
-        "temperature": "dTemp02",
-        "humidity": "dHum02",
-        "movement": "dMov02",
-        "fire": "dFire01"
+        "sensors": {
+            "dTemp03": "temperature",
+            "dHum02":"humidity",
+            "dMov02":"movement",
+            "dFire01": "fire"
+        }
     },
     "room_03": {
         "id": 3,
         "title": "Спальня (родители)",
         "group": "parent",
-        "temperature": "dTemp03",
-        "humidity": "dHum03",
-        "movement": "dMov03"
+        "sensors": {
+            "dTemp04": "temperature",
+            "dHum03":"humidity",
+            "dMov03":"movement"
+        }
     },
     "room_04": {
         "id": 4,
         "title": "Гардероб",
         "group": "parent",
-        "temperature": "dTemp04",
-        "movement": "dMov04"
+        "sensors": {
+            "dTemp06": "temperature",
+            "dMov05":"movement"
+        }
     },
     "room_05": {
         "id": 5,
         "title": "Прихожая (родители)",
         "group": "parent",
-        "movement": "dMov05"
+        "sensors": {
+            "dMov06":"movement"
+        }
     },
     "room_06": {
         "id": 6,
         "title": "Санузел (родители)",
         "group": "parent",
-        "leakage": "dLeakage01",
-        "movement": "dMov06"
+        "sensors": {
+            "dLeakage01": "leakage",
+            "dMov06":"movement"
+        }
     },
     "room_07": {
         "id": 7,
         "title": "Ванная (родители)",
         "group": "parent",
-        "movement": "dMov07"
+        "sensors": {
+            "dMov07":"movement"
+        }
     },
     "room_08": {
         "id": 8,
         "title": "Спальня (Михаил)",
         "group": "children",
-        "temperature": "dTemp08",
-        "humidity": "dHum08",
-        "movement": "dMov08"
+        "sensors": {
+            "dTemp09": "temperature",
+            "dHum08":"humidity",
+            "dMov08":"movement"
+        }
     },
     "room_09": {
         "id": 9,
         "title": "Спальня (Алексей)",
         "group": "children",
-        "temperature": "dTemp09",
-        "humidity": "dHum09",
-        "movement": "dMov09"
+        "sensors": {
+            "dTemp11": "temperature",
+            "dHum09":"humidity",
+            "dMov09":"movement"
+        }
     },
     "room_10": {
         "id": 10,
         "title": "Прихожая (дети)",
         "group": "children",
-        "movement": "dMov10"
+        "sensors": {
+            "dMov10":"movement"
+        }
     },
     "room_11": {
         "id": 11,
         "title": "Санузел (дети)",
         "group": "children",
-        "movement": "dMov11"
+        "sensors": {
+            "dMov11":"movement"
+        }
     },
     "room_12": {
         "id": 12,
         "title": "Ванная (дети)",
         "group": "children",
-        "leakage": "dLeakage02",
-        "movement": "dMov12"
+        "sensors": {
+            "dLeakage02": "leakage",
+            "dMov08":"movement"
+        }
     }
 }
