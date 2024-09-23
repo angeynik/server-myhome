@@ -4,9 +4,9 @@
         "title": "Гостинная",
         "group": "parent",
         "sensors": {
-            "dTemp01": "temperature",
-            "dHum01":"humidity",
-            "dMov01":"movement"
+            "dTemp01": 999,
+            "dHum01": 999,
+            "dMov01": false
         }
     },
     "room_02": {
@@ -14,10 +14,10 @@
         "title": "Кухня",
         "group": "parent",
         "sensors": {
-            "dTemp03": "temperature",
-            "dHum02":"humidity",
-            "dMov02":"movement",
-            "dFire01": "fire"
+            "dTemp03": 999,
+            "dHum02":999,
+            "dMov02": false,
+            "dFire01": false
         }
     },
     "room_03": {
@@ -25,9 +25,9 @@
         "title": "Спальня (родители)",
         "group": "parent",
         "sensors": {
-            "dTemp04": "temperature",
-            "dHum03":"humidity",
-            "dMov03":"movement"
+            "dTemp04": null,
+            "dHum03": null,
+            "dMov03": null
         }
     },
     "room_04": {
