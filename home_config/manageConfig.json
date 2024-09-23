@@ -13,24 +13,9 @@
         "tempLimitStep": 0.5,   
         "humidLimitDown": 18,
         "humidLimitUp": 55,
-        "humidLimitStep": 0.5,
-    },
-    "room_01": {
-        "id": 1,
-        "title": "Гостинная",
-        "setTemp": 24,
-        "setHumid": 45,
-        "setTempManage": true,
-        "setHumidManage": false,
-        "setSecurityManage": false,
-        "tempLimitDown": 10, 
-        "tempLimitUp": 32,
-        "tempLimitStep": 0.5,
-        "humidLimitDown": 18,
-        "humidLimitUp": 55,
         "humidLimitStep": 0.5
     },
-     "room_01": {
+    "room_01": {
         "id": 1,
         "title": "Гостинная",
         "setTemp": 24,
