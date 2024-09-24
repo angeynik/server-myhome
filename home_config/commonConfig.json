@@ -4,9 +4,9 @@
         "title": "Гостинная",
         "group": "parent",
         "sensors": {
-            "dTemp01": 999,
-            "dHum01": 999,
-            "dMov01": false
+            "dTemp01": null,
+            "dHum01": null,
+            "dMov01": null
         }
     },
     "room_02": {
@@ -14,10 +14,10 @@
         "title": "Кухня",
         "group": "parent",
         "sensors": {
-            "dTemp03": 999,
-            "dHum02":999,
-            "dMov02": false,
-            "dFire01": false
+            "dTemp03": null,
+            "dHum02":null,
+            "dMov02": null,
+            "dFire01": null
         }
     },
     "room_03": {
@@ -26,6 +26,7 @@
         "group": "parent",
         "sensors": {
             "dTemp04": null,
+            "dTemp05": null,
             "dHum03": null,
             "dMov03": null
         }
@@ -35,8 +36,8 @@
         "title": "Гардероб",
         "group": "parent",
         "sensors": {
-            "dTemp06": "temperature",
-            "dMov05":"movement"
+            "dTemp06": null,
+            "dMov05":null
         }
     },
     "room_05": {
@@ -44,7 +45,7 @@
         "title": "Прихожая (родители)",
         "group": "parent",
         "sensors": {
-            "dMov06":"movement"
+            "dMov06":null
         }
     },
     "room_06": {
@@ -52,8 +53,8 @@
         "title": "Санузел (родители)",
         "group": "parent",
         "sensors": {
-            "dLeakage01": "leakage",
-            "dMov06":"movement"
+            "dLeakage01": null,
+            "dMov06":null
         }
     },
     "room_07": {
@@ -61,7 +62,7 @@
         "title": "Ванная (родители)",
         "group": "parent",
         "sensors": {
-            "dMov07":"movement"
+            "dMov07":null
         }
     },
     "room_08": {
@@ -69,9 +70,9 @@
         "title": "Спальня (Михаил)",
         "group": "children",
         "sensors": {
-            "dTemp09": "temperature",
-            "dHum08":"humidity",
-            "dMov08":"movement"
+            "dTemp09": null,
+            "dHum08":null,
+            "dMov08":null
         }
     },
     "room_09": {
@@ -79,9 +80,9 @@
         "title": "Спальня (Алексей)",
         "group": "children",
         "sensors": {
-            "dTemp11": "temperature",
-            "dHum09":"humidity",
-            "dMov09":"movement"
+            "dTemp11": null,
+            "dHum09":null,
+            "dMov09":null
         }
     },
     "room_10": {
@@ -89,7 +90,7 @@
         "title": "Прихожая (дети)",
         "group": "children",
         "sensors": {
-            "dMov10":"movement"
+            "dMov10":null
         }
     },
     "room_11": {
@@ -97,7 +98,7 @@
         "title": "Санузел (дети)",
         "group": "children",
         "sensors": {
-            "dMov11":"movement"
+            "dMov11":null
         }
     },
     "room_12": {
@@ -105,8 +106,8 @@
         "title": "Ванная (дети)",
         "group": "children",
         "sensors": {
-            "dLeakage02": "leakage",
-            "dMov08":"movement"
+            "dLeakage02": null,
+            "dMov08":null
         }
     }
 }
