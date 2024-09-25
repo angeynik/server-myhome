@@ -8,6 +8,9 @@ const path = require('path');
 const bodyParser = require('body-parser');
 const fs = require('fs');
 
+// Подключаем функции модуля joi для валидации данных
+const {validType, validConfig} = require('./validate');
+
 const pino = require('pino'); // Подключаем pino для логирования
 const logDirectory = process.env.LOG_DIRECTORY || './logs';
 const log_level = process.env.PINO_LOG_LEVEL || 'info';
@@ -182,17 +185,23 @@ WSSNodeRED.on('connection', (ws) => {
   const connectedClients = WSSNodeRED.clients.size;
   Slogger.info(`Количество подключенных клиентов NodeRED: ${connectedClients}`);
   ws.on('message', (message) => {
-      const data = message;
-      Slogger.info(`На порт ${wsRedPORT} от NodRED получено сообщение: ${data},`);
+    // Подготовка сообщения к дальнейшей работе Преобразование из строки в JSON
+      const data = stringToJSON(message) ;
+      // console.log('Message:', data);
+
+      // Проверка типа сообщения
+      checkMessage(data);
+
+      Slogger.info(`На порт ${wsRedPORT} от NodRED получено сообщение: ${message},`);
       sendToDash = true;
       // Передача сообщения на WSSDash
       WSSDash.clients.forEach((client) => {
         if (client.readyState === WebSocket.OPEN && sendToDash === true) {
-            client.send(data, (error) => {
+            client.send(message, (error) => {
                 if (error) {
                     Slogger.error('Ошибка пересылки сообщения c NodeRED на Dashboard:', error);
                 } else {
-                    Slogger.info(`На порт ${wsDashPORT} от NodeRED к Dashboard отправлено сообщение: ${data}`);                   
+                    Slogger.info(`На порт ${wsDashPORT} от NodeRED к Dashboard отправлено сообщение: ${message}`);                   
                 }
                 this.sendToDash = false;
             });
@@ -248,3 +257,20 @@ Slogger.info(`WebSocket servers are running on ws://localhost:${wsRedPORT} and w
 setTimeout(() => {
     this.sendToDash = false;
 }, this.reconnectInterval);
+
+
+function stringToJSON(message) {
+  const data = message.toString('utf8');
+    return JSON.parse(data);
+};
+
+function checkMessage(message) {
+  if (message.type === 'config') {
+    // Slogger.info(`Валидация сообщения конфигурации: ${validConfig(message)}`);
+    const objectName = Object.keys(message)[0];
+    console.log(`Валидация сообщения конфигурации: ${objectName}`);
+  }
+  if (message.type === 'post') {
+    Slogger.info(`Валидация  сообщения типа post: ${validType(message)}`);
+  }
+};
