@@ -9,7 +9,7 @@ const bodyParser = require('body-parser');
 const fs = require('fs');
 
 // Подключаем функции модуля joi для валидации данных
-const {validType, validConfig} = require('./validate');
+const {validType, validConfig, validPost} = require('./validate');
 
 const pino = require('pino'); // Подключаем pino для логирования
 const logDirectory = process.env.LOG_DIRECTORY || './logs';
@@ -161,6 +161,7 @@ server.listen(servPORT, () => {
 
 const WebSocket = require('ws');
 const { mkdir } = require('fs');
+const { error } = require('console');
 
 //устанавливаем соединение через Web Socket
 const WSSNodeRED = new WebSocket.Server ({port:wsRedPORT});
@@ -185,15 +186,17 @@ WSSNodeRED.on('connection', (ws) => {
   const connectedClients = WSSNodeRED.clients.size;
   Slogger.info(`Количество подключенных клиентов NodeRED: ${connectedClients}`);
   ws.on('message', (message) => {
-    // Подготовка сообщения к дальнейшей работе Преобразование из строки в JSON
-      const data = stringToJSON(message) ;
-      // console.log('Message:', data);
+    Slogger.info(`На порт ${wsRedPORT} от NodRED получено сообщение: ${message},`);
 
       // Проверка типа сообщения
-      checkMessage(data);
-
-      Slogger.info(`На порт ${wsRedPORT} от NodRED получено сообщение: ${message},`);
-      sendToDash = true;
+      const checkInputMessage = checkMessage(message);
+      if (checkInputMessage === 'ok') {
+        Slogger.info(`Проверка сообщения ${message} выполнена без ошибок`);
+        sendToDash = true;
+      } else {
+        Slogger.error(`Ошибка "${checkInputMessage}" при проверке сообщения ${message} `);
+        sendToDash = false;
+      }
       // Передача сообщения на WSSDash
       WSSDash.clients.forEach((client) => {
         if (client.readyState === WebSocket.OPEN && sendToDash === true) {
@@ -264,13 +267,43 @@ function stringToJSON(message) {
     return JSON.parse(data);
 };
 
+// Проверка сообщения и дальнейшая валидация корректности структуры сообщения
 function checkMessage(message) {
-  if (message.type === 'config') {
-    // Slogger.info(`Валидация сообщения конфигурации: ${validConfig(message)}`);
-    const objectName = Object.keys(message)[0];
-    console.log(`Валидация сообщения конфигурации: ${objectName}`);
+  const data = stringToJSON(message); // Преобразуем строку в объект JSON
+
+  // console.log(`1 checkMessage получило сообщение: ${message}`);
+  const { error } = validType(data);
+  if (error) {
+    Slogger.error(`Некорректный формат полученного сообщения. ${message} Ошибка: Error validType: ${error.message}`);
+    return error;
   }
-  if (message.type === 'post') {
-    Slogger.info(`Валидация  сообщения типа post: ${validType(message)}`);
+  switch (data.type) {
+    case 'config':
+        console.log('Переходим к проверке сообщения типа config:');
+      break;
+    case 'post':
+        console.log('Переходим к проверке сообщения типа post.');
+        const resultValidPost = validPost(data);
+        // console.log('Результат валидации:', resultValidPost);
+        if (resultValidPost) {
+          console.log('Результат валидации:', resultValidPost);
+          return "Error validPost: " + resultValidPost.error.message;
+        } else {
+          return 'ok';
+        }
+      // break;
+    case 'get':
+        console.log('Переходим к проверке сообщения типа get.');
+        break;
+    case 'req':
+        console.log('Переходим к проверке сообщения типа req.');
+    break;
+    case 'set':
+      console.log('Переходим к проверке сообщения типа set.');
+    break;
+    default:
+      Slogger.error(`Неизвестный тип сообщения: ${data.type}`);
   }
+  return 'ok';
 };
+
