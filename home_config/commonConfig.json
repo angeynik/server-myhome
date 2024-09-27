@@ -5,8 +5,11 @@
         "group": "parent",
         "sensors": {
             "dTemp01": null,
+            "dTemp01_time": null,
             "dHum01": null,
-            "dMov01": null
+            "dHum01_time": null,
+            "dMov01": null,
+            "dMov01_time": null
         }
     },
     "room02": {
@@ -15,9 +18,13 @@
         "group": "parent",
         "sensors": {
             "dTemp03": null,
+            "dTemp03_time": null,
             "dHum02":null,
+            "dHum02_time":null,
             "dMov02": null,
-            "dFire01": null
+            "dMov02_time": null,
+            "dFire01": null,
+            "dFire01_time": null
         }
     },
     "room03": {
@@ -26,9 +33,13 @@
         "group": "parent",
         "sensors": {
             "dTemp04": null,
+            "dTemp04_time": null,
             "dTemp05": null,
+            "dTemp05_time": null,
             "dHum03": null,
-            "dMov03": null
+            "dHum03_time": null,
+            "dMov03": null,
+            "dMov03_time": null
         }
     },
     "room04": {
@@ -37,15 +48,18 @@
         "group": "parent",
         "sensors": {
             "dTemp06": null,
-            "dMov05":null
+            "dTemp06_time": null,
+            "dMov05":null,
+            "dMov05_time":null
         }
     },
-    "room_05": {
+    "room05": {
         "id": 5,
         "title": "Прихожая (родители)",
         "group": "parent",
         "sensors": {
-            "dMov06":null
+            "dMov06":null,
+            "dMov06_time":null
         }
     },
     "room06": {
@@ -54,7 +68,9 @@
         "group": "parent",
         "sensors": {
             "dLeakage01": null,
-            "dMov06":null
+            "dLeakage01_time": null,
+            "dMov06":null,
+            "dMov06_time":null
         }
     },
     "room07": {
@@ -62,7 +78,8 @@
         "title": "Ванная (родители)",
         "group": "parent",
         "sensors": {
-            "dMov07":null
+            "dMov07":null,
+            "dMov07_time":null
         }
     },
     "room08": {
@@ -71,8 +88,11 @@
         "group": "children",
         "sensors": {
             "dTemp09": null,
+            "dTemp09_time": null,
             "dHum08":null,
-            "dMov08":null
+            "dHum08_time":null,
+            "dMov08":null,
+            "dMov08_time":null
         }
     },
     "room09": {
@@ -81,16 +101,20 @@
         "group": "children",
         "sensors": {
             "dTemp11": null,
+            "dTemp11_time": null,
             "dHum09":null,
-            "dMov09":null
+            "dHum09_time":null,
+            "dMov09":null,
+            "dMov09_time":null
         }
     },
-    "room_10": {
+    "room10": {
         "id": 10,
         "title": "Прихожая (дети)",
         "group": "children",
         "sensors": {
-            "dMov10":null
+            "dMov10":null,
+            "dMov10_time":null
         }
     },
     "room11": {
@@ -98,7 +122,8 @@
         "title": "Санузел (дети)",
         "group": "children",
         "sensors": {
-            "dMov11":null
+            "dMov11":null,
+            "dMov11_time":null
         }
     },
     "room12": {
@@ -107,7 +132,9 @@
         "group": "children",
         "sensors": {
             "dLeakage02": null,
-            "dMov08":null
+            "dLeakage02_time": null,
+            "dMov08":null,
+            "dMov08_time":null
         }
     }
 }
