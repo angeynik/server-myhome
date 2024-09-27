@@ -1,5 +1,5 @@
 {
-    "room_01": {
+    "room01": {
         "id": 1,
         "title": "Гостинная",
         "group": "parent",
@@ -9,7 +9,7 @@
             "dMov01": null
         }
     },
-    "room_02": {
+    "room02": {
         "id": 2,
         "title": "Кухня",
         "group": "parent",
@@ -20,7 +20,7 @@
             "dFire01": null
         }
     },
-    "room_03": {
+    "room03": {
         "id": 3,
         "title": "Спальня (родители)",
         "group": "parent",
@@ -31,7 +31,7 @@
             "dMov03": null
         }
     },
-    "room_04": {
+    "room04": {
         "id": 4,
         "title": "Гардероб",
         "group": "parent",
@@ -48,7 +48,7 @@
             "dMov06":null
         }
     },
-    "room_06": {
+    "room06": {
         "id": 6,
         "title": "Санузел (родители)",
         "group": "parent",
@@ -57,7 +57,7 @@
             "dMov06":null
         }
     },
-    "room_07": {
+    "room07": {
         "id": 7,
         "title": "Ванная (родители)",
         "group": "parent",
@@ -65,7 +65,7 @@
             "dMov07":null
         }
     },
-    "room_08": {
+    "room08": {
         "id": 8,
         "title": "Спальня (Михаил)",
         "group": "children",
@@ -75,7 +75,7 @@
             "dMov08":null
         }
     },
-    "room_09": {
+    "room09": {
         "id": 9,
         "title": "Спальня (Алексей)",
         "group": "children",
@@ -93,7 +93,7 @@
             "dMov10":null
         }
     },
-    "room_11": {
+    "room11": {
         "id": 11,
         "title": "Санузел (дети)",
         "group": "children",
@@ -101,7 +101,7 @@
             "dMov11":null
         }
     },
-    "room_12": {
+    "room12": {
         "id": 12,
         "title": "Ванная (дети)",
         "group": "children",

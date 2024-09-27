@@ -185,8 +185,10 @@ WSSNodeRED.on('connection', (ws) => {
   Slogger.info('Client connected to NodeRED');
   const connectedClients = WSSNodeRED.clients.size;
   Slogger.info(`Количество подключенных клиентов NodeRED: ${connectedClients}`);
+
   ws.on('message', (message) => {
     Slogger.info(`На порт ${wsRedPORT} от NodRED получено сообщение: ${message},`);
+    // sendToDash = true;
 
       // Проверка типа сообщения
       const checkInputMessage = checkMessage(message);
@@ -197,6 +199,7 @@ WSSNodeRED.on('connection', (ws) => {
         Slogger.error(`Ошибка "${checkInputMessage}" при проверке сообщения ${message} `);
         sendToDash = false;
       }
+
       // Передача сообщения на WSSDash
       WSSDash.clients.forEach((client) => {
         if (client.readyState === WebSocket.OPEN && sendToDash === true) {
@@ -204,7 +207,7 @@ WSSNodeRED.on('connection', (ws) => {
                 if (error) {
                     Slogger.error('Ошибка пересылки сообщения c NodeRED на Dashboard:', error);
                 } else {
-                    Slogger.info(`На порт ${wsDashPORT} от NodeRED к Dashboard отправлено сообщение: ${message}`);                   
+                    Slogger.info(`На порт ${wsDashPORT} от Server к Dashboard отправлено сообщение: ${message}`);                   
                 }
                 this.sendToDash = false;
             });
@@ -226,19 +229,19 @@ WSSNodeRED.on('connection', (ws) => {
 
 // Работаем с Dashboard
 WSSDash.on('connection', (ws) => {
-  Slogger.info('Client connected to Dashboard');
+  Slogger.info('Client connected to Dashboard on port ' + wsDashPORT);
 
   ws.on('message', (message) => {
       Slogger.info(`На порт ${wsDashPORT} от Dashboard получено сообщение: ${message} `);
       sendToRed = true;
       // Передача сообщения на WSSDash
-      WSSDash.clients.forEach((client) => {
+      WSSNodeRED.clients.forEach((client) => {
         if (client.readyState === WebSocket.OPEN && sendToRed === true) {
             client.send(message, (error) => {
                 if (error) {
                     Slogger.error('Ошибка пересылки сообщения c Dashboard на NodeRED :', error);
                 } else {
-                    Slogger.info(`На порт ${wsRedPORT} от Dashboard к NodeREDотправлено сообщение: ${message}`);
+                    Slogger.info(`На порт ${wsRedPORT} от Server  к NodeRED  отправлено сообщение: ${message}`);
                 }
                 sendToDash = false;
             });

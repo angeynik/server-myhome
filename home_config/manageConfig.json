@@ -15,7 +15,7 @@
         "humidLimitUp": 55,
         "humidLimitStep": 0.5
     },
-    "room_01": {
+    "room01": {
         "id": 1,
         "title": "Гостинная",
         "setTemp": 24,
@@ -30,7 +30,7 @@
         "humidLimitUp": 55,
         "humidLimitStep": 0.5
     },
-    "room_06": {
+    "room06": {
         "id": 6,
         "title": "Санузел (родители)",
         "setLiquidManage": true
