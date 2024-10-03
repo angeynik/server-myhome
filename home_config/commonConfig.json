@@ -12,6 +12,12 @@
             "dTemp01_time": null,
             "dHum01_time": null,
             "dMov01_time": null
+        },
+        "actuators": {
+            "aSwitch01": null,
+            "aSwitch02": null, 
+            "aSwitch03": null, 
+            "aSwitch04": null
         }
     },
     "room02": {
@@ -29,6 +35,11 @@
             "dHum02_time":null,
             "dMov02_time": null,
             "dFire01_time": null
+        },
+        "actuators": {
+            "aSwitch05": null,
+            "aSwitch06": null, 
+            "aSwitch07": null
         }
     },
     "room03": {
@@ -46,6 +57,12 @@
             "dTemp05_time": null,
             "dHum03_time": null,
             "dMov03_time": null
+        },
+        "actuators": {
+            "aSwitch08": null,
+            "aSwitch09": null, 
+            "aSwitch10": null, 
+            "aSwitch11": null
         }
     },
     "room04": {
