@@ -119,7 +119,8 @@ module.exports = Clogger;
 
 require('dotenv').config({ path: './conf.env' }); // Подключаем .ENV файл с переменными окружения
 
-const servPORT = process.env.SERVER_PORT || 3010;
+//const servPORT = process.env.SERVER_PORT || 3010;
+const servPORT = 3010;
 const wsRedPORT = process.env.WSR_PORT || 9200;
 const wsDashPORT = process.env.WSD_PORT || 9202;
 
