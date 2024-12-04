@@ -7,7 +7,7 @@ const server = require('http').createServer(app);
 const wss = new WebSocket.Server({ noServer: true });
 
 const servPORT = 3010;
-const wsRedPORT = 9200;
+const wsRedPORT = 9209;
 // const wsDashPORT = 9202;
 
 app.set(servPORT);
@@ -21,6 +21,9 @@ const WSSNodeRED = new WebSocket.Server ({port:wsRedPORT});
 
 WSSNodeRED.on('connection', (ws) => {
     console.log('Client connected to NodeRED');
+    const connectedClients = WSSNodeRED.clients.size;
+    console.log(`Количество подключенных клиентов NodeRED: ${connectedClients}`);
+
         ws.on('message', (message) => {
         console.log('Received:', message);
         ws.send(`Echo: ${message}`);

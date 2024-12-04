@@ -192,28 +192,29 @@ WSSNodeRED.on('connection', (ws) => {
     // sendToDash = true;
 
       // Проверка типа сообщения
-      const checkInputMessage = checkMessage(message);
-      if (checkInputMessage === 'ok') {
-        Slogger.info(`Проверка сообщения ${message} выполнена без ошибок`);
-        sendToDash = true;
-      } else {
-        Slogger.error(`Ошибка "${checkInputMessage}" при проверке сообщения ${message} `);
-        sendToDash = false;
-      }
+      // const checkInputMessage = checkMessage(message);
+      // if (checkInputMessage === 'ok') {
+      //   Slogger.info(`Проверка сообщения ${message} выполнена без ошибок`);
+      //   sendToDash = true;
+      // } else {
+      //   Slogger.error(`Ошибка "${checkInputMessage}" при проверке сообщения ${message} `);
+      //   sendToDash = false;
+      // }
 
       // Передача сообщения на WSSDash
-      WSSDash.clients.forEach((client) => {
-        if (client.readyState === WebSocket.OPEN && sendToDash === true) {
-            client.send(message, (error) => {
-                if (error) {
-                    Slogger.error('Ошибка пересылки сообщения c NodeRED на Dashboard:', error);
-                } else {
-                    Slogger.info(`На порт ${wsDashPORT} от Server к Dashboard отправлено сообщение: ${message}`);                   
-                }
-                this.sendToDash = false;
-            });
-        }
-    });
+    //   WSSDash.clients.forEach((client) => {
+    //     if (client.readyState === WebSocket.OPEN && sendToDash === true) {
+    //         client.send(message, (error) => {
+    //             if (error) {
+    //                 Slogger.error('Ошибка пересылки сообщения c NodeRED на Dashboard:', error);
+    //             } else {
+    //                 Slogger.info(`На порт ${wsDashPORT} от Server к Dashboard отправлено сообщение: ${message}`);                   
+    //             }
+    //             this.sendToDash = false;
+    //         });
+    //     }
+    // });
+
   });
 
   ws.on('error', (error) => {
