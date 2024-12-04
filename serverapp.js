@@ -171,7 +171,7 @@ const WSSDash = new WebSocket.Server ({port:wsDashPORT});
 // Блок с переменными
 let sendToDash = false;
 let sendToRed = false;
-const reconnectInterval = 100;
+const reconnectInterval = 50;
 //let redConnection = false;
 //let dashConnection = false;
 let activeSocket = null; // Переменная для хранения активного подключения
@@ -259,7 +259,7 @@ WSSDash.on('connection', (ws) => {
   });
 });
 
-Slogger.info(`WebSocket servers are running on ws://localhost:${wsRedPORT} and ws://localhost:${wsDashPORT}`);
+Slogger.info(`WebSocket servers are running on nodeRed ws://localhost:${wsRedPORT} and DashBoard (client) ws://localhost:${wsDashPORT}`);
 //logger.debug(`WebSocket servers are running on ws://localhost:${wsRedPORT} and ws://localhost:${wsDashPORT}`);
 setTimeout(() => {
     this.sendToDash = false;
