@@ -188,19 +188,19 @@ WSSNodeRED.on('connection', (ws) => {
   Slogger.info(`Количество подключенных клиентов NodeRED: ${connectedClients}`);
 
   ws.on('message', (message) => {
-    console.log('от NodRED получено сообщение');
+    console.log('-- 191 -- от NodRED получено сообщение', message);
     Slogger.info(`На порт ${wsRedPORT} от NodRED получено сообщение: ${message},`);
-    //sendToDash = true;
+    sendToDash = true;
 
       // Проверка типа сообщения
       const checkInputMessage = checkMessage(message);
       if (checkInputMessage === 'ok') {
         Slogger.info(`Проверка сообщения ${message} выполнена без ошибок`);
-        this.sendToDash = true;
-        console.info('Проверка сообщения выполнена без ошибок, sendToDash =', this.sendToDash);
+        sendToDash = true;
+        console.info('Проверка сообщения выполнена без ошибок, sendToDash =', sendToDash);
       } else {
         Slogger.error(`Ошибка "${checkInputMessage}" при проверке сообщения ${message} `);
-        this.sendToDash = false;
+        sendToDash = false;
       }
 
       // Передача сообщения на WSSDash
@@ -232,7 +232,7 @@ WSSNodeRED.on('connection', (ws) => {
 
 // Работаем с Dashboard
 WSSDash.on('connection', (ws) => {
-  Slogger.info('Client connected to Dashboard on port ' + wsDashPORT);
+  Slogger.info('-- 235 -- Client connected to Dashboard on port ' + wsDashPORT);
 
   ws.on('message', (message) => {
       Slogger.info(`На порт ${wsDashPORT} от Dashboard получено сообщение: ${message} `);
