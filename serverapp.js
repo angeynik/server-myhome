@@ -169,7 +169,7 @@ const WSSNodeRED = new WebSocket.Server ({port:wsRedPORT});
 const WSSDash = new WebSocket.Server ({port:wsDashPORT});
 
 // Блок с переменными
-let sendToDash = false;
+let sendToDash = true;
 let sendToRed = false;
 const reconnectInterval = 50;
 //let redConnection = false;
@@ -193,18 +193,31 @@ WSSNodeRED.on('connection', (ws) => {
     sendToDash = true;
 
       // Проверка типа сообщения
-      const checkInputMessage = checkMessage(message);
-      if (checkInputMessage === 'ok') {
-        Slogger.info(`Проверка сообщения ${message} выполнена без ошибок`);
-        sendToDash = true;
-        console.info('Проверка сообщения выполнена без ошибок, sendToDash =', sendToDash);
-      } else {
-        Slogger.error(`Ошибка "${checkInputMessage}" при проверке сообщения ${message} `);
-        sendToDash = false;
-      }
+// Временно отключаем валидацию для проверки механизма пересылки от Server к Client
+      // const checkInputMessage = checkMessage(message);
+      // if (checkInputMessage === 'ok') {
+      //   Slogger.info(`Проверка сообщения ${message} выполнена без ошибок`);
+      //   sendToDash = true;
+      //   console.info('Проверка сообщения выполнена без ошибок, sendToDash =', sendToDash);
+      // } else {
+      //   Slogger.error(`Ошибка "${checkInputMessage}" при проверке сообщения ${message} `);
+      //   sendToDash = false;
+      // }
 
+      //Проверка готовности Client
+      WSSDash.clients.forEach((client) => {
+        console.log(`Проверка состояния клиента: ${client.readyState}`);
+        if (client.readyState === WebSocket.OPEN) {
+          console.log('Клиент готов принять сообщение');
+        } else {
+          console.log('Клиент не готов принять сообщение');
+        }
+      });
+
+      
       // Передача сообщения на WSSDash
       WSSDash.clients.forEach((client) => {
+        console.log('WebSocket.Open', WebSocket.OPEN);
         if (client.readyState === WebSocket.OPEN && sendToDash === true) {
             client.send(message, (error) => {
                 if (error) {
@@ -212,7 +225,7 @@ WSSNodeRED.on('connection', (ws) => {
                 } else {
                     Slogger.info(`На порт ${wsDashPORT} от Server к Dashboard отправлено сообщение: ${message}`);                   
                 }
-                this.sendToDash = false;
+                sendToDash = false;
             });
         }
     });
