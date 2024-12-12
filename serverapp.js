@@ -182,24 +182,25 @@ let activeSocket = null; // Переменная для хранения акт�
 
 WSSNodeRED.on('connection', (ws) => {
 
-  console.log('Client connected to NodeRED');
-  Slogger.info('Client connected to NodeRED');
+  console.log(`Client connected to NodeRED on port ${wsRedPORT}`);
+  Slogger.info(`Client connected to NodeRED on port ${wsRedPORT}`);
   const connectedClients = WSSNodeRED.clients.size;
   Slogger.info(`Количество подключенных клиентов NodeRED: ${connectedClients}`);
 
   ws.on('message', (message) => {
     console.log('от NodRED получено сообщение');
     Slogger.info(`На порт ${wsRedPORT} от NodRED получено сообщение: ${message},`);
-    sendToDash = true;
+    //sendToDash = true;
 
       // Проверка типа сообщения
       const checkInputMessage = checkMessage(message);
       if (checkInputMessage === 'ok') {
         Slogger.info(`Проверка сообщения ${message} выполнена без ошибок`);
-        sendToDash = true;
+        this.sendToDash = true;
+        console.info('Проверка сообщения выполнена без ошибок, sendToDash =', this.sendToDash);
       } else {
         Slogger.error(`Ошибка "${checkInputMessage}" при проверке сообщения ${message} `);
-        sendToDash = false;
+        this.sendToDash = false;
       }
 
       // Передача сообщения на WSSDash
