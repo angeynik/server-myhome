@@ -171,7 +171,7 @@ const WSSDash = new WebSocket.Server ({port:wsDashPORT});
 // Блок с переменными
 let sendToDash = true;
 let sendToRed = false;
-const reconnectInterval = 50;
+const reconnectInterval = 100;
 //let redConnection = false;
 //let dashConnection = false;
 let activeSocket = null; // Переменная для хранения активного подключения
@@ -193,16 +193,17 @@ WSSNodeRED.on('connection', (ws) => {
     sendToDash = true;
 
       // Проверка типа сообщения
-// Временно отключаем валидацию для проверки механизма пересылки от Server к Client
-      // const checkInputMessage = checkMessage(message);
-      // if (checkInputMessage === 'ok') {
-      //   Slogger.info(`Проверка сообщения ${message} выполнена без ошибок`);
-      //   sendToDash = true;
-      //   console.info('Проверка сообщения выполнена без ошибок, sendToDash =', sendToDash);
-      // } else {
-      //   Slogger.error(`Ошибка "${checkInputMessage}" при проверке сообщения ${message} `);
-      //   sendToDash = false;
-      // }
+// Временно отключаем валидацию для проверки механизма пересылки от Server к 
+      console.log('Приступаем к валидации полученных  от NodRED данных');
+      const checkInputMessage = checkMessage(message);
+      if (checkInputMessage === 'ok') {
+        Slogger.info(`Проверка сообщения ${message} выполнена без ошибок, checkInputMessage = ${checkInputMessage}`);
+        sendToDash = true;
+        console.info('Проверка сообщения выполнена без ошибок, sendToDash =', sendToDash);
+      } else {
+        Slogger.error(`Ошибка "${checkInputMessage}" при проверке сообщения ${message} `);
+        sendToDash = false;
+      }
 
       //Проверка готовности Client
       WSSDash.clients.forEach((client) => {
@@ -217,7 +218,7 @@ WSSNodeRED.on('connection', (ws) => {
       
       // Передача сообщения на WSSDash
       WSSDash.clients.forEach((client) => {
-        console.log('WebSocket.Open', WebSocket.OPEN);
+        console.log('WebSocket.Open - ', WebSocket.OPEN, ' и sendToDash=', sendToDash, 'отправка сообщения разрешена');
         if (client.readyState === WebSocket.OPEN && sendToDash === true) {
             client.send(message, (error) => {
                 if (error) {
@@ -277,8 +278,8 @@ WSSDash.on('connection', (ws) => {
 Slogger.info(`WebSocket servers are running on nodeRed ws://localhost:${wsRedPORT} and DashBoard (client) ws://localhost:${wsDashPORT}`);
 //logger.debug(`WebSocket servers are running on ws://localhost:${wsRedPORT} and ws://localhost:${wsDashPORT}`);
 setTimeout(() => {
-    this.sendToDash = false;
-}, this.reconnectInterval);
+    sendToDash = false;
+}, reconnectInterval);
 
 
 function stringToJSON(message) {
