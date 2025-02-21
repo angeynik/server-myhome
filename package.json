@@ -17,9 +17,7 @@
     "dotenv": "^16.4.5",
 <<<<<<< HEAD
     "express": "^4.21.1",
-=======
-    "express": "^4.21.2",
->>>>>>> 5de05b334ec4e0e70fef1f829c7126fa64410f3e
+    "wiring-pi": "^2.2.1"
     "http": "^0.0.1-security",
     "joi": "^17.13.3",
     "morgan": "^1.10.0",

@@ -275,7 +275,7 @@ WSSDash.on('connection', (ws) => {
   });
 });
 
-Slogger.info(`WebSocket servers are running on nodeRed ws://localhost:${wsRedPORT} and DashBoard (client) ws://localhost:${wsDashPORT}`);
+Slogger.info(`WebSocket servers are running on nodeRed ws port:${wsRedPORT} and DashBoard (client) ws port:${wsDashPORT}`);
 //logger.debug(`WebSocket servers are running on ws://localhost:${wsRedPORT} and ws://localhost:${wsDashPORT}`);
 setTimeout(() => {
     sendToDash = false;
