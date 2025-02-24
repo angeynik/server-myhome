@@ -173,8 +173,7 @@ const WSSDash = new WebSocket.Server ({port:wsDashPORT});
 let sendToDash = true;
 let sendToRed = false;
 const reconnectInterval = 100;
-//let redConnection = false;
-//let dashConnection = false;
+
 let activeSocket = null; // Переменная для хранения активного подключения
 
 
@@ -331,3 +330,64 @@ function checkMessage(message) {
   return 'ok';
 };
 
+// Gpio - Работа с пинами на OrangePi
+// Настройка входных пинов
+const input17 = new Gpio(17, 'in', 'both');
+const input13 = new Gpio(13, 'in', 'both');
+
+// Настройка выходных пинов
+const output5 = new Gpio(5, 'out');
+const output6 = new Gpio(6, 'out');
+
+// Переменная для управления
+let openDoor = false;
+
+// Функция для обновления состояния выходов в зависимости от переменной openDoor
+function updateOutputs() {
+  const value = openDoor ? 1 : 0;
+  output5.writeSync(value);
+  output6.writeSync(value);
+}
+
+// Обработчик для отслеживания состояния входов
+input17.watch((err, value) => {
+  if (err) {
+    console.error('Ошибка при чтении пина 17:', err);
+    return;
+  }
+  console.log(`Состояние пина 17: ${value}`);
+  // Логика для обработки изменения состояния пина 17
+});
+
+input13.watch((err, value) => {
+  if (err) {
+    console.error('Ошибка при чтении пина 13:', err);
+    return;
+  }
+  console.log(`Состояние пина 13: ${value}`);
+  // Логика для обработки изменения состояния пина 13
+});
+
+// Эндпоинт для управления переменной openDoor
+app.post('/setOpenDoor/:state', (req, res) => {
+  const state = req.params.state.toLowerCase();
+  if (state === 'true') {
+    openDoor = true;
+  } else if (state === 'false') {
+    openDoor = false;
+  } else {
+    return res.status(400).json({ message: 'Invalid state' });
+  }
+  updateOutputs();
+  res.json({ message: 'openDoor updated', openDoor });
+});
+
+
+// Очистка ресурсов при завершении работы
+process.on('SIGINT', () => {
+  input17.unexport();
+  input13.unexport();
+  output5.unexport();
+  output6.unexport();
+  process.exit();
+});
