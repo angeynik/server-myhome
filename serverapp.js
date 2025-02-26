@@ -13,59 +13,139 @@ const fs = require('fs');
 
 
 // const Gpio = require('onoff').Gpio;
+
 // Подключаем функции модуля для управления PINS OrangePi
 const {gpioExport, gpioUnexport, gpioSetDirection, gpioReadValue, gpioWriteValue } = require('./gpio.js');
+const deviceName = process.env.DEVICE_NAME || 'zero3';
+console.log(`deviceName - ${deviceName}`, process.env.DEVICE_NAME );
+const config = loadConfig();
 
-// Чтение конфигурационного файла
+  // Инициализация GPIO
+  initializeGpio(config, deviceName);
+
+
+
+  // Инициализация выходных пинов
+  deviceConfig.outputPins.forEach(pin => {
+    gpioExport(pin);
+    gpioSetDirection(pin, 'out');
+    console.log(`GPIO ${pin} настроен как выход.`);
+  });
+  const openPinGpio = config[deviceName].outputPins[0];
+  console.log('openPinGpio - ', openPinGpio);
+  const closePinGpio = config[deviceName].outputPins[1];
+  console.log('closePinGpio - ', closePinGpio);
+  
+  setTimeout(() => {
+    gpioWriteValue(openPinGpio, 1); // Включение openPinGpio через 30 секунд
+  }, 30000);
+
+  //gpioWriteValue(closePinGpio, 1); // Включение closePinGpio
+
+  // Инициализация входных пинов
+  deviceConfig.inputPins.forEach(pin => {
+    gpioExport(pin);
+    gpioSetDirection(pin, 'in');
+    console.log(`GPIO ${pin} настроен как вход.`);
+  });
+  const sensorDoorPinGpio = config[deviceName].inputPins[0];
+  console.log('sensorDoorPinGpio - ', sensorDoorPinGpio);
+  const doorWatch = watchGpio(sensorDoorPinGpio, 500, 250);
+
+  const sensorLockPinGpio = config[deviceName].inputPins[1];
+  console.log('sensorLockPinGpio - ', sensorLockPinGpio);
+  const lockWatch = watchGpio(sensorLockPinGpio, 500, 250);
+ 
+
+//Функция Чтение конфигурационного файла
 function loadConfig() {
   try {
     const gpioConfigFile = fs.readFileSync('./gpioConf.json', 'utf8');
     return JSON.parse(gpioConfigFile);
   } catch (err) {
     console.error('Ошибка при чтении конфигурационного файла:', err);
-    //process.exit(1); // Завершаем программу, если конфигурация не загружена
   }
 }
-
-// Инициализация GPIO на основе конфигурации
+// Функция Инициализация GPIO на основе конфигурации
 function initializeGpio(config, deviceName) {
   const deviceConfig = config[deviceName];
   if (!deviceConfig) {
     console.error(`Конфигурация для устройства "${deviceName}" не найдена.`);
-    process.exit(1);
+    return;
   }
+}
+// Функция Освобождение GPIO
+function cleanupGpio(config, deviceName) {
+  const deviceConfig = config[deviceName];
+  if (!deviceConfig) return;
 
+  // Освобождение всех пинов
+  deviceConfig.outputPins.concat(deviceConfig.inputPins).forEach(pin => {
+    gpioUnexport(pin);
+    console.log(`GPIO ${pin} освобожден.`);
+  });
+}
+// Отслеживание изменений состояния GPIO с дебаунсом
+function watchGpio(inputPin, checkTime, debounceTime) {
+  let previousValue = gpioReadValue(inputPin); // Сохраняем начальное состояние
+  let lastChangeTime = 0; // Время последнего изменения состояния
 
+  console.log(`Начальное состояние GPIO ${inputPin}:`, previousValue);
 
+  // Периодическая проверка состояния
+  const interval = setInterval(() => {
+    const currentValue = gpioReadValue(inputPin); // Читаем текущее состояние
+    const currentTime = Date.now(); // Текущее время
 
+    // Проверяем, изменилось ли состояние и прошел ли дебаунс
+    if (currentValue !== previousValue && currentTime - lastChangeTime > debounceTime) {
+      console.log(`Состояние GPIO ${inputPin} изменилось:`, previousValue, '->', currentValue);
+      previousValue = currentValue; // Обновляем предыдущее состояние
+      lastChangeTime = currentTime; // Обновляем время последнего изменения
+    }
+  }, checkTime); // Интервал проверки (в миллисекундах)
 
+  // Возвращаем функцию для остановки отслеживания
+  return () => clearInterval(interval);
+}
 
-
-
-
-
-
-// Пример использования
-const gpioPin = 70; // Используйте правильный номер GPIO
-const gpioIn = 75;
-
-gpioExport(gpioPin); // Экспорт GPIO
-gpioSetDirection(gpioPin, 'out'); // Установка направления (вывод)
-
-gpioExport(gpioIn); // Экспорт GPIO
-gpioSetDirection(gpioIn, 'in');
-
-// Установка значения GPIO
-gpioWriteValue(gpioPin, 1); // Включение
-gpioReadValue(gpioIn);
 setTimeout(() => {
-  gpioWriteValue(gpioPin, 0); // Выключение через 2 секунды
-  gpioReadValue(gpioIn);
-  gpioUnexport(gpioPin); // Освобождение GPIO
-  gpioUnexport(gpioIn);
-}, 15000);
+  stopWatching(); // Остановка отслеживания
+  cleanupGpio(config, deviceName); // Освобождение GPIO
+}, 320000);
 
 
+
+
+
+// Вторая реализация
+// // Пример использования
+// const gpioPin = 70; // Используйте правильный номер GPIO
+// const gpioIn = 75;
+
+// gpioExport(gpioPin); // Экспорт GPIO
+// gpioSetDirection(gpioPin, 'out'); // Установка направления (вывод)
+
+// gpioExport(gpioIn); // Экспорт GPIO
+// gpioSetDirection(gpioIn, 'in');
+
+// // Установка значения GPIO
+// gpioWriteValue(gpioPin, 1); // Включение
+// gpioReadValue(gpioIn);
+// setTimeout(() => {
+//   gpioWriteValue(gpioPin, 0); // Выключение через 2 секунды
+//   gpioReadValue(gpioIn);
+//   gpioUnexport(gpioPin); // Освобождение GPIO
+//   gpioUnexport(gpioIn);
+// }, 15000);
+
+
+
+
+
+
+
+// Первая реализация
 // const gpioNumbers = [5, 6]; // Массив номеров GPIO
 // const gpioPaths = gpioNumbers.map(num => `/sys/class/gpio/gpio${num}`);
 // const gpios = [];

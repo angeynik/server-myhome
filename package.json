@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "jest",
     "start": "nodemon serverapp.js | npx pino-pretty"
   },
   "keywords": [],
@@ -29,5 +29,8 @@
     "vue-route": "^1.5.1",
     "vuejs3-logger": "^1.0.0",
     "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
   }
 }
