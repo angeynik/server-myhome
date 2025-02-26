@@ -1,7 +1,7 @@
 const fs = require('fs');
 
 // Функции для работы с GPIO
-function exportGpio(pin) {
+function gpioExport(pin) {
   try {
     fs.writeFileSync('/sys/class/gpio/export', pin.toString());
     console.log(`GPIO ${pin} успешно экспортирован`);
@@ -10,7 +10,7 @@ function exportGpio(pin) {
   }
 }
 
-function setGpioDirection(pin, direction) {
+function gpioSetDirection(pin, direction) {
   const directionPath = `/sys/class/gpio/gpio${pin}/direction`;
   try {
     fs.writeFileSync(directionPath, direction);
@@ -20,7 +20,7 @@ function setGpioDirection(pin, direction) {
   }
 }
 
-function readGpioValue(pin) {
+function gpioReadValue(pin) {
   const valuePath = `/sys/class/gpio/gpio${pin}/value`;
   try {
     const value = fs.readFileSync(valuePath, 'utf8').trim();
@@ -31,7 +31,7 @@ function readGpioValue(pin) {
   }
 }
 
-function writeGpioValue(pin, value) {
+function gpioWriteValue(pin, value) {
   const valuePath = `/sys/class/gpio/gpio${pin}/value`;
   try {
     fs.writeFileSync(valuePath, value.toString());
@@ -41,7 +41,7 @@ function writeGpioValue(pin, value) {
   }
 }
 
-function unexportGpio(pin) {
+function gpioUnexport(pin) {
   try {
     fs.writeFileSync('/sys/class/gpio/unexport', pin.toString());
     console.log(`GPIO ${pin} успешно освобожден`);
@@ -50,15 +50,17 @@ function unexportGpio(pin) {
   }
 }
 
-// Пример использования
-const gpioPin = 70; // Используйте правильный номер GPIO
+// // Пример использования
+// const gpioPin = 70; // Используйте правильный номер GPIO
 
-exportGpio(gpioPin); // Экспорт GPIO
-setGpioDirection(gpioPin, 'out'); // Установка направления (вывод)
+// gpioExport(gpioPin); // Экспорт GPIO
+// gpioSetDirection(gpioPin, 'out'); // Установка направления (вывод)
 
-// Установка значения GPIO
-writeGpioValue(gpioPin, 1); // Включение
-setTimeout(() => {
-  writeGpioValue(gpioPin, 0); // Выключение через 2 секунды
-  unexportGpio(gpioPin); // Освобождение GPIO
-}, 1000);
+// // Установка значения GPIO
+// gpioWriteValue(gpioPin, 1); // Включение
+// setTimeout(() => {
+//   gpioWriteValue(gpioPin, 0); // Выключение через 2 секунды
+//   gpioUnexport(gpioPin); // Освобождение GPIO
+// }, 1000);
+
+module.exports = { gpioExport, gpioUnexport, gpioSetDirection, gpioReadValue, gpioWriteValue};

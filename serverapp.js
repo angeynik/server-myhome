@@ -6,46 +6,70 @@ const http = require('http');
 const cors = require('cors');
 const path = require('path');
 const bodyParser = require('body-parser');
-const fs = require('fs');
-const Gpio = require('onoff').Gpio;
+
+// const fs = require('fs');
+// const Gpio = require('onoff').Gpio;
+// Подключаем функции модуля для управления PINS OrangePi
+const {gpioExport, gpioUnexport, gpioSetDirection, gpioReadValue, gpioWriteValue } = require('./gpio.js');
+
+// Пример использования
+const gpioPin = 70; // Используйте правильный номер GPIO
+const gpioIn = 75;
+
+exportGpio(gpioPin); // Экспорт GPIO
+setGpioDirection(gpioPin, 'out'); // Установка направления (вывод)
+
+exportGpio(gpioIn); // Экспорт GPIO
+setGpioDirection(gpioIn, 'in');
+
+// Установка значения GPIO
+writeGpioValue(gpioPin, 1); // Включение
+readGpioValue(gpioIn);
+setTimeout(() => {
+  writeGpioValue(gpioPin, 0); // Выключение через 2 секунды
+  readGpioValue(gpioIn);
+  setGpioDirection(gpioPin, 'out');
+ unexportGpio(gpioPin); // Освобождение GPIO
+ unexportGpio(gpioIn);
+}, 15000);
 
 
-const gpioNumbers = [5, 6]; // Массив номеров GPIO
-const gpioPaths = gpioNumbers.map(num => `/sys/class/gpio/gpio${num}`);
-const gpios = [];
+// const gpioNumbers = [5, 6]; // Массив номеров GPIO
+// const gpioPaths = gpioNumbers.map(num => `/sys/class/gpio/gpio${num}`);
+// const gpios = [];
 
-// Экспортируем и настраиваем GPIO
-gpioNumbers.forEach((gpioNumber, index) => {
-  if (!fs.existsSync(gpioPaths[index])) {
-    try {
-      fs.writeFileSync('/sys/class/gpio/export', gpioNumber.toString());
-      console.log(`GPIO ${gpioNumber} успешно экспортирован`);
-    } catch (err) {
-      console.error(`Ошибка при экспорте GPIO ${gpioNumber}:`, err);
-    }
-  }
+// // Экспортируем и настраиваем GPIO
+// gpioNumbers.forEach((gpioNumber, index) => {
+//   if (!fs.existsSync(gpioPaths[index])) {
+//     try {
+//       fs.writeFileSync('/sys/class/gpio/export', gpioNumber.toString());
+//       console.log(`GPIO ${gpioNumber} успешно экспортирован`);
+//     } catch (err) {
+//       console.error(`Ошибка при экспорте GPIO ${gpioNumber}:`, err);
+//     }
+//   }
 
-  const gpio = new Gpio(gpioNumber, 'in', 'both');
-  gpios.push(gpio);
+//   const gpio = new Gpio(gpioNumber, 'in', 'both');
+//   gpios.push(gpio);
 
-  gpio.watch((err, value) => {
-    if (err) {
-      console.error(`Ошибка при отслеживании GPIO ${gpioNumber}:`, err);
-      return;
-    }
-    console.log(`GPIO ${gpioNumber} изменился. Текущее значение: ${value}`);
-  });
+//   gpio.watch((err, value) => {
+//     if (err) {
+//       console.error(`Ошибка при отслеживании GPIO ${gpioNumber}:`, err);
+//       return;
+//     }
+//     console.log(`GPIO ${gpioNumber} изменился. Текущее значение: ${value}`);
+//   });
 
-  // Проверка начального состояния пина
-  console.log(`Инициализация GPIO ${gpioNumber}: начальное значение ${gpio.readSync()}`);
-});
+//   // Проверка начального состояния пина
+//   console.log(`Инициализация GPIO ${gpioNumber}: начальное значение ${gpio.readSync()}`);
+// });
 
-// Обработчик для корректного завершения
-process.on('SIGINT', () => {
-  gpios.forEach(gpio => gpio.unexport());
-  console.log('GPIO успешно освобождены');
-  process.exit();
-});
+// // Обработчик для корректного завершения
+// process.on('SIGINT', () => {
+//   gpios.forEach(gpio => gpio.unexport());
+//   console.log('GPIO успешно освобождены');
+//   process.exit();
+// });
 
 
 
