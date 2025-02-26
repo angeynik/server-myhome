@@ -9,6 +9,48 @@ const bodyParser = require('body-parser');
 const fs = require('fs');
 const Gpio = require('onoff').Gpio;
 
+
+const gpioNumbers = [5, 6]; // Массив номеров GPIO
+const gpioPaths = gpioNumbers.map(num => `/sys/class/gpio/gpio${num}`);
+const gpios = [];
+
+// Экспортируем и настраиваем GPIO
+gpioNumbers.forEach((gpioNumber, index) => {
+  if (!fs.existsSync(gpioPaths[index])) {
+    try {
+      fs.writeFileSync('/sys/class/gpio/export', gpioNumber.toString());
+      console.log(`GPIO ${gpioNumber} успешно экспортирован`);
+    } catch (err) {
+      console.error(`Ошибка при экспорте GPIO ${gpioNumber}:`, err);
+    }
+  }
+
+  const gpio = new Gpio(gpioNumber, 'in', 'both');
+  gpios.push(gpio);
+
+  gpio.watch((err, value) => {
+    if (err) {
+      console.error(`Ошибка при отслеживании GPIO ${gpioNumber}:`, err);
+      return;
+    }
+    console.log(`GPIO ${gpioNumber} изменился. Текущее значение: ${value}`);
+  });
+
+  // Проверка начального состояния пина
+  console.log(`Инициализация GPIO ${gpioNumber}: начальное значение ${gpio.readSync()}`);
+});
+
+// Обработчик для корректного завершения
+process.on('SIGINT', () => {
+  gpios.forEach(gpio => gpio.unexport());
+  console.log('GPIO успешно освобождены');
+  process.exit();
+});
+
+
+
+
+
 // Подключаем функции модуля joi для валидации данных
 const {validType, validConfig, validPost} = require('./validate');
 
@@ -332,62 +374,11 @@ function checkMessage(message) {
 
 // Gpio - Работа с пинами на OrangePi
 // Настройка входных пинов
-const input17 = new Gpio(17, 'in', 'both');
-const input13 = new Gpio(13, 'in', 'both');
+//const input17 = new Gpio(17, 'in', 'both');
+//const input13 = new Gpio(13, 'in', 'both');
 
 // Настройка выходных пинов
-const output5 = new Gpio(5, 'out');
-const output6 = new Gpio(6, 'out');
+//const output5 = new Gpio(5, 'out');
+//const output6 = new Gpio(6, 'out');
 
-// Переменная для управления
-let openDoor = false;
-
-// Функция для обновления состояния выходов в зависимости от переменной openDoor
-function updateOutputs() {
-  const value = openDoor ? 1 : 0;
-  output5.writeSync(value);
-  output6.writeSync(value);
-}
-
-// Обработчик для отслеживания состояния входов
-input17.watch((err, value) => {
-  if (err) {
-    console.error('Ошибка при чтении пина 17:', err);
-    return;
-  }
-  console.log(`Состояние пина 17: ${value}`);
-  // Логика для обработки изменения состояния пина 17
-});
-
-input13.watch((err, value) => {
-  if (err) {
-    console.error('Ошибка при чтении пина 13:', err);
-    return;
-  }
-  console.log(`Состояние пина 13: ${value}`);
-  // Логика для обработки изменения состояния пина 13
-});
-
-// Эндпоинт для управления переменной openDoor
-app.post('/setOpenDoor/:state', (req, res) => {
-  const state = req.params.state.toLowerCase();
-  if (state === 'true') {
-    openDoor = true;
-  } else if (state === 'false') {
-    openDoor = false;
-  } else {
-    return res.status(400).json({ message: 'Invalid state' });
-  }
-  updateOutputs();
-  res.json({ message: 'openDoor updated', openDoor });
-});
-
-
-// Очистка ресурсов при завершении работы
-process.on('SIGINT', () => {
-  input17.unexport();
-  input13.unexport();
-  output5.unexport();
-  output6.unexport();
-  process.exit();
-});
+//console.log('pin17 - ', input17);
