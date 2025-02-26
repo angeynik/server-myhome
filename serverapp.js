@@ -16,21 +16,20 @@ const {gpioExport, gpioUnexport, gpioSetDirection, gpioReadValue, gpioWriteValue
 const gpioPin = 70; // Используйте правильный номер GPIO
 const gpioIn = 75;
 
-exportGpio(gpioPin); // Экспорт GPIO
-setGpioDirection(gpioPin, 'out'); // Установка направления (вывод)
+gpioExport(gpioPin); // Экспорт GPIO
+gpioSetDirection(gpioPin, 'out'); // Установка направления (вывод)
 
-exportGpio(gpioIn); // Экспорт GPIO
-setGpioDirection(gpioIn, 'in');
+gpioExport(gpioIn); // Экспорт GPIO
+gpioSetDirection(gpioIn, 'in');
 
 // Установка значения GPIO
-writeGpioValue(gpioPin, 1); // Включение
-readGpioValue(gpioIn);
+gpioWriteValue(gpioPin, 1); // Включение
+gpioReadValue(gpioIn);
 setTimeout(() => {
-  writeGpioValue(gpioPin, 0); // Выключение через 2 секунды
-  readGpioValue(gpioIn);
-  setGpioDirection(gpioPin, 'out');
- unexportGpio(gpioPin); // Освобождение GPIO
- unexportGpio(gpioIn);
+  gpioWriteValue(gpioPin, 0); // Выключение через 2 секунды
+  gpioReadValue(gpioIn);
+  gpioUnexport(gpioPin); // Освобождение GPIO
+  gpioUnexport(gpioIn);
 }, 15000);
 
 
