@@ -1,0 +1,10 @@
+{
+  "zero3": {
+    "outputPins": [70,75],
+    "inputPins": [71,74]
+  },
+  "3B": {
+    "outputPins": [71],
+    "inputPins": [76]
+  }
+}

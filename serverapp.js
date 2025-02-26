@@ -6,11 +6,44 @@ const http = require('http');
 const cors = require('cors');
 const path = require('path');
 const bodyParser = require('body-parser');
+const fs = require('fs');
 
-// const fs = require('fs');
+
+
+
+
 // const Gpio = require('onoff').Gpio;
 // Подключаем функции модуля для управления PINS OrangePi
 const {gpioExport, gpioUnexport, gpioSetDirection, gpioReadValue, gpioWriteValue } = require('./gpio.js');
+
+// Чтение конфигурационного файла
+function loadConfig() {
+  try {
+    const gpioConfigFile = fs.readFileSync('./gpioConf.json', 'utf8');
+    return JSON.parse(gpioConfigFile);
+  } catch (err) {
+    console.error('Ошибка при чтении конфигурационного файла:', err);
+    //process.exit(1); // Завершаем программу, если конфигурация не загружена
+  }
+}
+
+// Инициализация GPIO на основе конфигурации
+function initializeGpio(config, deviceName) {
+  const deviceConfig = config[deviceName];
+  if (!deviceConfig) {
+    console.error(`Конфигурация для устройства "${deviceName}" не найдена.`);
+    process.exit(1);
+  }
+
+
+
+
+
+
+
+
+
+
 
 // Пример использования
 const gpioPin = 70; // Используйте правильный номер GPIO
