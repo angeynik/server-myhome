@@ -23,6 +23,7 @@ const config = loadConfig();
 
 
 if (deviceConfig) {
+  cleanupGpio(config, deviceName); // Освобождение GPIO
   // Инициализация выходных пинов
   deviceConfig.outputPins.forEach(pin => {
     gpioExport(pin);
@@ -114,78 +115,6 @@ setTimeout(() => {
   stopWatching(); // Остановка отслеживания
   cleanupGpio(config, deviceName); // Освобождение GPIO
 }, 320000);
-
-
-
-
-
-// Вторая реализация
-// // Пример использования
-// const gpioPin = 70; // Используйте правильный номер GPIO
-// const gpioIn = 75;
-
-// gpioExport(gpioPin); // Экспорт GPIO
-// gpioSetDirection(gpioPin, 'out'); // Установка направления (вывод)
-
-// gpioExport(gpioIn); // Экспорт GPIO
-// gpioSetDirection(gpioIn, 'in');
-
-// // Установка значения GPIO
-// gpioWriteValue(gpioPin, 1); // Включение
-// gpioReadValue(gpioIn);
-// setTimeout(() => {
-//   gpioWriteValue(gpioPin, 0); // Выключение через 2 секунды
-//   gpioReadValue(gpioIn);
-//   gpioUnexport(gpioPin); // Освобождение GPIO
-//   gpioUnexport(gpioIn);
-// }, 15000);
-
-
-
-
-
-
-
-// Первая реализация
-// const gpioNumbers = [5, 6]; // Массив номеров GPIO
-// const gpioPaths = gpioNumbers.map(num => `/sys/class/gpio/gpio${num}`);
-// const gpios = [];
-
-// // Экспортируем и настраиваем GPIO
-// gpioNumbers.forEach((gpioNumber, index) => {
-//   if (!fs.existsSync(gpioPaths[index])) {
-//     try {
-//       fs.writeFileSync('/sys/class/gpio/export', gpioNumber.toString());
-//       console.log(`GPIO ${gpioNumber} успешно экспортирован`);
-//     } catch (err) {
-//       console.error(`Ошибка при экспорте GPIO ${gpioNumber}:`, err);
-//     }
-//   }
-
-//   const gpio = new Gpio(gpioNumber, 'in', 'both');
-//   gpios.push(gpio);
-
-//   gpio.watch((err, value) => {
-//     if (err) {
-//       console.error(`Ошибка при отслеживании GPIO ${gpioNumber}:`, err);
-//       return;
-//     }
-//     console.log(`GPIO ${gpioNumber} изменился. Текущее значение: ${value}`);
-//   });
-
-//   // Проверка начального состояния пина
-//   console.log(`Инициализация GPIO ${gpioNumber}: начальное значение ${gpio.readSync()}`);
-// });
-
-// // Обработчик для корректного завершения
-// process.on('SIGINT', () => {
-//   gpios.forEach(gpio => gpio.unexport());
-//   console.log('GPIO успешно освобождены');
-//   process.exit();
-// });
-
-
-
 
 
 // Подключаем функции модуля joi для валидации данных

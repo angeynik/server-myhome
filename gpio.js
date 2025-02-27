@@ -14,7 +14,7 @@ function gpioSetDirection(pin, direction) {
   const directionPath = `/sys/class/gpio/gpio${pin}/direction`;
   try {
     fs.writeFileSync(directionPath, direction);
-    console.log(`Направление GPIO ${pin} установлено в "${direction}"`);
+    //console.log(`Направление GPIO ${pin} установлено в "${direction}"`);
   } catch (err) {
     console.error(`Ошибка при настройке направления GPIO ${pin}:`, err);
   }
@@ -24,7 +24,7 @@ function gpioReadValue(pin) {
   const valuePath = `/sys/class/gpio/gpio${pin}/value`;
   try {
     const value = fs.readFileSync(valuePath, 'utf8').trim();
-    console.log(`GPIO ${pin} значение:`, value);
+    //console.log(`GPIO ${pin} значение:`, value);
     return value;
   } catch (err) {
     console.error(`Ошибка при чтении GPIO ${pin}:`, err);
