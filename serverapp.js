@@ -8,39 +8,36 @@ const path = require('path');
 const bodyParser = require('body-parser');
 const fs = require('fs');
 
-
-
-
-
-// const Gpio = require('onoff').Gpio;
+const dotenv = require('dotenv');
+dotenv.config({path: './conf.env'}); // Указываем путь к  файлу .env
 
 // Подключаем функции модуля для управления PINS OrangePi
 const {gpioExport, gpioUnexport, gpioSetDirection, gpioReadValue, gpioWriteValue } = require('./gpio.js');
-const deviceName = process.env.DEVICE_NAME || 'zero3';
-console.log(`deviceName - ${deviceName}`, process.env.DEVICE_NAME );
+const deviceName = process.env.DEVICE_NAME;
+console.log(`deviceName - ${deviceName}`);
 const config = loadConfig();
 
   // Инициализация GPIO
-  initializeGpio(config, deviceName);
+ const deviceConfig =  initializeGpio(config, deviceName);
+ console.log('deviceConfig -', deviceConfig);
 
 
-
+if (deviceConfig) {
   // Инициализация выходных пинов
   deviceConfig.outputPins.forEach(pin => {
     gpioExport(pin);
     gpioSetDirection(pin, 'out');
     console.log(`GPIO ${pin} настроен как выход.`);
   });
+
   const openPinGpio = config[deviceName].outputPins[0];
   console.log('openPinGpio - ', openPinGpio);
   const closePinGpio = config[deviceName].outputPins[1];
   console.log('closePinGpio - ', closePinGpio);
-  
+
   setTimeout(() => {
     gpioWriteValue(openPinGpio, 1); // Включение openPinGpio через 30 секунд
   }, 30000);
-
-  //gpioWriteValue(closePinGpio, 1); // Включение closePinGpio
 
   // Инициализация входных пинов
   deviceConfig.inputPins.forEach(pin => {
@@ -48,6 +45,7 @@ const config = loadConfig();
     gpioSetDirection(pin, 'in');
     console.log(`GPIO ${pin} настроен как вход.`);
   });
+
   const sensorDoorPinGpio = config[deviceName].inputPins[0];
   console.log('sensorDoorPinGpio - ', sensorDoorPinGpio);
   const doorWatch = watchGpio(sensorDoorPinGpio, 500, 250);
@@ -55,7 +53,10 @@ const config = loadConfig();
   const sensorLockPinGpio = config[deviceName].inputPins[1];
   console.log('sensorLockPinGpio - ', sensorLockPinGpio);
   const lockWatch = watchGpio(sensorLockPinGpio, 500, 250);
- 
+}
+
+
+
 
 //Функция Чтение конфигурационного файла
 function loadConfig() {
@@ -71,8 +72,8 @@ function initializeGpio(config, deviceName) {
   const deviceConfig = config[deviceName];
   if (!deviceConfig) {
     console.error(`Конфигурация для устройства "${deviceName}" не найдена.`);
-    return;
   }
+  return deviceConfig; // Всегда возвращаем deviceConfig
 }
 // Функция Освобождение GPIO
 function cleanupGpio(config, deviceName) {
