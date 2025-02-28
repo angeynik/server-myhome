@@ -7,114 +7,9 @@ const cors = require('cors');
 const path = require('path');
 const bodyParser = require('body-parser');
 const fs = require('fs');
-
-const dotenv = require('dotenv');
+// require('dotenv').config({ path: './conf.env' }); 
+const dotenv = require('dotenv'); // Подключаем .ENV файл с переменными окружения
 dotenv.config({path: './conf.env'}); // Указываем путь к  файлу .env
-
-// Подключаем функции модуля для управления PINS OrangePi
-const {gpioExport, gpioUnexport, gpioSetDirection, gpioReadValue, gpioWriteValue } = require('./gpio.js');
-const deviceName = process.env.DEVICE_NAME;
-console.log(`deviceName - ${deviceName}`);
-const config = loadConfig();
-
-  // Инициализация GPIO
- const deviceConfig =  initializeGpio(config, deviceName);
- console.log('deviceConfig -', deviceConfig);
-
-
-if (deviceConfig) {
-  cleanupGpio(config, deviceName); // Освобождение GPIO
-  // Инициализация выходных пинов
-  deviceConfig.outputPins.forEach(pin => {
-    gpioExport(pin);
-    gpioSetDirection(pin, 'out');
-    console.log(`GPIO ${pin} настроен как выход.`);
-  });
-
-  const openPinGpio = config[deviceName].outputPins[0];
-  console.log('openPinGpio - ', openPinGpio);
-  const closePinGpio = config[deviceName].outputPins[1];
-  console.log('closePinGpio - ', closePinGpio);
-
-  setTimeout(() => {
-    gpioWriteValue(openPinGpio, 1); // Включение openPinGpio через 30 секунд
-  }, 30000);
-
-  // Инициализация входных пинов
-  deviceConfig.inputPins.forEach(pin => {
-    gpioExport(pin);
-    gpioSetDirection(pin, 'in');
-    console.log(`GPIO ${pin} настроен как вход.`);
-  });
-
-  const sensorDoorPinGpio = config[deviceName].inputPins[0];
-  console.log('sensorDoorPinGpio - ', sensorDoorPinGpio);
-  const doorWatch = watchGpio(sensorDoorPinGpio, 500, 250);
-
-  const sensorLockPinGpio = config[deviceName].inputPins[1];
-  console.log('sensorLockPinGpio - ', sensorLockPinGpio);
-  const lockWatch = watchGpio(sensorLockPinGpio, 500, 250);
-}
-
-
-
-
-//Функция Чтение конфигурационного файла
-function loadConfig() {
-  try {
-    const gpioConfigFile = fs.readFileSync('./gpioConf.json', 'utf8');
-    return JSON.parse(gpioConfigFile);
-  } catch (err) {
-    console.error('Ошибка при чтении конфигурационного файла:', err);
-  }
-}
-// Функция Инициализация GPIO на основе конфигурации
-function initializeGpio(config, deviceName) {
-  const deviceConfig = config[deviceName];
-  if (!deviceConfig) {
-    console.error(`Конфигурация для устройства "${deviceName}" не найдена.`);
-  }
-  return deviceConfig; // Всегда возвращаем deviceConfig
-}
-// Функция Освобождение GPIO
-function cleanupGpio(config, deviceName) {
-  const deviceConfig = config[deviceName];
-  if (!deviceConfig) return;
-
-  // Освобождение всех пинов
-  deviceConfig.outputPins.concat(deviceConfig.inputPins).forEach(pin => {
-    gpioUnexport(pin);
-    console.log(`GPIO ${pin} освобожден.`);
-  });
-}
-// Отслеживание изменений состояния GPIO с дебаунсом
-function watchGpio(inputPin, checkTime, debounceTime) {
-  let previousValue = gpioReadValue(inputPin); // Сохраняем начальное состояние
-  let lastChangeTime = 0; // Время последнего изменения состояния
-
-  console.log(`Начальное состояние GPIO ${inputPin}:`, previousValue);
-
-  // Периодическая проверка состояния
-  const interval = setInterval(() => {
-    const currentValue = gpioReadValue(inputPin); // Читаем текущее состояние
-    const currentTime = Date.now(); // Текущее время
-
-    // Проверяем, изменилось ли состояние и прошел ли дебаунс
-    if (currentValue !== previousValue && currentTime - lastChangeTime > debounceTime) {
-      console.log(`Состояние GPIO ${inputPin} изменилось:`, previousValue, '->', currentValue);
-      previousValue = currentValue; // Обновляем предыдущее состояние
-      lastChangeTime = currentTime; // Обновляем время последнего изменения
-    }
-  }, checkTime); // Интервал проверки (в миллисекундах)
-
-  // Возвращаем функцию для остановки отслеживания
-  return () => clearInterval(interval);
-}
-
-setTimeout(() => {
-  stopWatching(); // Остановка отслеживания
-  cleanupGpio(config, deviceName); // Освобождение GPIO
-}, 320000);
 
 
 // Подключаем функции модуля joi для валидации данных
@@ -226,7 +121,7 @@ const ClientTransport = pino.transport({
 const Clogger = pino({ level: log_level }, ClientTransport); 
 module.exports = Clogger;
 
-require('dotenv').config({ path: './conf.env' }); // Подключаем .ENV файл с переменными окружения
+
 
 //const servPORT = process.env.SERVER_PORT || 3010;
 const servPORT = 3010;
@@ -448,3 +343,71 @@ function checkMessage(message) {
 //const output6 = new Gpio(6, 'out');
 
 //console.log('pin17 - ', input17);
+
+const deviceName = process.env.DEVICE_NAME;
+const manageDoor = process.env.MANAGE_DOOR === 'true'; // Преобразуем значение в boolean
+console.log('deviceName:', deviceName);
+console.log('MANAGE_DOOR:', manageDoor);
+
+const GpioManager = require('./gpio.js');
+
+// Создаем экземпляр GpioManager только если MANAGE_DOOR === true
+let gpioManager;
+if (manageDoor) {
+  gpioManager = new GpioManager(deviceName, './gpioConf.json');
+
+  if (gpioManager.deviceConfig) {
+    // Освобождаем GPIO перед началом работы
+    gpioManager.cleanupGpio();
+
+    // Настраиваем выходные и входные пины
+    gpioManager.setupOutputPins();
+    gpioManager.setupInputPins();
+
+    // Пример: Включение openPinGpio через 30 секунд
+    const openPinGpio = gpioManager.deviceConfig.outputPins[0];
+    setTimeout(() => {
+      gpioManager.writePin(openPinGpio, 1);
+    }, 30000);
+
+    // Отслеживание состояния входных пинов
+    const sensorDoorPinGpio = gpioManager.deviceConfig.inputPins[0];
+    gpioManager.watchPin(sensorDoorPinGpio);
+
+    const sensorLockPinGpio = gpioManager.deviceConfig.inputPins[1];
+    gpioManager.watchPin(sensorLockPinGpio);
+  }
+}
+
+// Маршруты для управления GPIO через HTTP
+app.get('/open', (req, res) => {
+  if (!manageDoor || !gpioManager) {
+    return res.status(400).send('Управление GPIO отключено (MANAGE_DOOR = false)');
+  }
+
+  const openPinGpio = gpioManager.deviceConfig.outputPins[0];
+  gpioManager.writePin(openPinGpio, 1);
+  res.send('Дверь открыта');
+});
+
+app.get('/close', (req, res) => {
+  if (!manageDoor || !gpioManager) {
+    return res.status(400).send('Управление GPIO отключено (MANAGE_DOOR = false)');
+  }
+
+  const closePinGpio = gpioManager.deviceConfig.outputPins[1];
+  gpioManager.writePin(closePinGpio, 1);
+  res.send('Дверь закрыта');
+});
+
+app.get('/status', (req, res) => {
+  if (!manageDoor || !gpioManager) {
+    return res.status(400).send('Управление GPIO отключено (MANAGE_DOOR = false)');
+  }
+
+  const sensorDoorPinGpio = gpioManager.deviceConfig.inputPins[0];
+  const doorStatus = gpioManager.readPin(sensorDoorPinGpio);
+  res.send(`Состояние двери: ${doorStatus}`);
+});
+
+// Завершение работы с GPIO
