@@ -8,3 +8,4 @@ DB_PORT=5432
 LOG_DIRECTORY='./logs'
 DEVICE_NAME='zero3'
 PINO_LOG_LEVEL='debug'
+JWT_SECRET='Adf7$_Wep(23#nGHy)0_!slR'
