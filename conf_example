@@ -5,6 +5,12 @@ SERVER_PORT=3010
 WSR_PORT=9200
 WSD_PORT=9202
 DB_PORT=5432
+DB_USER=user_name
+DB_HOST=http://localhost
+DB_CONF=db_name
+DB_DATA=db_name
+DB_PASSWORD=pass
+
 LOG_DIRECTORY='./logs'
 DEVICE_NAME='zero3'
 PINO_LOG_LEVEL='debug'

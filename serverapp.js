@@ -7,15 +7,12 @@ const cors = require('cors');
 const path = require('path');
 const bodyParser = require('body-parser');
 const fs = require('fs');
-const jwt = require('jsonwebtoken');
-const bcrypt = require('bcryptjs');
-
-
 
 // require('dotenv').config({ path: './conf.env' }); 
 const dotenv = require('dotenv'); // Подключаем .ENV файл с переменными окружения
 dotenv.config({path: './conf.env'}); // Указываем путь к  файлу .env
-const secret = process.env.JWT_SECRET || 'default-secret-key';
+const { registerUser, loginUser, verifyToken } = require('./auth'); // Импортируем функции авторизации
+const { findUserByUsername, linkDataSourceToUser } = require('./userRepository'); // Поиск пользователя
 
 // Подключаем функции модуля joi для валидации данных
 const {validType, validConfig, validPost} = require('./validate');
@@ -129,7 +126,7 @@ module.exports = Clogger;
 
 
 //const servPORT = process.env.SERVER_PORT || 3010;
-const servPORT = 3010;
+const servPORT = process.env.SERVER_PORT || 3010;
 const wsRedPORT = process.env.WSR_PORT || 9200;
 const wsDashPORT = process.env.WSD_PORT || 9202;
 
@@ -147,64 +144,38 @@ app.use(express.json());
 app.use(bodyParser.json());
 
 // Авторизация
-// Моковые данные пользователей для примера
-const users = [{ id: 1, username: 'testuser', password: bcrypt.hashSync('testpassword', 8) }];
+
 
 // Маршрут для регистрации
 app.post('/register', (req, res) => {
   const { username, password } = req.body;
-  const userExists = users.some(u => u.username === username);
-  if (userExists) {
-    return res.status(400).send({ message: 'User already exists!' });
+  try {
+    const result = registerUser(username, password);
+    res.status(201).send(result);
+  } catch (error) {
+    res.status(400).send({ message: error.message });
   }
-  const hashedPassword = bcrypt.hashSync(password, 8);
-  users.push({ id: users.length + 1, username, password: hashedPassword });
-  res.status(201).send({ message: 'User registered successfully!' });
 });
-
 // Маршрут для входа в систему
 app.post('/login', (req, res) => {
   const { username, password } = req.body;
-  console.log('Received login request with data:', { username, password }); // Логируем данные
-  if (!username || !password) {
-    return res.status(400).send({ message: 'Username and password are required!' });
+  try {
+    const result = loginUser(username, password);
+    res.status(200).send(result);
+  } catch (error) {
+    res.status(401).send({ message: error.message });
   }
-  const user = users.find(u => u.username === username);
-  if (!user) {
-    return res.status(404).send({ message: 'User not found.' });
-  }
-  const passwordIsValid = bcrypt.compareSync(password, user.password);
-  if (!passwordIsValid) {
-    return res.status(401).send({ message: 'Invalid Password!' });
-  }
-  const token = jwt.sign({ id: user.id }, secret, { expiresIn: 86400 });
-  res.status(200).send({ id: user.id, username: user.username, token });
 });
-
 // Защищенный маршрут
-
-const verifyToken = (req, res, next) => {
+app.get('/profile', (req, res) => {
   const token = req.headers['x-access-token'];
-  if (!token) {
-    return res.status(403).send({ message: 'No token provided!' });
+  try {
+    const decoded = verifyToken(token);
+    res.status(200).send({ id: decoded.id, message: 'Welcome to your profile!' });
+  } catch (error) {
+    res.status(403).send({ message: error.message });
   }
-  jwt.verify(token, secret, (err, decoded) => {
-    if (err) {
-      return res.status(500).send({ message: 'Failed to authenticate token.' });
-    }
-    req.userId = decoded.id; // Сохраняем ID пользователя в запросе
-    next();
-  });
-};
-app.get('/profile', verifyToken, (req, res) => {
-  res.status(200).send({ id: req.userId, message: 'Welcome to your profile!' });
 });
-
-
-
-
-
-
 //Работа с логами с Клиента
 app.post('/log', (req, res) => {
     if (req.body.type === 'error') {
@@ -219,8 +190,6 @@ app.post('/log', (req, res) => {
         Clogger.info('Получено сообщение неопределенного ТИПА с Логами от Клиента (VUE js):', req.body.message);
     }
 });
-
-
 //Запуск сервера
 server.listen(servPORT, () => {
     console.log(`MyHome Server is running on port ${servPORT}`);
@@ -396,17 +365,7 @@ function checkMessage(message) {
   return 'ok';
 };
 
-// Gpio - Работа с пинами на OrangePi
-// Настройка входных пинов
-//const input17 = new Gpio(17, 'in', 'both');
-//const input13 = new Gpio(13, 'in', 'both');
-
-// Настройка выходных пинов
-//const output5 = new Gpio(5, 'out');
-//const output6 = new Gpio(6, 'out');
-
-//console.log('pin17 - ', input17);
-
+// Работа с GPIO
 const deviceName = process.env.DEVICE_NAME;
 const manageDoor = process.env.MANAGE_DOOR === 'true'; // Преобразуем значение в boolean
 console.log('deviceName:', deviceName);

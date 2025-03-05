@@ -1,0 +1,55 @@
+// Процесс авторизации 
+
+const jwt = require('jsonwebtoken');
+const { register, login } = require('./userRepository');
+
+// Моковые данные пользователей
+//const users = [{ id: 1, username: 'testuser', password: bcrypt.hashSync('testpassword', 8) }];
+
+// Секретный ключ для JWT
+const dotenv = require('dotenv'); // Подключаем .ENV файл с переменными окружения
+dotenv.config({path: './conf.env'}); // Указываем путь к  файлу .env
+const secret = process.env.JWT_SECRET || 'default-secret-key';
+
+/**
+ * Регистрация нового пользователя
+ * @param {string} username - Имя пользователя
+ * @param {string} password - Пароль
+ * @returns {Object} - Результат регистрации
+ */
+const registerUser = async (username, password) => {
+  const user = await register(username, password);
+  return { message: 'User registered successfully!', user };
+};
+
+/**
+ * Вход пользователя
+ * @param {string} username - Имя пользователя
+ * @param {string} password - Пароль
+ * @returns {Object} - Данные пользователя и токен
+ */
+const loginUser = async (username, password) => {
+  const user = await login(username, password);
+  const token = jwt.sign({ id: user.id }, secret, { expiresIn: 60 });
+  console.log('user - ', user, 'token - ', token);
+  return { id: user.id, username: user.username, token };
+};
+
+/**
+ * Проверка токена
+ * @param {string} token - JWT токен
+ * @returns {Object} - Расшифрованные данные токена
+ */
+const verifyToken = (token) => {
+  if (!token) {
+    throw new Error('No token provided!');
+  }
+  console.log('Token verify successfull ');
+  return jwt.verify(token, secret);
+};
+
+module.exports = {
+  registerUser,
+  loginUser,
+  verifyToken,
+};
