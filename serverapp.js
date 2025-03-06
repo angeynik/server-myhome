@@ -280,35 +280,82 @@ WSSNodeRED.on('connection', (ws) => {
 });
 
 // Работаем с Dashboard
+// WSSDash.on('connection', (ws) => {
+//   Slogger.info('-- 235 -- Client connected to Dashboard on port ' + wsDashPORT);
+
+//   ws.on('message', (message) => {
+//       Slogger.info(`На порт ${wsDashPORT} от Dashboard получено сообщение: ${message} `);
+//       sendToRed = true;
+//       // Передача сообщения на WSSDash
+//       WSSNodeRED.clients.forEach((client) => {
+//         if (client.readyState === WebSocket.OPEN && sendToRed === true) {
+//             client.send(message, (error) => {
+//                 if (error) {
+//                     Slogger.error('Ошибка пересылки сообщения c Dashboard на NodeRED :', error);
+//                 } else {
+//                     Slogger.info(`На порт ${wsRedPORT} от Server  к NodeRED  отправлено сообщение: ${message}`);
+//                 }
+//                 sendToDash = false;
+//             });
+//         }
+//     });
+//   });
+
+//   ws.on('error', (error) => {
+//       Slogger.error('WebSocket error on Dashboard:', error);
+//   });
+
+//   ws.on('close', () => {
+//       Slogger.info('Dash WebSocket connection closed');
+//   });
+// });
+
+
 WSSDash.on('connection', (ws) => {
   Slogger.info('-- 235 -- Client connected to Dashboard on port ' + wsDashPORT);
 
   ws.on('message', (message) => {
-      Slogger.info(`На порт ${wsDashPORT} от Dashboard получено сообщение: ${message} `);
-      sendToRed = true;
-      // Передача сообщения на WSSDash
-      WSSNodeRED.clients.forEach((client) => {
-        if (client.readyState === WebSocket.OPEN && sendToRed === true) {
-            client.send(message, (error) => {
-                if (error) {
-                    Slogger.error('Ошибка пересылки сообщения c Dashboard на NodeRED :', error);
-                } else {
-                    Slogger.info(`На порт ${wsRedPORT} от Server  к NodeRED  отправлено сообщение: ${message}`);
-                }
-                sendToDash = false;
-            });
-        }
-    });
+    const data = JSON.parse(message);
+
+    if (data.type === 'login') {
+      const { username, password } = data;
+
+      // Здесь должна быть логика проверки пользователя (например, в базе данных)
+      if (username === 'admin' && password === 'password') {
+        const token = 'fake-jwt-token'; // Генерируем токен
+        const user = { username, role: 'admin' };
+
+        ws.send(
+          JSON.stringify({
+            type: 'loginSuccess',
+            token,
+            user,
+          })
+        );
+        console.log('Логин и пароль приняты');
+      } else {
+        ws.send(
+          JSON.stringify({
+            type: 'loginError',
+            message: 'Invalid username or password',
+          })
+        );
+        console.log('Логин и пароль ОТКЛОНЕНЫ');
+      }
+    }
   });
 
   ws.on('error', (error) => {
-      Slogger.error('WebSocket error on Dashboard:', error);
+    Slogger.error('WebSocket error on Dashboard:', error);
   });
 
   ws.on('close', () => {
-      Slogger.info('Dash WebSocket connection closed');
+    Slogger.info('Dash WebSocket connection closed');
   });
 });
+
+
+
 
 Slogger.info(`WebSocket servers are running on nodeRed ws port:${wsRedPORT} and DashBoard (client) ws port:${wsDashPORT}`);
 //logger.debug(`WebSocket servers are running on ws://localhost:${wsRedPORT} and ws://localhost:${wsDashPORT}`);
@@ -358,6 +405,18 @@ function checkMessage(message) {
     break;
     case 'set':
       console.log('Переходим к проверке сообщения типа set.');
+    break;
+    case 'createuser':
+      console.log('Переходим к созданию нового пользовотеля для VUE приложения ');
+
+      // const newUser = { id: 1, username: data.username, dataSource: data.dataSource, permissionLevel: data.permissionLevel };
+      // ws.send(JSON.stringify({ type: 'userCreated', user: newUser }));
+    break;
+    case 'getusers':
+      console.log('Переходим к созданию получению списка пользовотелей VUE приложения ');
+      // Логика получения списка пользователей
+      // const users = [{ id: 1, username: 'user1', dataSource: 'source1', permissionLevel: 1 }];
+      // ws.send(JSON.stringify({ type: 'usersList', users }));
     break;
     default:
       Slogger.error(`Неизвестный тип сообщения: ${data.type}`);
