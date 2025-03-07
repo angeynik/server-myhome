@@ -12,7 +12,7 @@ const fs = require('fs');
 const dotenv = require('dotenv'); // Подключаем .ENV файл с переменными окружения
 dotenv.config({path: './conf.env'}); // Указываем путь к  файлу .env
 const { registerUser, loginUser, verifyToken } = require('./auth'); // Импортируем функции авторизации
-const { findUserByUsername, linkDataSourceToUser } = require('./userRepository'); // Поиск пользователя
+const { findUser, addPermission, addDataSource, linkDataSourceToUser, checkConnection, closeConnection } = require('./userRepository'); 
 
 // Подключаем функции модуля joi для валидации данных
 const {validType, validConfig, validPost} = require('./validate');
@@ -123,8 +123,6 @@ const ClientTransport = pino.transport({
 const Clogger = pino({ level: log_level }, ClientTransport); 
 module.exports = Clogger;
 
-
-
 //const servPORT = process.env.SERVER_PORT || 3010;
 const servPORT = process.env.SERVER_PORT || 3010;
 const wsRedPORT = process.env.WSR_PORT || 9200;
@@ -143,39 +141,84 @@ app.use(cors());
 app.use(express.json());
 app.use(bodyParser.json());
 
-// Авторизация
 
 
-// Маршрут для регистрации
-app.post('/register', (req, res) => {
-  const { username, password } = req.body;
+
+// Инициализация сервера
+
+
+const initializeServer = async () => {
   try {
-    const result = registerUser(username, password);
-    res.status(201).send(result);
+    console.log('Подключение к базе данных...');
+    const isConnected = await checkConnection();
+    if (isConnected) {
+      console.log('Successfully connected to the database.');
+      // Функция для проверки и создания пользователя poddy
+      const initializePoddyUser = async () => {
+        const poddyUsername = 'poddy';
+        const poddyPassword = process.env.DB_PODDY; // Пароль из файла conf.env
+
+        try {
+          // Проверяем, существует ли пользователь poddy
+          const poddyUser = await findUser(poddyUsername);
+          console.log('Результат запроса в DB для пользователя poddy:', poddyUser);
+          if (!poddyUser) {
+            // Если пользователь не существует, создаем его с правами admin
+            console.log('Пользователь poddy не найден. Создание нового пользователя...');
+            const newUser = await registerUser(poddyUsername, poddyPassword);
+              
+              // Создаем источник данных
+              const dataSource = await addDataSource('exhibpossibles', 'Демонстрационная база данных для проверки возможностей приложения');
+              const dataSourceId = dataSource.id;
+              console.log('ID созданного пользователя:', newUser.user.id, 'dataSourceId:', dataSourceId);
+              // Связываем пользователя с источником данных
+              await linkDataSourceToUser(newUser.user.id, dataSourceId);
+
+              // Добавляем права доступа для нового пользователя
+              await addPermission(newUser.user.id, dataSourceId, 3);
+
+
+            // Здесь можно добавить логику для присвоения прав admin
+            // Например, обновление записи в базе данных или добавление в отдельную таблицу прав
+            console.log('Пользователь poddy успешно создан с правами admin.');
+          } else {
+            console.log('Пользователь poddy уже существует.');
+          }
+        } catch (error) {
+          console.error('Ошибка при инициализации пользователя poddy:', error);
+        }
+      };
+      console.log('Инициализация пользователя poddy...', initializePoddyUser());
+    } else {
+      console.log('Server is running without database connection.');
+    }
   } catch (error) {
-    res.status(400).send({ message: error.message });
+    console.error('Error during database connection check:', error);
   }
+
+  // Запуск сервера
+  server.listen(servPORT, () => {
+    console.log(`MyHome Server is running on port ${servPORT}`);
 });
-// Маршрут для входа в систему
-app.post('/login', (req, res) => {
-  const { username, password } = req.body;
-  try {
-    const result = loginUser(username, password);
-    res.status(200).send(result);
-  } catch (error) {
-    res.status(401).send({ message: error.message });
-  }
-});
-// Защищенный маршрут
-app.get('/profile', (req, res) => {
-  const token = req.headers['x-access-token'];
-  try {
-    const decoded = verifyToken(token);
-    res.status(200).send({ id: decoded.id, message: 'Welcome to your profile!' });
-  } catch (error) {
-    res.status(403).send({ message: error.message });
-  }
-});
+
+  // Корректное завершение работы сервера и закрытие соединения с базой данных
+  const handleShutdown = async () => {
+    console.log('Shutting down server...');
+    await closeConnection(); // Закрываем соединение с базой данных
+    server.close(() => {
+      console.log('Server has been shut down.');
+      process.exit(0);
+    });
+  };
+  
+  // Обрабатываем оба сигнала одним обработчиком
+  process.on('SIGINT', handleShutdown);
+  process.on('SIGTERM', handleShutdown);
+};
+// Выполняем Инициализацию сервера
+initializeServer();
+
+
 //Работа с логами с Клиента
 app.post('/log', (req, res) => {
     if (req.body.type === 'error') {
@@ -189,10 +232,6 @@ app.post('/log', (req, res) => {
     } else {
         Clogger.info('Получено сообщение неопределенного ТИПА с Логами от Клиента (VUE js):', req.body.message);
     }
-});
-//Запуск сервера
-server.listen(servPORT, () => {
-    console.log(`MyHome Server is running on port ${servPORT}`);
 });
 
 
@@ -314,34 +353,45 @@ WSSNodeRED.on('connection', (ws) => {
 WSSDash.on('connection', (ws) => {
   Slogger.info('-- 235 -- Client connected to Dashboard on port ' + wsDashPORT);
 
-  ws.on('message', (message) => {
-    const data = JSON.parse(message);
-
-    if (data.type === 'login') {
-      const { username, password } = data;
-
-      // Здесь должна быть логика проверки пользователя (например, в базе данных)
-      if (username === 'admin' && password === 'password') {
-        const token = 'fake-jwt-token'; // Генерируем токен
-        const user = { username, role: 'admin' };
-
-        ws.send(
-          JSON.stringify({
-            type: 'loginSuccess',
-            token,
-            user,
-          })
-        );
-        console.log('Логин и пароль приняты');
-      } else {
-        ws.send(
-          JSON.stringify({
-            type: 'loginError',
-            message: 'Invalid username or password',
-          })
-        );
-        console.log('Логин и пароль ОТКЛОНЕНЫ');
+  ws.on('message', async (message) => {
+    try {
+      const data = JSON.parse(message);
+      console.log('Получены данные с типом:', data.type, ' и содержимым:', data);
+  
+      if (data.type === 'login') {
+        const { username, password } = data;
+  
+        const user = await loginUser(username, password);
+  
+        if (user.error) {
+          // Если есть ошибка, отправляем её клиенту
+          ws.send(
+            JSON.stringify({
+              type: 'loginError',
+              message: user.error,
+            })
+          );
+          console.log('Логин и пароль ОТКЛОНЕНЫ:', user.error);
+        } else {
+          // Если ошибки нет, отправляем успешный ответ
+          ws.send(
+            JSON.stringify({
+              type: 'loginSuccess',
+              token: user.token,
+              username: user.username,
+            })
+          );
+          console.log('Логин и пароль приняты');
+        }
       }
+    } catch (error) {
+      console.error('Ошибка при обработке сообщения:', error);
+      ws.send(
+        JSON.stringify({
+          type: 'loginError',
+          message: 'Произошла ошибка при обработке запроса',
+        })
+      );
     }
   });
 
@@ -459,36 +509,5 @@ if (manageDoor) {
     gpioManager.watchPin(sensorLockPinGpio);
   }
 }
-
-// Маршруты для управления GPIO через HTTP
-app.get('/open', (req, res) => {
-  if (!manageDoor || !gpioManager) {
-    return res.status(400).send('Управление GPIO отключено (MANAGE_DOOR = false)');
-  }
-
-  const openPinGpio = gpioManager.deviceConfig.outputPins[0];
-  gpioManager.writePin(openPinGpio, 1);
-  res.send('Дверь открыта');
-});
-
-app.get('/close', (req, res) => {
-  if (!manageDoor || !gpioManager) {
-    return res.status(400).send('Управление GPIO отключено (MANAGE_DOOR = false)');
-  }
-
-  const closePinGpio = gpioManager.deviceConfig.outputPins[1];
-  gpioManager.writePin(closePinGpio, 1);
-  res.send('Дверь закрыта');
-});
-
-app.get('/status', (req, res) => {
-  if (!manageDoor || !gpioManager) {
-    return res.status(400).send('Управление GPIO отключено (MANAGE_DOOR = false)');
-  }
-
-  const sensorDoorPinGpio = gpioManager.deviceConfig.inputPins[0];
-  const doorStatus = gpioManager.readPin(sensorDoorPinGpio);
-  res.send(`Состояние двери: ${doorStatus}`);
-});
 
 // Завершение работы с GPIO

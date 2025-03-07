@@ -1,8 +1,9 @@
 const bcrypt = require('bcryptjs');
-const { query } = require('./db');
+const { query, pool } = require('./db');
 
 // Регистрация нового пользователя
 const register = async (username, password) => {
+  console.log('Начинаем регистрацию: username - ', username, 'password - ', password);
   if (!username || !password) {
     throw new Error('Username and password are required');
   }
@@ -20,48 +21,104 @@ const register = async (username, password) => {
     throw error; // Пробрасываем другие ошибки
   }
 };
+const insertIntoTable = async (tableName, data) => {
+  try {
+    // Формируем строку с именами столбцов
+    const columns = Object.keys(data).join(', ');
+    // Формируем строку с плейсхолдерами ($1, $2, ...)
+    const placeholders = Object.keys(data).map((_, index) => `$${index + 1}`).join(', ');
+    // Формируем массив значений
+    const values = Object.values(data);
+
+    const result = await query(
+      `INSERT INTO ${tableName} (${columns}) VALUES (${placeholders}) RETURNING *`,
+      values
+    );
+    return result.rows[0]; // Возвращаем вставленную запись
+  } catch (error) {
+    console.error(`Error inserting into ${tableName}:`, error);
+    throw error;
+  }
+};
+const addDataSource = async ( name, description) => {
+  const data = {
+    name: name,
+    description: description,
+  };
+  return insertIntoTable('DataSources', data);
+};
+
+// Связывание источника данных с пользователем
+const linkDataSourceToUser = async (user_id, data_source_id) => {
+  const data = {
+    user_id: user_id,
+    data_source_id: data_source_id,
+  };
+  return insertIntoTable('UserDataSources', data);
+};
+
+// Добавление прав доступа
+const addPermission = async (user_id, data_source_id, permission_level) => {
+  const data = {
+    user_id: user_id,
+    data_source_id: data_source_id,
+    permission_level: permission_level,
+  };
+  return insertIntoTable('Permissions', data);
+};
+
+
+
+
 
 // Поиск пользователя по имени
-const findUserByUsername = async (username) => {
+const findUser = async (username) => {
   const result = await query('SELECT * FROM users WHERE username = $1', [username]);
   return result.rows[0];
 };
 
 // Вход пользователя
 const login = async (username, password) => {
-  const user = await findUserByUsername(username);
+  const user = await findUser(username);
   if (!user) {
-    throw new Error('User not found.');
+    console.log('Пользователь с логином', username, 'не найден');
+    return null; // Возвращаем null, если пользователь не найден
   }
   const passwordIsValid = bcrypt.compareSync(password, user.password);
   if (!passwordIsValid) {
-    throw new Error('Invalid Password!');
+    console.log('Неверный пароль для пользователя', username);
+    return null; // Возвращаем null, если пароль неверный
   }
   return user;
 };
 
-// Добавление источника данных
-const addDataSource = async (dID, name, description) => {
-  const result = await query(
-    'INSERT INTO DataSources (dID, name, description) VALUES ($1, $2, $3) RETURNING *',
-    [dID, name, description]
-  );
-  return result.rows[0];
+const checkConnection = async () => {
+  console.log('Начинаем проверку подключения (checkConnection) к базе данных...');
+  try {
+    const res = await pool.query('SELECT NOW()');
+    console.log('Database connection established:', res.rows[0].now);
+    return true;
+  } catch (error) {
+    console.error('Error connecting to the database:', error.message);
+    return false;
+  }
 };
-
-// Связывание источника данных с пользователем
-const linkDataSourceToUser = async (user_id, data_source_id) => {
-  const result = await query(
-    'INSERT INTO UserDataSources (user_id, data_source_id) VALUES ($1, $2) RETURNING *',
-    [user_id, data_source_id]
-  );
-  return result.rows[0];
+const closeConnection = async () => {
+  try {
+    await pool.end();
+    console.log('Database connection closed.');
+  } catch (error) {
+    console.error('Error closing database connection:', error);
+  }
 };
 
 module.exports = {
   register,
-  findUserByUsername,
+  addPermission,
+  findUser,
   login,
   addDataSource,
   linkDataSourceToUser,
+  checkConnection,
+  closeConnection
 };

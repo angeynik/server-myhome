@@ -4,7 +4,8 @@ const { Pool } = require('pg');
 const pool = new Pool({
   user: process.env.DB_USER,
   host: process.env.DB_HOST || 'localhost',
-  database: process.env.DB_DATABASE,
+  // database: process.env.DB_DATABASE,
+  database: 'spring',
   password: process.env.DB_PASSWORD,
   port: process.env.DB_PORT || 5432,
 });
@@ -15,10 +16,10 @@ const query = async (text, params) => {
   // params — массив параметров для подстановки в запрос которые будут переданы в SQL-запрос
   const start = Date.now();
   try {
-    console.log('pool:', pool);
+    //console.log('pool:', pool);
     const res = await pool.query(text, params);
     const duration = Date.now() - start;
-    console.log('Executed query:', { text, duration, rows: res.rowCount });
+    //console.log('Executed query:', { text, duration, rows: res.rowCount });
     return res;
   } catch (error) {
     console.error('Error executing query:', error);
@@ -26,4 +27,4 @@ const query = async (text, params) => {
   }
 };
 
-module.exports = { query };
+module.exports = { query, pool };

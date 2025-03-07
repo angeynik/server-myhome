@@ -30,9 +30,14 @@ const registerUser = async (username, password) => {
  */
 const loginUser = async (username, password) => {
   const user = await login(username, password);
+
+  if (!user) {
+    return { error: 'Неверный логин или пароль' }; // Возвращаем объект с ошибкой
+  }
+
   const token = jwt.sign({ id: user.id }, secret, { expiresIn: 60 });
   console.log('user - ', user, 'token - ', token);
-  return { id: user.id, username: user.username, token };
+  return { id: user.id, username: user.username, token }; // Возвращаем данные пользователя
 };
 
 /**
