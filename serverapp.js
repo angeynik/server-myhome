@@ -379,6 +379,7 @@ WSSDash.on('connection', (ws) => {
               type: 'loginSuccess',
               token: user.token,
               username: user.username,
+              userlevel: user.userlevel,
             })
           );
           console.log('Логин и пароль приняты');

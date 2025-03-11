@@ -36,8 +36,8 @@ const loginUser = async (username, password) => {
   }
 
   const token = jwt.sign({ id: user.id }, secret, { expiresIn: 60 });
-  console.log('user - ', user, 'token - ', token);
-  return { id: user.id, username: user.username, token }; // Возвращаем данные пользователя
+  console.log('id - ', user.id, 'user - ', user.username,  'level', user.level, 'token - ', token);
+  return { id: user.id, username: user.username, userlevel: user.level, token }; // Возвращаем данные пользователя
 };
 
 /**

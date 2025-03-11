@@ -76,6 +76,10 @@ const findUser = async (username) => {
   const result = await query('SELECT * FROM users WHERE username = $1', [username]);
   return result.rows[0];
 };
+const findLevel = async (userId) => {
+  const result = await query('SELECT permission_level FROM permissions WHERE user_id = $1', [userId]);
+  return result.rows[0] ? result.rows[0].permission_level : null; // Возвращаем уровень доступа или null
+};
 
 // Вход пользователя
 const login = async (username, password) => {
@@ -89,6 +93,9 @@ const login = async (username, password) => {
     console.log('Неверный пароль для пользователя', username);
     return null; // Возвращаем null, если пароль неверный
   }
+  const level = await findLevel(user.id);
+  user.level = level || 0;
+  console.log('Уровень доступа пользователя:', level);
   return user;
 };
 
