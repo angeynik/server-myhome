@@ -7,5 +7,5 @@ node_modules/
 jspm_packages/
 
 # Personal configuration
-conf.env
+git rm --cached conf.env
 
