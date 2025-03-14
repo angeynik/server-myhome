@@ -168,7 +168,7 @@ const initializeServer = async () => {
             const newUser = await registerUser(poddyUsername, poddyPassword);
               
               // Создаем источник данных
-              const dataSource = await addDataSource('exhibpossibles', 'Демонстрационная база данных для проверки возможностей приложения');
+              const dataSource = await addDataSource('home_OPi3B','exhibpossibles', 'Демонстрационная база данных для проверки возможностей приложения');
               const dataSourceId = dataSource.id;
               console.log('ID созданного пользователя:', newUser.user.id, 'dataSourceId:', dataSourceId);
               // Связываем пользователя с источником данных
@@ -356,7 +356,7 @@ WSSDash.on('connection', (ws) => {
   ws.on('message', async (message) => {
     try {
       const data = JSON.parse(message);
-      console.log('Получены данные с типом:', data.type, ' и содержимым:', data);
+      console.log('Получены данные ', data);
   
       if (data.type === 'login') {
         const { username, password } = data;
@@ -383,6 +383,46 @@ WSSDash.on('connection', (ws) => {
             })
           );
           console.log('Логин и пароль приняты');
+        }
+      }
+      if (data.type === 'createUser') {
+        const { username, password, dataSource, permissionLevel } = data;
+      
+        try {
+          const newUser = await registerUser(username, password);
+          if (newUser.error) {
+            ws.send(
+              JSON.stringify({
+                type: 'createUserError',
+                message: newUser.error,
+              })
+            );
+          } else {
+            // Создаем источник данных
+            const dataSourceResult = await addDataSource(dataSource, 'default', 'Описание источника данных');
+            const dataSourceId = dataSourceResult.id;
+      
+            // Связываем пользователя с источником данных
+            await linkDataSourceToUser(newUser.user.id, dataSourceId);
+      
+            // Добавляем права доступа для нового пользователя
+            await addPermission(newUser.user.id, dataSourceId, permissionLevel);
+      
+            ws.send(
+              JSON.stringify({
+                type: 'createUserSuccess',
+                user: newUser.user,
+              })
+            );
+          }
+        } catch (error) {
+          console.error('Ошибка при создании пользователя:', error);
+          ws.send(
+            JSON.stringify({
+              type: 'createUserError',
+              message: 'Ошибка при создании пользователя',
+            })
+          );
         }
       }
     } catch (error) {
