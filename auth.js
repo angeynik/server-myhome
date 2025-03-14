@@ -12,17 +12,6 @@ dotenv.config({path: './conf.env'}); // Указываем путь к  файл
 const secret = process.env.JWT_SECRET || 'default-secret-key';
 
 /**
- * Регистрация нового пользователя
- * @param {string} username - Имя пользователя
- * @param {string} password - Пароль
- * @returns {Object} - Результат регистрации
- */
-const registerUser = async (username, password) => {
-  const user = await register(username, password);
-  return { message: 'User registered successfully!', user };
-};
-
-/**
  * Вход пользователя
  * @param {string} username - Имя пользователя
  * @param {string} password - Пароль
@@ -54,7 +43,6 @@ const verifyToken = (token) => {
 };
 
 module.exports = {
-  registerUser,
   loginUser,
   verifyToken,
 };

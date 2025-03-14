@@ -22,7 +22,10 @@ const query = async (text, params) => {
     //console.log('Executed query:', { text, duration, rows: res.rowCount });
     return res;
   } catch (error) {
-    console.error('Error executing query:', error);
+        // Логируем ошибки только в продакшене
+    if (process.env.NODE_ENV === 'production') {
+      console.error('Error executing query:', error);
+    }
     throw error;
   }
 };

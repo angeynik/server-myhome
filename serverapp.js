@@ -11,8 +11,8 @@ const fs = require('fs');
 // require('dotenv').config({ path: './conf.env' }); 
 const dotenv = require('dotenv'); // Подключаем .ENV файл с переменными окружения
 dotenv.config({path: './conf.env'}); // Указываем путь к  файлу .env
-const { registerUser, loginUser, verifyToken } = require('./auth'); // Импортируем функции авторизации
-const { findUser, addPermission, addDataSource, linkDataSourceToUser, checkConnection, closeConnection } = require('./userRepository'); 
+const { loginUser, verifyToken } = require('./auth'); // Импортируем функции авторизации
+const { registerUser, findUser, addPermission, addDataSource, linkDataSourceToUser, checkConnection, closeConnection } = require('./userRepository'); 
 
 // Подключаем функции модуля joi для валидации данных
 const {validType, validConfig, validPost} = require('./validate');
@@ -155,32 +155,21 @@ const initializeServer = async () => {
       console.log('Successfully connected to the database.');
       // Функция для проверки и создания пользователя poddy
       const initializePoddyUser = async () => {
-        const poddyUsername = 'poddy';
-        const poddyPassword = process.env.DB_PODDY; // Пароль из файла conf.env
-
+        const username = process.env.DEFAULT_USER_NAME;
+        const password = process.env.DEFAULT_USER_PASSWORD; // Пароль из файла conf.env
+        const level = parseInt(process.env.DEFAULT_USER_LEVEL, 10); 
+        const source = process.env.DEFAULT_USER_SOURCE;
+        const dID = process.env.DEFAULT_USER_DID;
+        
         try {
           // Проверяем, существует ли пользователь poddy
-          const poddyUser = await findUser(poddyUsername);
+          const poddyUser = await findUser(username);
           console.log('Результат запроса в DB для пользователя poddy:', poddyUser);
           if (!poddyUser) {
             // Если пользователь не существует, создаем его с правами admin
             console.log('Пользователь poddy не найден. Создание нового пользователя...');
-            const newUser = await registerUser(poddyUsername, poddyPassword);
-              
-              // Создаем источник данных
-              const dataSource = await addDataSource('home_OPi3B','exhibpossibles', 'Демонстрационная база данных для проверки возможностей приложения');
-              const dataSourceId = dataSource.id;
-              console.log('ID созданного пользователя:', newUser.user.id, 'dataSourceId:', dataSourceId);
-              // Связываем пользователя с источником данных
-              await linkDataSourceToUser(newUser.user.id, dataSourceId);
-
-              // Добавляем права доступа для нового пользователя
-              await addPermission(newUser.user.id, dataSourceId, 3);
-
-
-            // Здесь можно добавить логику для присвоения прав admin
-            // Например, обновление записи в базе данных или добавление в отдельную таблицу прав
-            console.log('Пользователь poddy успешно создан с правами admin.');
+            const newUser = await registerUser(username, password, level, dID, source);
+            console.log('Пользователь poddy успешно создан с правами admin.', newUser);
           } else {
             console.log('Пользователь poddy уже существует.');
           }
@@ -353,88 +342,138 @@ WSSNodeRED.on('connection', (ws) => {
 WSSDash.on('connection', (ws) => {
   Slogger.info('-- 235 -- Client connected to Dashboard on port ' + wsDashPORT);
 
-  ws.on('message', async (message) => {
-    try {
-      const data = JSON.parse(message);
-      console.log('Получены данные ', data);
-  
-      if (data.type === 'login') {
-        const { username, password } = data;
-  
-        const user = await loginUser(username, password);
-  
-        if (user.error) {
-          // Если есть ошибка, отправляем её клиенту
-          ws.send(
-            JSON.stringify({
-              type: 'loginError',
-              message: user.error,
-            })
-          );
-          console.log('Логин и пароль ОТКЛОНЕНЫ:', user.error);
-        } else {
-          // Если ошибки нет, отправляем успешный ответ
-          ws.send(
-            JSON.stringify({
-              type: 'loginSuccess',
-              token: user.token,
-              username: user.username,
-              userlevel: user.userlevel,
-            })
-          );
-          console.log('Логин и пароль приняты');
-        }
+// ws.on('message', async (message) => {
+//   try {
+//     const data = JSON.parse(message);
+//     console.log('Получены данные:', data);
+
+//     if (data.type === 'login') {
+//       const { username, password } = data;
+
+//       const user = await loginUser(username, password);
+
+//       if (user.error) {
+//         // Если есть ошибка, отправляем её клиенту
+//         ws.send(
+//           JSON.stringify({
+//             type: 'loginError',
+//             message: user.error,
+//           })
+//         );
+//         console.log('Логин и пароль ОТКЛОНЕНЫ:', user.error);
+//       } else {
+//         // Если ошибки нет, отправляем успешный ответ
+//         ws.send(
+//           JSON.stringify({
+//             type: 'loginSuccess',
+//             token: user.token,
+//             username: user.username,
+//             userlevel: user.userlevel,
+//           })
+//         );
+//         console.log('Логин и пароль приняты');
+//       }
+//     } else if (data.type === 'createUser') {
+//       const { username, password, dataSource, permissionLevel } = data;
+
+//       try {
+//         // Регистрируем пользователя и создаем источник данных внутри registerUser
+//         const newUser = await registerUser(username, password, permissionLevel, dataSource, dataSource);
+
+//         // Отправляем успешный ответ клиенту
+//         ws.send(
+//           JSON.stringify({
+//             type: 'createUserSuccess',
+//             user: newUser.user,
+//           })
+//         );
+//       } catch (error) {
+//         console.error('Ошибка при создании пользователя:', error);
+//         ws.send(
+//           JSON.stringify({
+//             type: 'createUserError',
+//             message: error.message || 'Ошибка при создании пользователя',
+//           })
+//         );
+//       }
+//     }
+//   } catch (error) {
+//     console.error('Ошибка при обработке сообщения:', error);
+//     ws.send(
+//       JSON.stringify({
+//         type: 'error',
+//         message: 'Произошла ошибка при обработке запроса',
+//       })
+//     );
+//   }
+// });
+
+ws.on('message', async (message) => {
+  try {
+    const data = JSON.parse(message);
+    console.log('Получены данные:', data);
+
+    if (data.type === 'login') {
+      const { username, password } = data;
+
+      const user = await loginUser(username, password);
+
+      if (user.error) {
+        // Если есть ошибка, отправляем её клиенту
+        ws.send(
+          JSON.stringify({
+            type: 'loginError',
+            message: user.error,
+          })
+        );
+        console.log('Логин и пароль ОТКЛОНЕНЫ:', user.error);
+      } else {
+        // Если ошибки нет, отправляем успешный ответ
+        ws.send(
+          JSON.stringify({
+            type: 'loginSuccess',
+            token: user.token,
+            username: user.username,
+            userlevel: user.userlevel,
+          })
+        );
+        console.log('Логин и пароль приняты');
       }
-      if (data.type === 'createUser') {
-        const { username, password, dataSource, permissionLevel } = data;
-      
-        try {
-          const newUser = await registerUser(username, password);
-          if (newUser.error) {
-            ws.send(
-              JSON.stringify({
-                type: 'createUserError',
-                message: newUser.error,
-              })
-            );
-          } else {
-            // Создаем источник данных
-            const dataSourceResult = await addDataSource(dataSource, 'default', 'Описание источника данных');
-            const dataSourceId = dataSourceResult.id;
-      
-            // Связываем пользователя с источником данных
-            await linkDataSourceToUser(newUser.user.id, dataSourceId);
-      
-            // Добавляем права доступа для нового пользователя
-            await addPermission(newUser.user.id, dataSourceId, permissionLevel);
-      
-            ws.send(
-              JSON.stringify({
-                type: 'createUserSuccess',
-                user: newUser.user,
-              })
-            );
-          }
-        } catch (error) {
-          console.error('Ошибка при создании пользователя:', error);
-          ws.send(
-            JSON.stringify({
-              type: 'createUserError',
-              message: 'Ошибка при создании пользователя',
-            })
-          );
-        }
+    } else if (data.type === 'createUser') {
+      const { username, password, dataSource, permissionLevel } = data;
+
+      try {
+        // Регистрируем пользователя и создаем источник данных внутри registerUser
+        const newUser = await registerUser(username, password, permissionLevel, dataSource, dataSource);
+
+        // Отправляем успешный ответ клиенту
+        ws.send(
+          JSON.stringify({
+            type: 'createUserSuccess',
+            user: newUser.user,
+          })
+        );
+      } catch (error) {
+        console.error('Ошибка при создании пользователя:', error);
+        ws.send(
+          JSON.stringify({
+            type: 'createUserError',
+            message: error.message || 'Ошибка при создании пользователя',
+          })
+        );
       }
-    } catch (error) {
-      console.error('Ошибка при обработке сообщения:', error);
-      ws.send(
-        JSON.stringify({
-          type: 'loginError',
-          message: 'Произошла ошибка при обработке запроса',
-        })
-      );
     }
-  });
+  } catch (error) {
+    console.error('Ошибка при обработке сообщения:', error);
+    ws.send(
+      JSON.stringify({
+        type: 'error',
+        message: 'Произошла ошибка при обработке запроса',
+      })
+    );
+  }
+});
+
 
   ws.on('error', (error) => {
     Slogger.error('WebSocket error on Dashboard:', error);
