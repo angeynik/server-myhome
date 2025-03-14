@@ -62,6 +62,7 @@ const registerUser = async (username, password, level, dID, sourceName = null, s
     throw new Error('Username, password, dID and level are required');
   }
 
+  const hashedPassword = await bcrypt.hash(password, 10); // Хешируем пароль
   const client = await pool.connect(); // Получаем клиента для транзакции
 
   try {
@@ -71,7 +72,7 @@ const registerUser = async (username, password, level, dID, sourceName = null, s
     // Регистрация пользователя
     const newUser = await client.query(
       'INSERT INTO users (username, password, email) VALUES ($1, $2, $3) RETURNING id, username, email',
-      [username, password, email]
+      [username, hashedPassword, email]
     );
 
     const userId = newUser.rows[0].id;
@@ -229,6 +230,66 @@ const login = async (username, password) => {
   console.log('Уровень доступа пользователя:', level);
   return user;
 };
+/**
+ * Функция для изменения пароля пользователя
+ * @param {number} requesterId - ID пользователя, который пытается изменить пароль
+ * @param {string} targetUsername - Имя пользователя, для которого меняется пароль
+ * @param {string} newPassword - Новый пароль
+ * @returns {Object} - Результат операции
+ */
+const changePassword = async (requesterId, targetUsername, newPassword) => {
+  // Проверяем, что новый пароль предоставлен
+  if (!newPassword) {
+    throw new Error('New password is required');
+  }
+
+  const client = await pool.connect(); // Получаем клиента для транзакции
+
+  try {
+    await client.query('BEGIN'); // Начинаем транзакцию
+
+    // Проверяем уровень доступа пользователя, который пытается изменить пароль
+    const requesterLevel = await client.query(
+      'SELECT permission_level FROM Permissions WHERE user_id = $1',
+      [requesterId]
+    );
+
+    if (!requesterLevel.rows.length || requesterLevel.rows[0].permission_level !== 3) {
+      throw new Error('Only users with permission level 3 can change passwords');
+    }
+
+    // Находим пользователя, для которого меняется пароль
+    const targetUser = await client.query(
+      'SELECT id FROM users WHERE username = $1',
+      [targetUsername]
+    );
+
+    if (!targetUser.rows.length) {
+      throw new Error('User not found');
+    }
+
+    const targetUserId = targetUser.rows[0].id;
+
+    // Хешируем новый пароль
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    // Обновляем пароль в базе данных
+    await client.query(
+      'UPDATE users SET password = $1 WHERE id = $2',
+      [hashedPassword, targetUserId]
+    );
+
+    await client.query('COMMIT'); // Завершаем транзакцию
+
+    return { message: 'Password changed successfully!' };
+  } catch (error) {
+    await client.query('ROLLBACK'); // Откатываем транзакцию в случае ошибки
+    console.error('Ошибка при изменении пароля:', error);
+    throw error;
+  } finally {
+    client.release(); // Освобождаем клиента
+  }
+};
 
 const checkConnection = async () => {
   console.log('Начинаем проверку подключения (checkConnection) к базе данных...');
@@ -259,5 +320,7 @@ module.exports = {
   addDataSource,
   linkDataSourceToUser,
   checkConnection,
-  closeConnection
+  closeConnection,
+  insertIntoTable,
+  changePassword
 };

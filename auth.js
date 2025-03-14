@@ -1,7 +1,7 @@
 // Процесс авторизации 
 
 const jwt = require('jsonwebtoken');
-const { register, login } = require('./userRepository');
+const { login } = require('./userRepository');
 
 // Моковые данные пользователей
 //const users = [{ id: 1, username: 'testuser', password: bcrypt.hashSync('testpassword', 8) }];
