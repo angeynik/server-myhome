@@ -145,8 +145,6 @@ app.use(bodyParser.json());
 
 
 // Инициализация сервера
-
-
 const initializeServer = async () => {
   try {
     console.log('Подключение к базе данных...');
@@ -155,13 +153,12 @@ const initializeServer = async () => {
       console.log('Successfully connected to the database.');
       // Функция для проверки и создания пользователя poddy
       const initializePoddyUser = async () => {
-        const username = process.env.DEFAULT_USER_NAME;
-        const password = process.env.DEFAULT_USER_PASSWORD; // Пароль из файла conf.env
-        const level = parseInt(process.env.DEFAULT_USER_LEVEL, 10); 
-        const source = process.env.DEFAULT_USER_SOURCE;
-        const dID = process.env.DEFAULT_USER_DID;
-        
         try {
+          const username = process.env.DEFAULT_USER_NAME;
+          const password = process.env.DEFAULT_USER_PASSWORD; // Пароль из файла conf.env
+          const level = parseInt(process.env.DEFAULT_USER_LEVEL, 10); 
+          const source = process.env.DEFAULT_USER_SOURCE;
+          const dID = process.env.DEFAULT_USER_DID;
           // Проверяем, существует ли пользователь poddy
           const poddyUser = await findUser(username);
           console.log('Результат запроса в DB для пользователя poddy:', poddyUser);
@@ -177,7 +174,8 @@ const initializeServer = async () => {
           console.error('Ошибка при инициализации пользователя poddy:', error);
         }
       };
-      console.log('Инициализация пользователя poddy...', initializePoddyUser());
+      console.log('Инициализация пользователя poddy...');
+      await initializePoddyUser(); // Ожидаем завершения инициализации
     } else {
       console.log('Server is running without database connection.');
     }
@@ -188,23 +186,30 @@ const initializeServer = async () => {
   // Запуск сервера
   server.listen(servPORT, () => {
     console.log(`MyHome Server is running on port ${servPORT}`);
-});
+  });
 
   // Корректное завершение работы сервера и закрытие соединения с базой данных
   const handleShutdown = async () => {
     console.log('Shutting down server...');
-    await closeConnection(); // Закрываем соединение с базой данных
-    server.close(() => {
-      console.log('Server has been shut down.');
-      process.exit(0);
-    });
+    try {
+      await closeConnection(); // Закрываем соединение с базой данных
+      console.log('Database connection closed.');
+      server.close(() => {
+        console.log('Server has been shut down.');
+        process.exit(0); // Завершаем процесс после закрытия сервера
+      });
+    } catch (error) {
+      console.error('Ошибка при завершении работы сервера:', error);
+      process.exit(1); // Завершаем процесс с кодом ошибки
+    }
   };
-  
+
   // Обрабатываем оба сигнала одним обработчиком
   process.on('SIGINT', handleShutdown);
   process.on('SIGTERM', handleShutdown);
 };
-// Выполняем Инициализацию сервера
+
+// Выполняем инициализацию сервера
 initializeServer();
 
 
@@ -341,72 +346,6 @@ WSSNodeRED.on('connection', (ws) => {
 
 WSSDash.on('connection', (ws) => {
   Slogger.info('-- 235 -- Client connected to Dashboard on port ' + wsDashPORT);
-
-// ws.on('message', async (message) => {
-//   try {
-//     const data = JSON.parse(message);
-//     console.log('Получены данные:', data);
-
-//     if (data.type === 'login') {
-//       const { username, password } = data;
-
-//       const user = await loginUser(username, password);
-
-//       if (user.error) {
-//         // Если есть ошибка, отправляем её клиенту
-//         ws.send(
-//           JSON.stringify({
-//             type: 'loginError',
-//             message: user.error,
-//           })
-//         );
-//         console.log('Логин и пароль ОТКЛОНЕНЫ:', user.error);
-//       } else {
-//         // Если ошибки нет, отправляем успешный ответ
-//         ws.send(
-//           JSON.stringify({
-//             type: 'loginSuccess',
-//             token: user.token,
-//             username: user.username,
-//             userlevel: user.userlevel,
-//           })
-//         );
-//         console.log('Логин и пароль приняты');
-//       }
-//     } else if (data.type === 'createUser') {
-//       const { username, password, dataSource, permissionLevel } = data;
-
-//       try {
-//         // Регистрируем пользователя и создаем источник данных внутри registerUser
-//         const newUser = await registerUser(username, password, permissionLevel, dataSource, dataSource);
-
-//         // Отправляем успешный ответ клиенту
-//         ws.send(
-//           JSON.stringify({
-//             type: 'createUserSuccess',
-//             user: newUser.user,
-//           })
-//         );
-//       } catch (error) {
-//         console.error('Ошибка при создании пользователя:', error);
-//         ws.send(
-//           JSON.stringify({
-//             type: 'createUserError',
-//             message: error.message || 'Ошибка при создании пользователя',
-//           })
-//         );
-//       }
-//     }
-//   } catch (error) {
-//     console.error('Ошибка при обработке сообщения:', error);
-//     ws.send(
-//       JSON.stringify({
-//         type: 'error',
-//         message: 'Произошла ошибка при обработке запроса',
-//       })
-//     );
-//   }
-// });
 
 ws.on('message', async (message) => {
   try {
