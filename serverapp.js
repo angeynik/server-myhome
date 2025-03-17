@@ -12,7 +12,7 @@ const fs = require('fs');
 const dotenv = require('dotenv'); // Подключаем .ENV файл с переменными окружения
 dotenv.config({path: './conf.env'}); // Указываем путь к  файлу .env
 const { loginUser, verifyToken } = require('./auth'); // Импортируем функции авторизации
-const { registerUser, findUser, addPermission, addDataSource, linkDataSourceToUser, checkConnection, closeConnection } = require('./userRepository'); 
+const { registerUser, findUser, fetchUsers, fetchDataSources, checkConnection, closeConnection, linkDataSourceToUser } = require('./userRepository'); 
 
 // Подключаем функции модуля joi для валидации данных
 const {validType, validConfig, validPost} = require('./validate');
@@ -352,56 +352,249 @@ ws.on('message', async (message) => {
     const data = JSON.parse(message);
     console.log('Получены данные:', data);
 
-    if (data.type === 'login') {
-      const { username, password } = data;
+    switch (data.type) {
+      case 'get': // Используем строку 'get' для сравнения
+        console.log('Переходим к проверке сообщения типа get.');
+            switch (data.request) {
+              case 'login':
+                const { username, password } = data;
+                const user = await loginUser(username, password);
+                if (user.error) {
+                // Если есть ошибка, отправляем её клиенту
+                ws.send(
+                  JSON.stringify({
+                    type: 'error',
+                    rerquest:'loginError',
+                    message: user.error,
+                  })
+                );
+                console.log('Логин и пароль ОТКЛОНЕНЫ:', user.error);
+              } else {
+                // Если ошибки нет, отправляем успешный ответ
+                ws.send(
+                  JSON.stringify({
+                    type: 'responce',
+                    rerquest:'loginSuccess',
+                    token: user.token,
+                    username: user.username,
+                    userlevel: user.userlevel,
+                  })
+                );
+                console.log('Логин и пароль приняты');
+              }
+                break;
+                case 'fetchUsers':
+                  try {
+                    const users = await fetchUsers();
+                    console.log('Users', users);
+                    // Отправляем список пользователей клиенту
+                    ws.send(
+                      JSON.stringify({
+                        type: 'responce',
+                        request: 'fetchUsersSuccess',
+                        requestId: data.requestId, // Возвращаем requestId
+                        users: users,
+                      })
+                    );
+                  } catch (error) {
+                    console.error('Ошибка при получении списка пользователей:', error);
+                    ws.send(
+                      JSON.stringify({
+                        type: 'error',
+                        request:'fetchUsersError',
+                        requestId: data.requestId, // Возвращаем requestId
+                        message: error.message || 'Ошибка при получении списка пользователей',
+                      })
+                    );
+                  }
+                  break;
+                break;
+                case 'fetchDataSources':
+                  try {
+                    const dataSources = await fetchDataSources();
+                    console.log('dataSources', dataSources);
+                    // Отправляем список источников данных клиенту
+                    ws.send(
+                      JSON.stringify({
+                        type: 'responce',
+                        request:'fetchDataSourcesSuccess',
+                        requestId: data.requestId, // Возвращаем requestId
+                        sources: dataSources,
+                      })
+                    );
+                  } catch (error) {
+                    console.error('Ошибка при получении списка источников данных:', error);
+                    ws.send(
+                      JSON.stringify({
+                        type: 'error',
+                        request:'fetchDataSourcesError',
+                        requestId: data.requestId, // Возвращаем requestId
+                        message: error.message || 'Ошибка при получении списка источников данных',
+                      })
+                    );
+                  }
+                  break; 
+              default:
+                break;
+            }
+        break;
+      case 'post': // Используем строку 'post' для сравнения
+        console.log('Переходим к проверке сообщения типа post.');
+            switch (data.request) {
+              case 'createUser':
+                      const { username, password, dataSource, permissionLevel } = data;
+                try {
+                  // Регистрируем пользователя и создаем источник данных внутри registerUser
+                  const newUser = await registerUser(username, password, permissionLevel, dataSource, dataSource);
 
-      const user = await loginUser(username, password);
+                  // Отправляем успешный ответ клиенту
+                  if (!newUser) {
+                    ws.send(
+                      JSON.stringify({
+                        type: 'error',
+                        request:'createUserError',
+                        message: 'Ошибка создания пользователя',
+                      })
+                    )
+                  } else {
+                    console.log('Пользователь успешно создан:', newUser.user);
+                    ws.send(
+                      JSON.stringify({
+                        type: 'responce',
+                        request:'createUserSuccess',
+                        user: newUser.user,
+                      })
+                    );
+                  }
 
-      if (user.error) {
-        // Если есть ошибка, отправляем её клиенту
-        ws.send(
-          JSON.stringify({
-            type: 'loginError',
-            message: user.error,
-          })
-        );
-        console.log('Логин и пароль ОТКЛОНЕНЫ:', user.error);
-      } else {
-        // Если ошибки нет, отправляем успешный ответ
-        ws.send(
-          JSON.stringify({
-            type: 'loginSuccess',
-            token: user.token,
-            username: user.username,
-            userlevel: user.userlevel,
-          })
-        );
-        console.log('Логин и пароль приняты');
-      }
-    } else if (data.type === 'createUser') {
-      const { username, password, dataSource, permissionLevel } = data;
-
-      try {
-        // Регистрируем пользователя и создаем источник данных внутри registerUser
-        const newUser = await registerUser(username, password, permissionLevel, dataSource, dataSource);
-
-        // Отправляем успешный ответ клиенту
-        ws.send(
-          JSON.stringify({
-            type: 'createUserSuccess',
-            user: newUser.user,
-          })
-        );
-      } catch (error) {
-        console.error('Ошибка при создании пользователя:', error);
-        ws.send(
-          JSON.stringify({
-            type: 'createUserError',
-            message: error.message || 'Ошибка при создании пользователя',
-          })
-        );
-      }
+                } catch (error) {
+                  console.error('Ошибка при создании пользователя:', error);
+                  ws.send(
+                    JSON.stringify({
+                      type: 'error',
+                      request:'createUserError',
+                      message: error.message || 'Ошибка при создании пользователя',
+                    })
+                  );
+                }
+              break;
+              case 'linkUserToDataSource':
+                const { userId, dataSourceId } = data;
+                try {
+                  const linkUser = await linkDataSourceToUser(userId, dataSourceId);
+                  if (linkUser.error) {
+                    // Если есть ошибка, отправляем её клиенту
+                    ws.send(
+                      JSON.stringify({
+                        type: 'error',
+                        request: 'linkUserToDataSourceError',
+                        message: linkUser.error,
+                      })
+                    );
+                  } else {
+                    // Если ошибки нет, отправляем успешный ответ
+                    ws.send(
+                      JSON.stringify({
+                        type: 'responce',
+                        request: 'linkUserToDataSourceSuccess',
+                        message: 'Связь успешно создана',
+                      })
+                    );
+                  }
+                } catch (error) {
+                  console.error('Ошибка при добавлении источника к пользователю:', error);
+                  ws.send(
+                    JSON.stringify({
+                      type: 'error',
+                      request: 'linkUserToDataSourceError',
+                      message: error.message || 'Ошибка при добавлении источника к пользователю',
+                    })
+                  );
+                }
+                break;
+              default:
+                break;
+            }
+        break;
+      case 'responce': // Используем строку 'request' для сравнения
+        console.log('Переходим к проверке сообщения типа responce.');
+        break;
+      case 'config': // Используем строку 'request' для сравнения
+        console.log('Переходим к проверке сообщения типа config.');
+        break;
+      case 'set': // Используем строку 'request' для сравнения
+        console.log('Переходим к проверке сообщения типа set.');
+        break;
+      default:
+        console.log('Неизвестный тип сообщения:', data.type);
+        break;
     }
+
+    // if (data.type === 'login') {
+    //   const { username, password } = data;
+
+    //   const user = await loginUser(username, password);
+
+    //   if (user.error) {
+    //     // Если есть ошибка, отправляем её клиенту
+    //     ws.send(
+    //       JSON.stringify({
+    //         type: 'loginError',
+    //         message: user.error,
+    //       })
+    //     );
+    //     console.log('Логин и пароль ОТКЛОНЕНЫ:', user.error);
+    //   } else {
+    //     // Если ошибки нет, отправляем успешный ответ
+    //     ws.send(
+    //       JSON.stringify({
+    //         type: 'loginSuccess',
+    //         token: user.token,
+    //         username: user.username,
+    //         userlevel: user.userlevel,
+    //       })
+    //     );
+    //     console.log('Логин и пароль приняты');
+    //   }
+    // }
+
+
+
+    
+//     if (data.type === 'get') {
+//       const { username, password } = data;
+//       const user = await loginUser(username, password);
+//       ws.send(JSON.stringify(user));
+//     }
+    
+//     else if (data.type === 'createUser') {
+//       const { username, password, dataSource, permissionLevel } = data;
+
+//       try {
+//         // Регистрируем пользователя и создаем источник данных внутри registerUser
+//         const newUser = await registerUser(username, password, permissionLevel, dataSource, dataSource);
+
+//         // Отправляем успешный ответ клиенту
+//         ws.send(
+//           JSON.stringify({
+//             type: 'createUserSuccess',
+//             user: newUser.user,
+//           })
+//         );
+//       } catch (error) {
+//         console.error('Ошибка при создании пользователя:', error);
+//         ws.send(
+//           JSON.stringify({
+//             type: 'createUserError',
+//             message: error.message || 'Ошибка при создании пользователя',
+//           })
+//         );
+//       }
+//     } else if (data.type === 'fetchUsers') {   
+// console.log('fetchUsers');
+//     } else if (data.type === 'fetchDataSources') {
+
+//     }
   } catch (error) {
     console.error('Ошибка при обработке сообщения:', error);
     ws.send(
