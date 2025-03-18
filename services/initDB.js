@@ -102,39 +102,62 @@ class InitDB {
     );
   `;
 
-  static async checkDB(dbName, dbUser, dbPass) {
-    console.log ('InitServer - checkDB, dbName -', dbName, 'dbUser-', dbUser, 'dbPass-', dbPass);
+  async checkDB(dbName, dbUser, dbPass) {
+    // Проверяем корректность подключения и отсутствие запрашиваемой базы
+    // TRUE - базы нет Учетная запись Postgres корректна
+    // FALSE - база есть
+    // FALSE - базы нет Учетная записть Postgres НЕ КОРРЕКТНА
+  // Используем переданные параметры или значения из класса, если параметры не переданы
+  const databaseName = dbName || this.dbName;
+  const databaseUser = dbUser || this.dbUser;
+  const databasePass = dbPass || this.dbPass;
+
+  console.log('class InitDB Функция checkDB, dbName -', databaseName, 'dbUser -', databaseUser, 'dbPass -', databasePass);
     try {
-      setDatabase('spring', dbUser, dbPass);
+      setDatabase(databaseName, databaseUser, databasePass);
       const dbExists = await query(
         'SELECT 1 FROM pg_database WHERE datname = $1',
-        [dbName]
+        [databaseName]
       );
       if (dbExists.rows.length === 0) {
-        console.log(`База данных ${dbName} не существует. Создание новой базы данных...`);
-        await this.createDB(dbName, dbUser, dbPass);
+        console.log(`База данных ${databaseName} не существует. Создание новой базы данных...`);
+        return {result :true, message: 'База данных НЕ существует'};
       } else {
-        console.log(`База данных ${dbName} уже существует.`);
-        return true;
+        console.log(`База данных - ${databaseName} - уже существует.`);
+        return {result :false, message: 'База данных уже существует.'};
       }
     } catch (error) {
       console.error('Ошибка при проверке базы данных:', error);
-      throw error;
+      // Проверяем, связана ли ошибка с отсутствием пользователя
+    if (error.code === '28000' && error.message.includes('role')) {
+      return { result: false, message: `Пользователь ${databaseUser} отсутствует в базе Postgres. Создайте пользователя!` };
+    }
+
+    // Возвращаем общую ошибку, если это не связано с отсутствием пользователя
+    return { result: false, message: `Ошибка при проверке базы данных: ${error.message}` };
+  
     }
   }
 
-  static async createDB(dbName, dbUser, dbPass) {
+  static async createDB(dbName) {
+    // Проверяем существует ли база если нет то создаем новую с именем - dbName
+    // вход в базу для создания выполняем под  this.dbPass this.dbUser 
     console.log ('InitServer - createDB');
-    try {
-      await queryRetries(`CREATE DATABASE "${dbName}"`);
-      console.log(`База данных "${dbName}" создана успешно.`);
-      await queryRetries(`CREATE USER ${dbUser} WITH PASSWORD '${dbPass}'`);
-      await queryRetries(`ALTER DATABASE "${dbName}" OWNER TO ${dbUser}`);
-      return `База данных "${dbName}" создана успешно.`;
-    } catch (error) {
-      console.error(`Ошибка при создании базы данных "${dbName}":`, error);
-      return error;
-    }
+    const check = await this.checkDB(dbName);
+    if (check.result == true) {
+        try {
+          await queryRetries(`CREATE DATABASE "${dbName}"`);
+          console.log(`База данных "${dbName}" создана успешно.`);
+          // await queryRetries(`CREATE USER ${dbUser} WITH PASSWORD '${dbPass}'`);
+          // await queryRetries(`ALTER DATABASE "${dbName}" OWNER TO ${dbUser}`);
+          return {result :true, message: `База данных "${dbName}" создана успешно.`};
+        } catch (error) {
+          console.error(`Ошибка при создании базы данных "${dbName}":`, error);
+          return { result: false, message: `Ошибка при создании базы данных "${dbName}" : ${error.message}` };
+        }
+      } else {
+        return { result: false, message: check.message}
+      }
   }
   static async createTables(tables) {
     console.log ('InitServer - createTables');
@@ -179,4 +202,4 @@ class InitDB {
   }
 }
 
-module.exports = InitServer;
+module.exports = InitDB;

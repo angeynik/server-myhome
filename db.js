@@ -15,11 +15,12 @@ let pool = new Pool(config);
 const setDatabase = (databaseName, user, pass ) => {
   if (pool) {
     // Завершаем старый пул, если он существует
-    console.log(`Pool ended, recreating with new database: ${databaseName}`);
+    console.log(`setDatabase - 1 - Pool ended, Завершаем старый пул, если он существует`);
     pool.end();
   }
 
   // Пересоздаём новый пул соединений с указанием новой базы данных
+  console.log(`setDatabase - 2 - Создаем новый Pool соединений с указанием новой базы данных ${databaseName} пользователя ${user} и пароля ${pass}`);
   pool = new Pool({
     user: user, // Замените на ваше имя пользователя
     host: 'localhost',
@@ -27,7 +28,7 @@ const setDatabase = (databaseName, user, pass ) => {
     password: pass, // Замените на ваш пароль
     port: 5432,
   });
-
+    console.log(`setDatabase - 3 - Pool создан`);
   return pool;
 };
 
@@ -41,7 +42,7 @@ const query = async (text, params, databaseName) => {
   try {
     const res = await pool.query(text, params);
     const duration = Date.now() - start;
-    console.log('Executed query:', { text, duration, rows: res.rowCount });
+    // console.log('Executed query:', { text, duration, rows: res.rowCount });
     return res;
   } catch (error) {
     // Логируем ошибки только в продакшене

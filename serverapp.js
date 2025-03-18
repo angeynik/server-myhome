@@ -7,7 +7,8 @@ const cors = require('cors');
 const path = require('path');
 const bodyParser = require('body-parser');
 const fs = require('fs');
-const initdb = require('../serverApp/services/initializeServer.js');
+const InitDB = require('./services/initDB.js');
+const initDB = new InitDB();
 
 // require('dotenv').config({ path: './conf.env' }); 
 const dotenv = require('dotenv'); // Подключаем .ENV файл с переменными окружения
@@ -151,8 +152,18 @@ app.use(cors());
 app.use(express.json());
 app.use(bodyParser.json());
 
+const check = initDB.checkDB('newDB')
+  .then((check) => {
+    console.log(check.result, ' - ',check.message);
+  })
+  .catch((error) => {
+    console.error('Ошибка при выполнении:', error);
+  });
 
-// const initializeServer = async () => {
+
+// const checkDB = await intiDB.checkDB('root');
+// console.log('Проверяем базу данных Результат - intiDB.checkDB :', checkDB);
+
 // const value = process.env.INIT_DB;
 // console.log('Инициализация ... ', value);
 // try {
@@ -168,72 +179,72 @@ app.use(bodyParser.json());
 // };
 
 // Инициализация сервера
-const initializeServer = async () => {
-  try {
-    console.log('Подключение к базе данных...');
-    const isConnected = await checkConnection();
-    if (isConnected) {
-      // console.log('Successfully connected to the database.');
-      // Функция для проверки и создания пользователя poddy
-      const initializePoddyUser = async () => {
-        try {
-          const username = process.env.DEFAULT_USER_NAME;
-          const password = process.env.DEFAULT_USER_PASSWORD; // Пароль из файла conf.env
-          const level = parseInt(process.env.DEFAULT_USER_LEVEL, 10); 
-          const source = process.env.DEFAULT_USER_SOURCE;
-          const dID = process.env.DEFAULT_USER_DID;
-          // Проверяем, существует ли пользователь poddy
-          const poddyUser = await findUser(username);
-          console.log('Результат запроса в DB для пользователя poddy:', poddyUser);
-          if (!poddyUser) {
-            // Если пользователь не существует, создаем его с правами admin
-            console.log('Пользователь poddy не найден. Создание нового пользователя...');
-            const newUser = await registerUser(username, password, level, dID, source);
-            console.log('Пользователь poddy успешно создан с правами admin.', newUser);
-          } else {
-            console.log('Пользователь poddy уже существует.');
-          }
-        } catch (error) {
-          console.error('Ошибка при инициализации пользователя poddy:', error);
-        }
-      };
-      console.log('Инициализация пользователя poddy...');
-      await initializePoddyUser(); // Ожидаем завершения инициализации
-    } else {
-      console.log('Server is running without database connection.');
-    }
-  } catch (error) {
-    console.error('Error during database connection check:', error);
-  }
+// const initializeServer = async () => {
+//   try {
+//     console.log('Подключение к базе данных...');
+//     const isConnected = await checkConnection();
+//     if (isConnected) {
+//       // console.log('Successfully connected to the database.');
+//       // Функция для проверки и создания пользователя poddy
+//       const initializePoddyUser = async () => {
+//         try {
+//           const username = process.env.DEFAULT_USER_NAME;
+//           const password = process.env.DEFAULT_USER_PASSWORD; // Пароль из файла conf.env
+//           const level = parseInt(process.env.DEFAULT_USER_LEVEL, 10); 
+//           const source = process.env.DEFAULT_USER_SOURCE;
+//           const dID = process.env.DEFAULT_USER_DID;
+//           // Проверяем, существует ли пользователь poddy
+//           const poddyUser = await findUser(username);
+//           console.log('Результат запроса в DB для пользователя poddy:', poddyUser);
+//           if (!poddyUser) {
+//             // Если пользователь не существует, создаем его с правами admin
+//             console.log('Пользователь poddy не найден. Создание нового пользователя...');
+//             const newUser = await registerUser(username, password, level, dID, source);
+//             console.log('Пользователь poddy успешно создан с правами admin.', newUser);
+//           } else {
+//             console.log('Пользователь poddy уже существует.');
+//           }
+//         } catch (error) {
+//           console.error('Ошибка при инициализации пользователя poddy:', error);
+//         }
+//       };
+//       console.log('Инициализация пользователя poddy...');
+//       await initializePoddyUser(); // Ожидаем завершения инициализации
+//     } else {
+//       console.log('Server is running without database connection.');
+//     }
+//   } catch (error) {
+//     console.error('Error during database connection check:', error);
+//   }
 
-  // Запуск сервера
-  server.listen(servPORT, () => {
-    console.log(`MyHome Server is running on port ${servPORT}`);
-  });
+//   // Запуск сервера
+//   server.listen(servPORT, () => {
+//     console.log(`MyHome Server is running on port ${servPORT}`);
+//   });
 
-  // Корректное завершение работы сервера и закрытие соединения с базой данных
-  const handleShutdown = async () => {
-    console.log('Shutting down server...');
-    try {
-      await closeConnection(); // Закрываем соединение с базой данных
-      console.log('Database connection closed.');
-      server.close(() => {
-        console.log('Server has been shut down.');
-        process.exit(0); // Завершаем процесс после закрытия сервера
-      });
-    } catch (error) {
-      console.error('Ошибка при завершении работы сервера:', error);
-      process.exit(1); // Завершаем процесс с кодом ошибки
-    }
-  };
+//   // Корректное завершение работы сервера и закрытие соединения с базой данных
+//   const handleShutdown = async () => {
+//     console.log('Shutting down server...');
+//     try {
+//       await closeConnection(); // Закрываем соединение с базой данных
+//       console.log('Database connection closed.');
+//       server.close(() => {
+//         console.log('Server has been shut down.');
+//         process.exit(0); // Завершаем процесс после закрытия сервера
+//       });
+//     } catch (error) {
+//       console.error('Ошибка при завершении работы сервера:', error);
+//       process.exit(1); // Завершаем процесс с кодом ошибки
+//     }
+//   };
 
-  // Обрабатываем оба сигнала одним обработчиком
-  process.on('SIGINT', handleShutdown);
-  process.on('SIGTERM', handleShutdown);
-};
+//   // Обрабатываем оба сигнала одним обработчиком
+//   process.on('SIGINT', handleShutdown);
+//   process.on('SIGTERM', handleShutdown);
+// };
 
-// Выполняем инициализацию сервера
-initializeServer();
+// // Выполняем инициализацию сервера
+// initializeServer();
 
 
 //Работа с логами с Клиента
