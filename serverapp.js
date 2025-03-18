@@ -7,12 +7,22 @@ const cors = require('cors');
 const path = require('path');
 const bodyParser = require('body-parser');
 const fs = require('fs');
+const initdb = require('../serverApp/services/initializeServer.js');
 
 // require('dotenv').config({ path: './conf.env' }); 
 const dotenv = require('dotenv'); // Подключаем .ENV файл с переменными окружения
 dotenv.config({path: './conf.env'}); // Указываем путь к  файлу .env
 const { loginUser, verifyToken } = require('./auth'); // Импортируем функции авторизации
-const { registerUser, findUser, fetchUsers, fetchDataSources, checkConnection, closeConnection, linkDataSourceToUser } = require('./userRepository'); 
+const { 
+  registerUser, 
+  findUser, 
+  fetchUsers, 
+  fetchDataSources, 
+  checkConnection, 
+  closeConnection, 
+  linkDataSourceToUser, 
+  databaseExists 
+} = require('./userRepository'); 
 
 // Подключаем функции модуля joi для валидации данных
 const {validType, validConfig, validPost} = require('./validate');
@@ -142,7 +152,20 @@ app.use(express.json());
 app.use(bodyParser.json());
 
 
-
+// const initializeServer = async () => {
+// const value = process.env.INIT_DB;
+// console.log('Инициализация ... ', value);
+// try {
+//   if (value === 'TRUE') {
+//     console.log(`проверяем наличие базы ${process.env.DB_DATABASE}`);
+//     if (await initdb.checkDB(process.env.DB_DATABASE, process.env.DB_USER, process.env.DB_PASSWORD) === false) {
+//       console.log (`${initdb.createDB(process.env.DB_DATABASE, process.env.DB_USER, process.env.DB_PASSWORD)}`);
+//     }
+//   } else {
+//     console.log('Подключение к базе данных...');
+//   }
+// }
+// };
 
 // Инициализация сервера
 const initializeServer = async () => {
@@ -150,7 +173,7 @@ const initializeServer = async () => {
     console.log('Подключение к базе данных...');
     const isConnected = await checkConnection();
     if (isConnected) {
-      console.log('Successfully connected to the database.');
+      // console.log('Successfully connected to the database.');
       // Функция для проверки и создания пользователя poddy
       const initializePoddyUser = async () => {
         try {
@@ -364,23 +387,23 @@ ws.on('message', async (message) => {
                 ws.send(
                   JSON.stringify({
                     type: 'error',
-                    rerquest:'loginError',
+                    request:'loginError',
                     message: user.error,
                   })
                 );
-                console.log('Логин и пароль ОТКЛОНЕНЫ:', user.error);
+                // console.log('Логин и пароль ОТКЛОНЕНЫ:', user.error);
               } else {
                 // Если ошибки нет, отправляем успешный ответ
                 ws.send(
                   JSON.stringify({
                     type: 'responce',
-                    rerquest:'loginSuccess',
+                    request:'loginSuccess',
                     token: user.token,
                     username: user.username,
                     userlevel: user.userlevel,
                   })
                 );
-                console.log('Логин и пароль приняты');
+                // console.log('Логин и пароль приняты');
               }
                 break;
                 case 'fetchUsers':
@@ -689,8 +712,8 @@ function checkMessage(message) {
 // Работа с GPIO
 const deviceName = process.env.DEVICE_NAME;
 const manageDoor = process.env.MANAGE_DOOR === 'true'; // Преобразуем значение в boolean
-console.log('deviceName:', deviceName);
-console.log('MANAGE_DOOR:', manageDoor);
+// console.log('deviceName:', deviceName);
+// console.log('MANAGE_DOOR:', manageDoor);
 
 const GpioManager = require('./gpio.js');
 

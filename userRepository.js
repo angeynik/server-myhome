@@ -1,5 +1,5 @@
 const bcrypt = require('bcryptjs');
-const { query, pool } = require('./db');
+const { query, pool, setDatabase} = require('./db');
 
 // Функция для получения списка пользователей
 const fetchUsers = async () => {
@@ -40,6 +40,66 @@ const fetchDataSources = async () => {
 };
 
 
+// Регистрация нового пользователя
+const createDatabase = async (databaseName) => {
+  try {
+    // Используем существующий пул соединений для создания новой базы данных
+    await query(`CREATE DATABASE "${databaseName}"`);
+    console.log(`База данных "${databaseName}" создана успешно.`);
+  } catch (error) {
+    console.error(`Ошибка при создании базы данных "${databaseName}":`, error);
+    throw error;
+  }
+};
+
+// Функция для создания таблиц в новой базе данных
+const createTables = async (databaseName) => {
+  try {
+    setDatabase(databaseName);
+
+    await query(`
+      CREATE TABLE config (
+        id SERIAL PRIMARY KEY,
+        name TEXT NOT NULL,
+        file JSON NOT NULL,
+        update_date TIMESTAMP NOT NULL
+      );
+    `);
+
+    await query(`
+      CREATE TABLE data (
+        id SERIAL PRIMARY KEY,
+        type TEXT NOT NULL,
+        name TEXT NOT NULL,
+        room TEXT,
+        location TEXT,
+        actionStatus BOOLEAN NOT NULL,
+        actionState BOOLEAN,
+        actionSet BOOLEAN,
+        dataStatus BOOLEAN NOT NULL,
+        dataState NUMERIC,
+        dataSet NUMERIC,
+        create_date TIMESTAMP
+      );
+    `);
+
+    console.log(`Таблицы в базе данных "${databaseName}" созданы успешно.`);
+  } catch (error) {
+    console.error(`Ошибка при создании таблиц в базе данных "${databaseName}":`, error);
+    throw error;
+  }
+};
+
+const databaseExists = async (databaseName) => {
+  try {
+    // Проверяем существование базы данных, запрашивая список баз данных
+    const result = await query('SELECT 1 FROM pg_database WHERE datname = $1', [databaseName]);
+    return result.rows.length > 0;
+  } catch (error) {
+    console.error('Ошибка при проверке существования базы данных:', error);
+    throw error;
+  }
+};
 // Регистрация нового пользователя
 const registerUser = async (username, password, level, dID, sourceName = null, sourceDescription = null, email = null) => {
   console.log('Начинаем регистрацию: username - ', username, 'password - ', password, 'email - ', email);
@@ -99,6 +159,18 @@ const registerUser = async (username, password, level, dID, sourceName = null, s
 
     await client.query('COMMIT'); // Завершаем транзакцию
 
+          // Проверяем, существует ли база данных
+          const dbExists = await databaseExists(dID);
+          if (!dbExists) {
+            // Создаем новую базу данных с именем, соответствующим did
+            await createDatabase(dID);
+    
+            // Создаем таблицы в новой базе данных
+            await createTables(dID);
+          } else {
+            console.log('База данных с именем', dID, 'уже существует');
+          }
+
     return {
       message: 'User registered successfully!',
       user: newUser.rows[0],
@@ -112,7 +184,81 @@ const registerUser = async (username, password, level, dID, sourceName = null, s
   } finally {
     client.release(); // Освобождаем клиента
   }
-};
+}
+
+
+// const registerUser = async (username, password, level, dID, sourceName = null, sourceDescription = null, email = null) => {
+//   console.log('Начинаем регистрацию: username - ', username, 'password - ', password, 'email - ', email);
+//   if (!username || !password || !level || !dID) {
+//     throw new Error('Username, password, dID and level are required');
+//   }
+
+//   const hashedPassword = await bcrypt.hash(password, 10); // Хешируем пароль
+//   const client = await pool.connect(); // Получаем клиента для транзакции
+
+//   try {
+//     await client.query('BEGIN'); // Начинаем транзакцию
+//     console.log('Начинаем транзакцию в таблицу: username - ', username, 'password - ', password, 'email - ', email);
+
+//     // Регистрация пользователя
+//     const newUser = await client.query(
+//       'INSERT INTO users (username, password, email) VALUES ($1, $2, $3) RETURNING id, username, email',
+//       [username, hashedPassword, email]
+//     );
+
+//     const userId = newUser.rows[0].id;
+
+//     // Проверяем, существует ли источник данных с таким did
+//     const existingDataSource = await client.query(
+//       'SELECT id FROM DataSources WHERE did = $1',
+//       [dID]
+//     );
+
+//     let dataSourceId;
+//     if (existingDataSource.rows.length > 0) {
+//       // Если источник данных уже существует, используем его
+//       dataSourceId = existingDataSource.rows[0].id;
+//       console.log('Источник данных уже существует:', dataSourceId);
+//     } else {
+//       // Если источник данных не существует, создаем новый
+//       const dataSource = await client.query(
+//         'INSERT INTO DataSources (did, name, description) VALUES ($1, $2, $3) RETURNING id',
+//         [dID, sourceName, sourceDescription]
+//       );
+//       dataSourceId = dataSource.rows[0].id;
+//       console.log('Создан новый источник данных:', dataSourceId);
+//     }
+
+//     // Связывание пользователя с источником данных
+//     await client.query(
+//       'INSERT INTO UserDataSources (user_id, data_source_id) VALUES ($1, $2)',
+//       [userId, dataSourceId]
+//     );
+//     console.log('Пользователь связан с источником данных:', { userId, dataSourceId });
+
+//     // Назначение прав доступа
+//     await client.query(
+//       'INSERT INTO Permissions (user_id, data_source_id, permission_level) VALUES ($1, $2, $3)',
+//       [userId, dataSourceId, level]
+//     );
+//     console.log('Назначены права доступа:', { userId, dataSourceId, level });
+
+//     await client.query('COMMIT'); // Завершаем транзакцию
+
+//     return {
+//       message: 'User registered successfully!',
+//       user: newUser.rows[0],
+//       dataSourceId,
+//       permissionLevel: level,
+//     };
+//   } catch (error) {
+//     await client.query('ROLLBACK'); // Откатываем транзакцию в случае ошибки
+//     console.error('Ошибка при регистрации пользователя:', error);
+//     throw error;
+//   } finally {
+//     client.release(); // Освобождаем клиента
+//   }
+// };
 
 const register = async (username, password, email = null) => {
   console.log('Начинаем регистрацию: username - ', username, 'password - ', password, 'email - ', email);
@@ -171,40 +317,11 @@ const addDataSource = async (dID, name, description) => {
 // Связывание источника данных с пользователем
 const linkDataSourceToUser = async (user_id, data_source_id) => {
   console.log('Начинаем выполнение linkDataSourceToUser');
-  
-  const client = await pool.connect(); // Получаем клиента для транзакции
-
-  try {
-    await client.query('BEGIN'); // Начинаем транзакцию
-
-    // Проверяем, существует ли уже связь между пользователем и источником данных
-    const existingLink = await client.query(
-      'SELECT * FROM UserDataSources WHERE user_id = $1 AND data_source_id = $2',
-      [user_id, data_source_id]
-    );
-
-    if (existingLink.rows.length > 0) {
-      // Если связь уже существует, возвращаем сообщение об ошибке
-      await client.query('ROLLBACK'); // Откатываем транзакцию
-      return { error: 'Связь между пользователем и источником данных уже существует' };
-    }
-
-    // Если связи нет, добавляем её в таблицу
-    const result = await client.query(
-      'INSERT INTO UserDataSources (user_id, data_source_id) VALUES ($1, $2) RETURNING *',
-      [user_id, data_source_id]
-    );
-
-    await client.query('COMMIT'); // Завершаем транзакцию
-
-    return result.rows[0]; // Возвращаем вставленную запись
-  } catch (error) {
-    await client.query('ROLLBACK'); // Откатываем транзакцию в случае ошибки
-    console.error('Ошибка при связывании пользователя с источником данных:', error);
-    throw error;
-  } finally {
-    client.release(); // Освобождаем клиента
-  }
+  const data = {
+    user_id: user_id,
+    data_source_id: data_source_id,
+  };
+  return insertIntoTable('UserDataSources', data);
 };
 
 // Добавление прав доступа
@@ -216,11 +333,6 @@ const addPermission = async (user_id, data_source_id, permission_level) => {
   };
   return insertIntoTable('Permissions', data);
 };
-
-
-
-
-
 // Поиск пользователя по имени
 const findUser = async (username) => {
   const result = await query('SELECT * FROM users WHERE username = $1', [username]);
@@ -234,6 +346,7 @@ const findLevel = async (userId) => {
 // Вход пользователя
 const login = async (username, password) => {
   const user = await findUser(username);
+  console.log('Функция login - найденый user', user);
   if (!user) {
     console.log('Пользователь с логином', username, 'не найден');
     return null; // Возвращаем null, если пользователь не найден
@@ -342,5 +455,6 @@ module.exports = {
   checkConnection,
   closeConnection,
   insertIntoTable,
-  changePassword
+  changePassword,
+  databaseExists
 };
