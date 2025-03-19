@@ -21,18 +21,18 @@ describe('InitDB.checkDB', () => {
     // Мокируем успешный ответ от базы данных
     query.mockResolvedValue({ rows: [{ exists: true }] });
 
-    const result = await initDB.checkDB('existing_db', 'valid_user', 'valid_password');
+    const result = await initDB.checkDB('existing_db', 'valid_db', 'valid_user', 'valid_password');
 
     expect(result).toEqual({ result: false, message: 'База данных уже существует.' });
     expect(query).toHaveBeenCalledWith('SELECT 1 FROM pg_database WHERE datname = $1', ['existing_db']);
   });
 
   // Тест 2: Проверка отсутствия базы данных
-  it('должен вернуть { result: false }, если база данных не существует', async () => {
+  it('должен вернуть { result: true }, если база данных не существует', async () => {
     // Мокируем пустой ответ от базы данных (база не существует)
     query.mockResolvedValue({ rows: [] });
 
-    const result = await initDB.checkDB('non_existing_db', 'valid_user', 'valid_password');
+    const result = await initDB.checkDB('non_existing_db', 'valid_db', 'valid_user', 'valid_password');
 
     expect(result).toEqual({ result: true, message: 'База данных НЕ существует'});
     expect(query).toHaveBeenCalledWith('SELECT 1 FROM pg_database WHERE datname = $1', ['non_existing_db']);
@@ -43,7 +43,7 @@ describe('InitDB.checkDB', () => {
     // Мокируем ошибку "роль не существует"
     query.mockRejectedValue({ code: '28000', message: 'role "invalid_user" does not exist' });
 
-    const result = await initDB.checkDB('existing_db', 'invalid_user', 'valid_password');
+    const result = await initDB.checkDB('existing_db', 'valid_db', 'invalid_user', 'valid_password');
 
     expect(result).toEqual({
       result: false,
@@ -56,7 +56,7 @@ describe('InitDB.checkDB', () => {
     // Мокируем ошибку "неправильный пароль"
     query.mockRejectedValue({ code: '28P01', message: 'password authentication failed for user "valid_user"' });
 
-    const result = await initDB.checkDB('existing_db', 'valid_user', 'wrong_password');
+    const result = await initDB.checkDB('existing_db', 'valid_db', 'valid_user', 'wrong_password');
 
     expect(result).toEqual({
       result: false,
@@ -69,7 +69,7 @@ describe('InitDB.checkDB', () => {
     // Мокируем общую ошибку
     query.mockRejectedValue(new Error('Неизвестная ошибка'));
 
-    const result = await initDB.checkDB('existing_db', 'valid_user', 'valid_password');
+    const result = await initDB.checkDB('existing_db', 'valid_db', 'valid_user', 'wrong_password');
 
     expect(result).toEqual({
       result: false,

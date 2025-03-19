@@ -1,5 +1,5 @@
 const bcrypt = require('bcryptjs');
-const { query, pool, setDatabase} = require('./db');
+const { query, pool, setDatabase } = require('../serverApp/services/db.js');
 
 // Функция для получения списка пользователей
 const fetchUsers = async () => {
@@ -422,25 +422,25 @@ const changePassword = async (requesterId, targetUsername, newPassword) => {
   }
 };
 
-const checkConnection = async () => {
-  console.log('Начинаем проверку подключения (checkConnection) к базе данных...');
-  try {
-    const res = await pool.query('SELECT NOW()');
-    console.log('Database connection established:', res.rows[0].now);
-    return true;
-  } catch (error) {
-    console.error('Error connecting to the database:', error.message);
-    return false;
-  }
-};
-const closeConnection = async () => {
-  try {
-    await pool.end();
-    console.log('Database connection closed.');
-  } catch (error) {
-    console.error('Error closing database connection:', error);
-  }
-};
+// const checkConnection = async () => {
+//   console.log('Начинаем проверку подключения (checkConnection) к базе данных...');
+//   try {
+//     const res = await pool.query('SELECT NOW()');
+//     console.log('Database connection established:', res.rows[0].now);
+//     return true;
+//   } catch (error) {
+//     console.error('Error connecting to the database:', error.message);
+//     return false;
+//   }
+// };
+// const closeConnection = async () => {
+//   try {
+//     await pool.end();
+//     console.log('Database connection closed.');
+//   } catch (error) {
+//     console.error('Error closing database connection:', error);
+//   }
+// };
 
 module.exports = {
   fetchUsers,
@@ -452,8 +452,6 @@ module.exports = {
   login,
   addDataSource,
   linkDataSourceToUser,
-  checkConnection,
-  closeConnection,
   insertIntoTable,
   changePassword,
   databaseExists
