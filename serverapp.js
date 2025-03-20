@@ -10,6 +10,7 @@ const fs = require('fs');
 const InitDB = require('./services/initDB.js');
 const initDB = new InitDB();
 const initServer = require('../serverApp/services/initServer.js');
+const tableDB = require('./services/tableDB.js');
 
 // require('dotenv').config({ path: './conf.env' }); 
 const dotenv = require('dotenv'); // Подключаем .ENV файл с переменными окружения
@@ -158,7 +159,44 @@ const initialize = async () => {
     } catch (error) {
       console.error('Ошибка при инициализации сервера:', error);
     }
+      // Проверка наличия таблиц и пользователя по умолчанию
+  try {
+    // Проверяем существование таблицы Users
+    const usersTableExists = await initDB.checkTableExists('users');
+    if (!usersTableExists) {
+      console.log('Таблица Users отсутствует, создаем ее...');
+      await initDB.createTableAuth(); // Создаем таблицы
+      console.log(`Таблицы для хранения учётных записей базы созданы успешно.`);
+    } else {
+      console.log(`Таблица Users существует - ${usersTableExists}.`);
+    }
+      // Проверяем наличие пользователя по умолчанию
+      
+      const defaultUser = await tableDB.findUser(process.env.DEFAULT_USER_NAME);
+      //console.log (`Результат поиска пользователя ${process.env.DEFAULT_USER_NAME} -  ${defaultUser}`);
+      //const defaultUser = await tableDB.findUser(process.env.DEFAULT_USER_NAME, process.env.DB_DATABASE, process.env.DB_USER, process.env.DB_PASSWORD);
+      if (!defaultUser) {
+        console.log(` Пользователь по умолчанию - ${process.env.DEFAULT_USER_NAME} - отсутствует, создаем его...`);
+        await tableDB.registerUser(
+          process.env.DEFAULT_USER_NAME,
+          process.env.DEFAULT_USER_PASSWORD,
+          process.env.DEFAULT_USER_LEVEL,
+          process.env.DEFAULT_USER_DID,
+          process.env.DEFAULT_USER_SOURCE,
+          process.env.DEFAULT_USER_SOURCE_DESCRIPTION,
+          process.env.DEFAULT_USER_EMAIL,
+          process.env.DB_DATABASE
+        );
+        console.log(`Пользователь ${process.env.DEFAULT_USER_NAME}  создан успешно.`);
+      }
+  } catch (error) {
+    console.error('Ошибка при проверке таблиц и пользователя:', error.message);
+    throw error;
   }
+  }
+
+
+
 
   // Запуск сервера
   server.listen(servPORT, () => {

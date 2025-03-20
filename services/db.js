@@ -1,11 +1,13 @@
 const { Pool } = require('pg');
+const dotenv = require('dotenv');
+dotenv.config({ path: './conf.env' });
 
 class DBManager {
   constructor() {
     this.pools = {}; // Хранилище пулов для разных баз данных
-    this.dbUser = process.env.DB_USER;
-    this.dbPass = process.env.DB_PASSWORD;
-    this.dbName = process.env.DB_DATABASE;
+    this.dbUser = process.env.DB_USER || 'root';
+    this.dbPass = process.env.DB_PASSWORD || 'poddyPASS';
+    this.dbName = process.env.DB_DATABASE || 'spring';
   }
 
   // Создание или получение пула для конкретной базы данных
@@ -47,99 +49,40 @@ class DBManager {
     }
   }
   async query(text, params, dbName, dbUser, dbPass) {
-    const pool = this.getPool(dbName, dbUser || this.dbUser, dbPass || this.dbPass);
+    const finalDbName = dbName || this.dbName;
+    const finalDbUser = dbUser || this.dbUser;
+    const finalDbPass = dbPass || this.dbPass;
 
-    if (!pool) {
-      throw new Error(`Пул для базы данных ${dbName} не был создан.`);
-    }
-
-    const start = Date.now();
+    console.log(`Выполнение запроса для ${finalDbName}, ${finalDbUser}, ${finalDbPass}`);
+    const pool = this.getPool(finalDbName, finalDbUser, finalDbPass);
+    //const start = Date.now();
     try {
       const res = await pool.query(text, params);
-      const duration = Date.now() - start;
-      console.log(`Подключение к базе данных ${dbName} пользователь ${dbUser} выполнено за ${duration} мс`);
-      // console.log('Запрос выполнен:', { text, duration, rows: res.rowCount });
+      //const duration = Date.now() - start;
+      //console.log(`Подключение к базе данных ${finalDbName} пользователь ${finalDbUser} выполнено за ${duration} мс`);
+      //console.log(`Результат выполнения запроса - ${res}`);
       return res;
     } catch (error) {
       console.error('Ошибка при выполнении запроса:', error.message);
       throw error;
     }
   }
+
+  // async query(text, params, dbName, dbUser, dbPass) {
+  //   console.log (`Выполнение запроса для ${dbName}, ${dbUser}, ${dbPass}`);
+  //   const pool = this.getPool(dbName || this.dbName, dbUser || this.dbUser, dbPass || this.dbPass);
+  //   //console.log('Создан pool - ', pool);
+  //   const start = Date.now();
+  //   try {
+  //     const res = await pool.query(text, params);
+  //     const duration = Date.now() - start;
+  //     console.log(`Подключение к базе данных ${dbName} пользователь ${dbUser} выполнено за ${duration} мс`);
+  //     return res;
+  //   } catch (error) {
+  //     console.error('Ошибка при выполнении запроса:', error.message);
+  //     throw error;
+  //   }
+  // }
 }
 
 module.exports = new DBManager(); // Экспортируем singleton
-
-
-
-
-
-
-
-
-
-
-
-
-// // Начальные настройки подключения к базе данных
-// const config = {
-//   user: process.env.DB_USER,
-//   host: process.env.DB_HOST || 'localhost',
-//   database: process.env.DB_DATABASE || 'spring', // По умолчанию 'spring'
-//   password: process.env.DB_PASSWORD,
-//   port: process.env.DB_PORT || 5432,
-// };
-
-// // Создаем пул соединений с начальными настройками
-// const basePool = new Pool(config);
-// let pool = new Pool(config);
-// const setDatabase = (databaseName, user, pass ) => {
-//   if (pool) {
-//     // Завершаем старый пул, если он существует
-//     //console.log(`setDatabase - 1 - Pool ended, Завершаем старый пул, если он существует`);
-//     pool.end();
-//   }
-
-//   // Пересоздаём новый пул соединений с указанием новой базы данных
-//   console.log(`setDatabase - 2 - Создаем новый Pool соединений с указанием новой базы данных ${databaseName} пользователя ${user} и пароля ${pass}`);
-//   pool = new Pool({
-//     user: user, // Замените на ваше имя пользователя
-//     host: 'localhost',
-//     database: databaseName,
-//     password: pass, // Замените на ваш пароль
-//     port: 5432,
-//   });
-//    //console.log(`setDatabase - 3 - Pool создан`);
-//   return pool;
-// };
-
-// // Функция для выполнения запросов
-
-// const query = async (text, params, databaseName) => {
-//   if (databaseName) {
-//     setDatabase(databaseName);
-//   }
-
-//   const start = Date.now();
-//   try {
-//     const res = await pool.query(text, params);
-//     const duration = Date.now() - start;
-//     // console.log('Executed query:', { text, duration, rows: res.rowCount });
-//     return res;
-//   } catch (error) {
-//     // Логируем ошибки только в продакшене
-//     if (process.env.NODE_ENV === 'production') {
-//       console.error('Error executing query:', error);
-//     }
-//     throw error;
-//   }
-// };
-
-// const closeConnection = async () => {
-//   try {
-//     await pool.end();
-//     console.log('Database connection closed.');
-//   } catch (error) {
-//     console.error('Error closing database connection:', error);
-//   }
-// };
-// module.exports = { query, setDatabase, closeConnection, pool, basePool };
