@@ -250,17 +250,6 @@ class InitDB {
       throw error;
     }
   }
-
-  async UUID() {
-    try {
-      console.log('Попытка установить расширение "uuid-ossp"...');
-      await DBManager.query(`CREATE EXTENSION IF NOT EXISTS "uuid-ossp"`, [], this.dbName, this.dbUser, this.dbPass);
-      console.log('Расширение "uuid-ossp" установлено.');
-    } catch (error) {
-      console.error('Ошибка при установке расширения "uuid-ossp":', error);
-      throw error;
-    }
-  }
 }
 
 module.exports = InitDB;

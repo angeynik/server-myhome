@@ -166,6 +166,7 @@ const initialize = async () => {
     if (!usersTableExists) {
       console.log('Таблица Users отсутствует, создаем ее...');
       await initDB.createTableAuth(); // Создаем таблицы
+      //await DBManager.createTableAuth(); // Создаем таблицы 
       console.log(`Таблицы для хранения учётных записей базы созданы успешно.`);
     } else {
       console.log(`Таблица Users существует - ${usersTableExists}.`);
@@ -188,13 +189,52 @@ const initialize = async () => {
           process.env.DB_DATABASE
         );
         console.log(`Пользователь ${process.env.DEFAULT_USER_NAME}  создан успешно.`);
+        await DBManager.query('SELECT NOW()', [], process.env.DB_DATABASE, process.env.DB_USER, process.env.DB_PASSWORD);
+        // await DBManager.createDB(process.env.DEFAULT_USER_DID, 'root', 'root', 'poddyPASS');
+
+
       }
   } catch (error) {
     console.error('Ошибка при проверке таблиц и пользователя:', error.message);
     throw error;
   }
   }
+  // Проверяем есть ли база для пользователя по умолчанию Имя для базы - DEFAULT_USER_DID 
+      try {
+        const envName = process.env.DEFAULT_USER_DID;
+        if (envName) {
+          try {
+            const DBdID = await DBManager.query('SELECT NOW()', [], envName, 'root', 'root', 'poddyPASS');
+            console.log(`База данных "${envName}" существует. Результат запроса:`, DBdID.rows[0]);
+          } catch (error) {
+            if (error.message.includes('database "' + envName + '" does not exist')) {
+              console.log(`База данных "${envName}" не существует. Создаем новую базу данных...`);
+              
+              // Создаем базу данных
+              await DBManager.createDB(envName, 'root', 'root', 'poddyPASS');
+              console.log(`База данных "${envName}" успешно создана.`);
 
+              // Создаем таблицы в новой базе данных
+              console.log(`Создаем таблицы в базе данных (dID) "${envName}"...`);
+              await DBManager.createTableDID(envName, 'root', 'root', 'poddyPASS');
+              console.log(`Таблицы в базе данных "${envName}" успешно созданы.`);
+            } else {
+              console.error('Ошибка при выполнении запроса:', error.message);
+              throw error;
+            }
+          }
+        } else {
+          console.log(`Не удалось получить имя пользователя по умолчанию - ${envName}`);
+        }
+      } catch (error) {
+        console.error('Произошла ошибка:', error.message);
+      }
+
+  //await initDB.createDB(process.env.DEFAULT_USER_DID, 'root', 'root', 'poddyPASS');
+  //console.log(` 203 - База данных ${process.env.DEFAULT_USER_DID} создана`);
+  //await initDB.createTableDID(); // Создаем таблицы
+  //await DBManager.createTableDID(); // Создаем таблицы 
+  //console.log(`206 - Таблицы для хранения данных дашборда пользователя - ${process.env.DEFAULT_USER_NAME}  созданы успешно.`);
 
 
 
