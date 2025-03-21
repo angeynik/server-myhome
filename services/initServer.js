@@ -7,12 +7,6 @@ const authDB = process.env.DB_DATABASE || 'spring'; // База данных п�
 const dbUser = process.env.DB_USER;
 const dbPass = process.env.DB_PASSWORD;
 
-const DEFAULT_USER_NAME = process.env.DEFAULT_USER_NAME ;
-const DEFAULT_USER_PASSWORD = process.env.DEFAULT_USER_PASSWORD;
-const DEFAULT_USER_LEVEL = parseInt(process.env.DEFAULT_USER_LEVEL) || 3;
-const DEFAULT_USER_DID = process.env.DEFAULT_USER_DID;
-const DEFAULT_USER_SOURCE = process.env.DEFAULT_USER_SOURCE;
-
 // Обработка событий пула соединений
 DBManager.getPool(authDB, dbUser, dbPass).on('error', (err) => {
   console.error('Ошибка в пуле соединений:', err);
@@ -31,38 +25,10 @@ const initServer = async () => {
       // Если база данных не существует, создаем ее
       console.log(`База данных "${authDB}" не существует, создаем новую...`);
       console.log(`Подключаемся к системной Базе данных root ... Для создания базы ${authDB}...`);
-
-
-
+      
       //Подключаемся к системной базе данных (root)
       await DBManager.query('SELECT NOW()', [], 'root', dbUser, dbPass);
       await DBManager.createDB(authDB, 'root', 'root', 'poddyPASS');
-
-
-      // try {
-      //   // Подключаемся к системной базе данных (root)
-      //   await DBManager.query('SELECT NOW()', [], 'root', 'root', 'poddyPASS');
-
-      //   console.log(`Попытка создания базы данных ${authDB} ...`);
-      //   await DBManager.query(`CREATE DATABASE "${authDB}"`, [], 'root', 'root', 'poddyPASS');
-      //   console.log(`База данных "${authDB}" создана успешно.`);
-
-      //   await DBManager.query(`ALTER DATABASE "${authDB}" OWNER TO "${dbUser}"`, [], 'root', 'root', 'poddyPASS');
-      //   console.log(`Владелец базы данных "${authDB}" изменен на "${dbUser}".`);
-
-      //   await DBManager.query(`GRANT ALL PRIVILEGES ON DATABASE "${authDB}" TO "${dbUser}"`, [], 'root', 'root', 'poddyPASS');
-      //   console.log(`Права на базу данных "${authDB}" переданы пользователю "${dbUser}".`);
-      //     // Подключаемся к новой базе данных "spring" для установки расширения "uuid-ossp"
-      //   await DBManager.query(`CREATE EXTENSION IF NOT EXISTS "uuid-ossp"`, [], authDB, dbUser, dbPass);
-      //   console.log('Расширение "uuid-ossp" установлено в базе данных "spring".');
-
-      // } catch (createError) {
-      //   console.error('Ошибка при создании базы данных:', createError.message);
-      //   throw createError;
-      // } finally {
-      //   // Возвращаем подключение к новой базе данных
-      //   console.log(`Успешное подключение к базе данных ${authDB} ...`);
-      // }
     } else if (error.message.includes('password authentication failed')) {
       // Если ошибка в пароле, используем root для создания пользователя или смены пароля
       console.log('Ошибка аутентификации, создаем пользователя или меняем пароль...');
@@ -81,9 +47,7 @@ const initServer = async () => {
           console.error('Ошибка при создании пользователя:', userError.message);
           throw userError;
         }
-      } finally {
-
-      }
+      } 
     } else {
       throw error;
     }

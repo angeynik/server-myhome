@@ -152,79 +152,124 @@ class DBManager {
       throw createError;
   }
   }
-  async createTableAuth() {
-    try {
-      const tablesToCreate = [];
-      const tables = [
-        { name: 'users', sql: this.tableUsers },
-        { name: 'datasources', sql: this.tableDatasource },
-        { name: 'permissions', sql: this.tablePermission },
-        { name: 'userdatasources', sql: this.tableUserdatasource },
-      ];
-  
-      // Проверяем существование каждой таблицы
-      for (const table of tables) {
-        const tableExists = await this.checkTableExists(table.name);
-        if (!tableExists) {
-          tablesToCreate.push(table.sql); // Добавляем SQL для создания таблицы
-        } else {
-          console.log(`Таблица ${table.name} уже существует, пропускаем создание.`);
+
+      async createTableAuth() {
+        try {
+          const tablesToCreate = [];
+          const tables = [
+            { name: 'users', sql: this.tableUsers },
+            { name: 'datasources', sql: this.tableDatasource },
+            { name: 'permissions', sql: this.tablePermission },
+            { name: 'userdatasources', sql: this.tableUserdatasource },
+          ];
+      
+          // Проверяем существование каждой таблицы
+          for (const table of tables) {
+            const tableExists = await this.checkTableExists(table.name, this.dbName, this.dbUser, this.dbPass);
+            if (!tableExists) {
+              tablesToCreate.push(table.sql); // Добавляем SQL для создания таблицы
+            } else {
+              console.log(`Таблица ${table.name} уже существует в базе "${this.dbName}", пропускаем создание.`);
+            }
+          }
+      
+          // Создаем только те таблицы, которые отсутствуют
+          if (tablesToCreate.length > 0) {
+            await this.createTables(tablesToCreate, this.dbName, this.dbUser, this.dbPass);
+            console.log('Все таблицы для хранения учётных записей успешно созданы.');
+          } else {
+            console.log('Все таблицы уже существуют, создание не требуется.');
+          }
+        } catch (error) {
+          console.error('Ошибка при создании таблиц учётных записей:', error);
+          throw error;
         }
       }
-  
-      // Создаем только те таблицы, которые отсутствуют
-      if (tablesToCreate.length > 0) {
-        await this.createTables(tablesToCreate);
-        console.log('Все таблицы для хранения учётных записей успешно созданы.');
-      } else {
-        console.log('Все таблицы уже существуют, создание не требуется.');
-      }
-    } catch (error) {
-      console.error('Ошибка при создании таблиц учётных записей:', error);
-      throw error;
-    }
-  }
 
-  async createTableDID(dbName, dbUser, dbPass) {
-    try {
-      const tables = [this.tableConfig, this.tableData];
-      for (const table of tables) {
-        await this.query(table, [], dbName, dbUser, dbPass);
+    async createTableDID() {
+        try {
+          const tablesToCreate = [];
+          const tables = [
+            { name: 'config', sql: this.tableConfig },
+            { name: 'data', sql: this.tableData },
+          ];
+      
+          // Проверяем существование каждой таблицы
+          for (const table of tables) {
+            const tableExists = await this.checkTableExists(table.name, this.dbName, this.dbUser, this.dbPass);
+            if (!tableExists) {
+              tablesToCreate.push(table.sql); // Добавляем SQL для создания таблицы
+            } else {
+              console.log(`Таблица ${table.name} уже существует в базе "${this.dbName}", пропускаем создание.`);
+            }
+          }
+      
+          // Создаем только те таблицы, которые отсутствуют
+          if (tablesToCreate.length > 0) {
+            await this.createTables(tablesToCreate, this.dbName, this.dbUser, this.dbPass);
+            console.log(`Все таблицы для хранения данных успешно созданы в базе "${this.dbName}".`);
+          } else {
+            console.log(`Все таблицы уже существуют в базе "${this.dbName}", создание не требуется.`);
+          }
+        } catch (error) {
+          console.error('Ошибка при создании таблиц хранения данных:', error);
+          throw error;
+        }
       }
-      console.log(`Все таблицы для хранения данных успешно созданы в базе "${dbName}".`);
-    } catch (error) {
-      console.error('Ошибка при создании таблиц хранения данных:', error);
-      throw error;
-    }
-  }
-  async createTables(tables) {
-    try {
-      for (const table of tables) {
-        await this.query(table, [], this.dbName, this.dbUser, this.dbPass);
+      async createTables(tables) {
+        try {
+          for (const table of tables) {
+            await this.query(table, [], this.dbName, this.dbUser, this.dbPass);
+          }
+          console.log('Все таблицы успешно созданы.');
+        } catch (error) {
+          console.error('Ошибка при создании таблиц:', error);
+          throw error;
+        }
       }
-      console.log('Все таблицы успешно созданы.');
-    } catch (error) {
-      console.error('Ошибка при создании таблиц:', error);
-      throw error;
-    }
-  }
-
-
-  // async query(text, params, dbName, dbUser, dbPass) {
-  //   console.log (`Выполнение запроса для ${dbName}, ${dbUser}, ${dbPass}`);
-  //   const pool = this.getPool(dbName || this.dbName, dbUser || this.dbUser, dbPass || this.dbPass);
-  //   //console.log('Создан pool - ', pool);
-  //   const start = Date.now();
-  //   try {
-  //     const res = await pool.query(text, params);
-  //     const duration = Date.now() - start;
-  //     console.log(`Подключение к базе данных ${dbName} пользователь ${dbUser} выполнено за ${duration} мс`);
-  //     return res;
-  //   } catch (error) {
-  //     console.error('Ошибка при выполнении запроса:', error.message);
-  //     throw error;
-  //   }
-  // }
+    // Метод проверки существования таблицы Используется в  createTableAuth и createTableDID
+      async checkTableExists(tableName, dbName, dbUser, dbPass) {
+        try {
+          const queryText = `
+            SELECT EXISTS (
+              SELECT FROM information_schema.tables 
+              WHERE table_schema = 'public' 
+              AND table_name = $1
+            );
+          `;
+          const result = await this.query(queryText, [tableName], dbName, dbUser, dbPass);
+          return result.rows[0].exists; // Возвращает true, если таблица существует, иначе false
+        } catch (error) {
+          console.error(`Ошибка при проверке существования таблицы ${tableName}:`, error.message);
+          throw error;
+        }
+      }
+      async findUser(username) {
+        try {
+          const result = await this.query('SELECT * FROM users WHERE username = $1', [username]);
+          if (result.rows.length === 0) {
+            console.log(`Пользователь с именем "${username}" не найден.`);
+            return null; // Возвращаем null, если пользователь не найден
+          }
+          return result.rows[0]; // Возвращаем первого найденного пользователя
+        } catch (error) {
+          console.error(`Ошибка при поиске пользователя "${username}":`, error.message);
+          throw error; // Пробрасываем ошибку дальше, если нужно
+        }
+      }
+      async findLevel(userId) {
+        try {
+          const result = await this.query('SELECT permission_level FROM permissions WHERE user_id = $1', [userId]);
+          if (result.rows.length === 0) {
+            console.log(`Уровень доступа для пользователя с ID "${userId}" не найден.`);
+            return null; // Возвращаем null, если уровень доступа не найден
+          }
+          return result.rows[0].permission_level; // Возвращаем уровень доступа
+        } catch (error) {
+          console.error(`Ошибка при поиске уровня доступа для пользователя с ID "${userId}":`, error.message);
+          throw error; // Пробрасываем ошибку дальше, если нужно
+        }
+      }
 }
 
 module.exports = new DBManager(); // Экспортируем singleton

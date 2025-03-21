@@ -102,86 +102,6 @@ const databaseExists = async (databaseName) => {
   }
 };
 
-// Регистрация нового пользователя
-// const registerUser = async (username, password, level, dID, sourceName = null, sourceDescription = null, email = null) => {
-//   console.log('registerUser - Начинаем регистрацию: username - ', username, 'password - ', password, 'email - ', email);
-//   if (!username || !password || !level || !dID) {
-//     throw new Error('Username, password, dID and level are required');
-//   }
-
-//   const hashedPassword = await bcrypt.hash(password, 10); // Хешируем пароль
-
-//   try {
-//     await DBManager.query('BEGIN'); // Начинаем транзакцию
-
-//     // Регистрация пользователя
-//     const newUser = await DBManager.query(
-//       'INSERT INTO users (username, password, email) VALUES ($1, $2, $3) RETURNING id, username, email',
-//       [username, hashedPassword, email]
-//     );
-
-//     const userId = newUser.rows[0].id;
-
-//     // Проверяем, существует ли источник данных с таким did
-//     const existingDataSource = await DBManager.query(
-//       'SELECT id FROM DataSources WHERE did = $1',
-//       [dID]
-//     );
-
-//     let dataSourceId;
-//     if (existingDataSource.rows.length > 0) {
-//       // Если источник данных уже существует, используем его
-//       dataSourceId = existingDataSource.rows[0].id;
-//       console.log('Источник данных уже существует:', dataSourceId);
-//     } else {
-//       // Если источник данных не существует, создаем новый
-//       const dataSource = await DBManager.query(
-//         'INSERT INTO datasources (did, name, description) VALUES ($1, $2, $3) RETURNING id',
-//         [dID, sourceName, sourceDescription]
-//       );
-//       dataSourceId = dataSource.rows[0].id;
-//       console.log('Создан новый источник данных:', dataSourceId);
-//     }
-
-//     // Связывание пользователя с источником данных
-//     await DBManager.query(
-//       'INSERT INTO userdatasources (user_id, data_source_id) VALUES ($1, $2)',
-//       [userId, dataSourceId]
-//     );
-
-//     // Назначение прав доступа
-//     await DBManager.query(
-//       'INSERT INTO permissions (user_id, data_source_id, permission_level) VALUES ($1, $2, $3)',
-//       [userId, dataSourceId, level]
-//     );
-
-//     await DBManager.query('COMMIT'); // Завершаем транзакцию
-
-//     // Проверяем, существует ли база данных - для любого пользователя кроме системного
-//     // const dbExists = await databaseExists(dID);
-//     // if (!dbExists) {
-//     //   // Создаем новую базу данных с именем, соответствующим did
-//     //   await createDatabase(dID);
-
-//     //   // Создаем таблицы в новой базе данных
-//     //   await createTables(dID);
-//     // } else {
-//     //   console.log('База данных с именем', dID, 'уже существует');
-//     // }
-
-//     return {
-//       message: 'User registered successfully!',
-//       user: newUser.rows[0],
-//       dataSourceId,
-//       permissionLevel: level,
-//     };
-//   } catch (error) {
-//     await DBManager.query('ROLLBACK'); // Откатываем транзакцию в случае ошибки
-//     console.error('Ошибка при регистрации пользователя:', error);
-//     throw error;
-//   }
-// };
-
 // Поиск пользователя по имени
 const findUser = async (username) => {
     console.log(`Ищем пользователя ${username}`);
@@ -189,6 +109,7 @@ const findUser = async (username) => {
     return result.rows[0];
   };
 
+  // Регистрация нового пользователя
 const registerUser = async (username, password, level, dID, sourceName = null, sourceDescription = null, email = null) => {
     console.log('registerUser - Начинаем регистрацию: username - ', username, 'password - ', password, 'level', level, 'dID', dID, 'sourceName', sourceName, 'email - ', email);
     if (!username || !password || !level || !dID) {
@@ -252,7 +173,7 @@ const registerUser = async (username, password, level, dID, sourceName = null, s
       };
     } catch (error) {
       await DBManager.query('ROLLBACK'); // Откатываем транзакцию в случае ошибки
-      console.error('Откат транзации ROLLBACK - Ошибка при регистрации пользователя:', error);
+      console.error('Откат транзации ROLLBACK -Ошибка при регистрации пользователя:', error);
       throw error;
     }
   };

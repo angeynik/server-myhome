@@ -1,7 +1,8 @@
 // Процесс авторизации 
-
+const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { login } = require('./userRepository');
+const DBManager = require('./services/db.js'); // Импортируем DBManager
+//const { login } = require('./userRepository');
 
 // Моковые данные пользователей
 //const users = [{ id: 1, username: 'testuser', password: bcrypt.hashSync('testpassword', 8) }];
@@ -18,12 +19,30 @@ const secret = process.env.JWT_SECRET || 'default-secret-key';
  * @returns {Object} - Данные пользователя и токен
  */
 const loginUser = async (username, password) => {
-  console.log('username - ', username, 'password - ', password);
-  const user = await login(username, password);
+  console.log('auth - username - ', username, 'password - ', password);
+  //const user = await login(username, password);
 
+  const user = await DBManager.findUser(username);
+  console.log('Функция login - найденый user', user);
   if (!user) {
-    return { error: 'Неверный логин или пароль' }; // Возвращаем объект с ошибкой
+    console.log('Пользователь с логином', username, 'не найден');
+    return null; // Возвращаем null, если пользователь не найден
   }
+  const passwordIsValid = bcrypt.compareSync(password, user.password);
+  if (!passwordIsValid) {
+    console.log('Неверный пароль для пользователя', username);
+    return null; // Возвращаем null, если пароль неверный
+  }
+  const level = await DBManager.findLevel(user.id);
+  user.level = level || 0;
+  console.log('Уровень доступа пользователя:', level);
+  // return user;
+
+
+
+  // if (!user) {
+  //   return { error: 'Неверный логин или пароль' }; // Возвращаем объект с ошибкой
+  // }
 
   const token = jwt.sign({ id: user.id }, secret, { expiresIn: 60 });
   console.log('id - ', user.id, 'user - ', user.username,  'level', user.level, 'token - ', token);

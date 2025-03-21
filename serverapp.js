@@ -7,8 +7,6 @@ const cors = require('cors');
 const path = require('path');
 const bodyParser = require('body-parser');
 const fs = require('fs');
-const InitDB = require('./services/initDB.js');
-const initDB = new InitDB();
 const initServer = require('../serverApp/services/initServer.js');
 const tableDB = require('./services/tableDB.js');
 
@@ -16,9 +14,9 @@ const tableDB = require('./services/tableDB.js');
 const dotenv = require('dotenv'); // Подключаем .ENV файл с переменными окружения
 dotenv.config({path: './conf.env'}); // Указываем путь к  файлу .env
 const { loginUser, verifyToken } = require('./auth'); // Импортируем функции авторизации
-//const { closeConnection} = require('./services/db.js');
+
 const DBManager = require('./services/db.js'); // Импортируем DBManager
-const { registerUser, findUser, fetchUsers, fetchDataSources, linkDataSourceToUser } = require('./userRepository'); 
+//const { registerUser, findUser, fetchUsers, fetchDataSources, linkDataSourceToUser } = require('./userRepository'); 
 
 // Подключаем функции модуля joi для валидации данных
 const {validType, validConfig, validPost} = require('./validate');
@@ -147,6 +145,10 @@ app.use(cors());
 app.use(express.json());
 app.use(bodyParser.json());
 
+
+
+
+
 // Инициализация сервера
 const initialize = async () => {
   const envInit = process.env.INIT_DB;
@@ -162,11 +164,10 @@ const initialize = async () => {
       // Проверка наличия таблиц и пользователя по умолчанию
   try {
     // Проверяем существование таблицы Users
-    const usersTableExists = await initDB.checkTableExists('users');
+    const usersTableExists = await DBManager.checkTableExists('users');
     if (!usersTableExists) {
       console.log('Таблица Users отсутствует, создаем ее...');
-      await initDB.createTableAuth(); // Создаем таблицы
-      //await DBManager.createTableAuth(); // Создаем таблицы 
+      await DBManager.createTableAuth();
       console.log(`Таблицы для хранения учётных записей базы созданы успешно.`);
     } else {
       console.log(`Таблица Users существует - ${usersTableExists}.`);
@@ -198,45 +199,38 @@ const initialize = async () => {
     console.error('Ошибка при проверке таблиц и пользователя:', error.message);
     throw error;
   }
-  }
   // Проверяем есть ли база для пользователя по умолчанию Имя для базы - DEFAULT_USER_DID 
+  try {
+    const envName = process.env.DEFAULT_USER_DID;
+    if (envName) {
       try {
-        const envName = process.env.DEFAULT_USER_DID;
-        if (envName) {
-          try {
-            const DBdID = await DBManager.query('SELECT NOW()', [], envName, 'root', 'root', 'poddyPASS');
-            console.log(`База данных "${envName}" существует. Результат запроса:`, DBdID.rows[0]);
-          } catch (error) {
-            if (error.message.includes('database "' + envName + '" does not exist')) {
-              console.log(`База данных "${envName}" не существует. Создаем новую базу данных...`);
-              
-              // Создаем базу данных
-              await DBManager.createDB(envName, 'root', 'root', 'poddyPASS');
-              console.log(`База данных "${envName}" успешно создана.`);
-
-              // Создаем таблицы в новой базе данных
-              console.log(`Создаем таблицы в базе данных (dID) "${envName}"...`);
-              await DBManager.createTableDID(envName, 'root', 'root', 'poddyPASS');
-              console.log(`Таблицы в базе данных "${envName}" успешно созданы.`);
-            } else {
-              console.error('Ошибка при выполнении запроса:', error.message);
-              throw error;
-            }
-          }
-        } else {
-          console.log(`Не удалось получить имя пользователя по умолчанию - ${envName}`);
-        }
+        const DBdID = await DBManager.query('SELECT NOW()', [], envName, 'root', 'root', 'poddyPASS');
+        console.log(`База данных "${envName}" существует. Результат запроса:`, DBdID.rows[0]);
       } catch (error) {
-        console.error('Произошла ошибка:', error.message);
+        if (error.message.includes('database "' + envName + '" does not exist')) {
+          console.log(`База данных "${envName}" не существует. Создаем новую базу данных...`);
+          
+          // Создаем базу данных
+          await DBManager.createDB(envName, 'root', 'root', 'poddyPASS');
+          console.log(`База данных "${envName}" успешно создана.`);
+
+          // Создаем таблицы в новой базе данных
+          console.log(`Создаем таблицы в базе данных (dID) "${envName}"...`);
+          await DBManager.createTableDID(envName);
+          console.log(`Таблицы в базе данных "${envName}" успешно созданы.`);
+        } else {
+          console.error('Ошибка при выполнении запроса:', error.message);
+          throw error;
+        }
       }
+    } else {
+      console.log(`Не удалось получить имя пользователя по умолчанию - ${envName}`);
+    }
+  } catch (error) {
+    console.error('Произошла ошибка:', error.message);
+  }
 
-  //await initDB.createDB(process.env.DEFAULT_USER_DID, 'root', 'root', 'poddyPASS');
-  //console.log(` 203 - База данных ${process.env.DEFAULT_USER_DID} создана`);
-  //await initDB.createTableDID(); // Создаем таблицы
-  //await DBManager.createTableDID(); // Создаем таблицы 
-  //console.log(`206 - Таблицы для хранения данных дашборда пользователя - ${process.env.DEFAULT_USER_NAME}  созданы успешно.`);
-
-
+  }
 
   // Запуск сервера
   server.listen(servPORT, () => {
@@ -264,9 +258,13 @@ const initialize = async () => {
   process.on('SIGINT', handleShutdown);
   process.on('SIGTERM', handleShutdown);
 };
-
 // Выполняем инициализацию сервера
 initialize();
+
+
+
+
+
 
 
 //Работа с логами с Клиента
@@ -312,7 +310,7 @@ WSSNodeRED.on('connection', (ws) => {
   Slogger.info(`Количество подключенных клиентов NodeRED: ${connectedClients}`);
 
   ws.on('message', (message) => {
-    console.log('-- 191 -- от NodRED получено сообщение', message);
+    //console.log('-- 191 -- от NodRED получено сообщение', message);
     Slogger.info(`На порт ${wsRedPORT} от NodRED получено сообщение: ${message},`);
     sendToDash = true;
 
@@ -406,11 +404,11 @@ WSSDash.on('connection', (ws) => {
 ws.on('message', async (message) => {
   try {
     const data = JSON.parse(message);
-    console.log('Получены данные:', data);
+    console.log('WSSDash - Получены данные:', data);
 
     switch (data.type) {
       case 'get': // Используем строку 'get' для сравнения
-        console.log('Переходим к проверке сообщения типа get.');
+        console.log('WSSDash - Переходим к проверке сообщения типа get.');
             switch (data.request) {
               case 'login':
                 const { username, password } = data;
