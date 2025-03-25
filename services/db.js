@@ -244,32 +244,73 @@ class DBManager {
           throw error;
         }
       }
+      // async findUser(username) {
+      //   try {
+      //     const result = await this.query('SELECT * FROM users WHERE username = $1', [username]);
+      //     if (result.rows.length === 0) {
+      //       console.log(`Пользователь с именем "${username}" не найден.`);
+      //       return null; // Возвращаем null, если пользователь не найден
+      //     }
+      //     return result.rows[0]; // Возвращаем первого найденного пользователя
+      //   } catch (error) {
+      //     console.error(`Ошибка при поиске пользователя "${username}":`, error.message);
+      //     throw error; // Пробрасываем ошибку дальше, если нужно
+      //   }
+      // }
+
       async findUser(username) {
         try {
-          const result = await this.query('SELECT * FROM users WHERE username = $1', [username]);
+          const queryText = `
+            SELECT 
+              u.*, 
+              p.permission_level as userlevel,
+              ds.dID
+            FROM users u
+            LEFT JOIN permissions p ON u.id = p.user_id
+            LEFT JOIN userdatasources uds ON u.id = uds.user_id
+            LEFT JOIN datasources ds ON uds.data_source_id = ds.id
+            WHERE u.username = $1
+            LIMIT 1
+          `;
+      
+          const result = await this.query(queryText, [username]);
+          
           if (result.rows.length === 0) {
-            console.log(`Пользователь с именем "${username}" не найден.`);
-            return null; // Возвращаем null, если пользователь не найден
+            console.log(`Пользователь "${username}" не найден`);
+            return null;
           }
-          return result.rows[0]; // Возвращаем первого найденного пользователя
+      
+          const userData = result.rows[0];
+          
+          return {
+            id: userData.id,
+            username: userData.username,
+            password: userData.password,
+            userlevel: userData.userlevel || 0,
+            dID: userData.did || '' // Используем COALESCE для защиты от NULL
+          };
+          
         } catch (error) {
-          console.error(`Ошибка при поиске пользователя "${username}":`, error.message);
-          throw error; // Пробрасываем ошибку дальше, если нужно
+          console.error(`Ошибка поиска пользователя ${username}:`, error.message);
+          throw error;
         }
       }
-      async findLevel(userId) {
-        try {
-          const result = await this.query('SELECT permission_level FROM permissions WHERE user_id = $1', [userId]);
-          if (result.rows.length === 0) {
-            console.log(`Уровень доступа для пользователя с ID "${userId}" не найден.`);
-            return null; // Возвращаем null, если уровень доступа не найден
-          }
-          return result.rows[0].permission_level; // Возвращаем уровень доступа
-        } catch (error) {
-          console.error(`Ошибка при поиске уровня доступа для пользователя с ID "${userId}":`, error.message);
-          throw error; // Пробрасываем ошибку дальше, если нужно
-        }
-      }
+
+      // async findLevel(userId) {
+      //   try {
+      //     const result = await this.query('SELECT permission_level FROM permissions WHERE user_id = $1', [userId]);
+      //     if (result.rows.length === 0) {
+      //       console.log(`Уровень доступа для пользователя с ID "${userId}" не найден.`);
+      //       return null; // Возвращаем null, если уровень доступа не найден
+      //     }
+      //     return result.rows[0].permission_level; // Возвращаем уровень доступа
+      //   } catch (error) {
+      //     console.error(`Ошибка при поиске уровня доступа для пользователя с ID "${userId}":`, error.message);
+      //     throw error; // Пробрасываем ошибку дальше, если нужно
+      //   }
+      // }
+
+      
 }
 
 module.exports = new DBManager(); // Экспортируем singleton

@@ -399,7 +399,7 @@ WSSNodeRED.on('connection', (ws) => {
 
 
 WSSDash.on('connection', (ws) => {
-  Slogger.info('-- 235 -- Client connected to Dashboard on port ' + wsDashPORT);
+  Slogger.info('-- 402 -- Client connected to Dashboard on port ' + wsDashPORT);
 
 ws.on('message', async (message) => {
   try {
@@ -407,36 +407,107 @@ ws.on('message', async (message) => {
     console.log('WSSDash - Получены данные:', data);
 
     switch (data.type) {
+      case 'auth':
+        console.log('WSSDash - Переходим к проверке сообщения типа auth');
+        switch (data.request) {
+        //   case 'login':
+        //     const { username, password } = data.payload;
+        //     const requestId = data.payload.requestId;
+        //     const user = await loginUser(username, password);
+        //     if (user.error) {
+        //     // Если есть ошибка, отправляем её клиенту
+        //     ws.send(
+        //       JSON.stringify({
+        //         type: 'error',
+        //         request:'loginError',
+        //         name: '',
+        //         payload: {
+        //           requestId,
+        //           message: user.error
+        //         }
+        //       })
+        //     );
+        //     // console.log('Логин и пароль ОТКЛОНЕНЫ:', user.error);
+        //   } else {
+        //     // Если ошибки нет, отправляем успешный ответ
+        //     ws.send(
+        //       JSON.stringify({
+        //         type: 'response',
+        //         request:'loginSuccess',
+        //         name: user.dID,
+        //         payload: {
+        //           requestId,
+        //           token: user.token,
+        //           username: user.username,
+        //           userlevel: user.userlevel
+        //         }
+        //       })
+        //     );
+        //     console.log('Логин и пароль приняты');
+        //   }
+        //     break;
+        // }
+        case 'login':
+          try {
+            const { username, password } = data.payload;
+            const requestId = data.payload.requestId;
+            
+            const result = await loginUser(username, password);
+
+            if (result.error) {
+              ws.send(JSON.stringify({
+                type: 'error',
+                request: 'loginError',
+                name: '',
+                payload: {
+                  requestId,
+                  code: result.code,
+                  message: result.error
+                }
+              }));
+            } else {
+              console.log('auth-login Успешная проверка отправляем ответ Vue');
+              ws.send(JSON.stringify({
+                type: 'response',
+                request: 'loginSuccess',
+                name: result.dID,
+                payload: {
+                  requestId,
+                  token: result.token,
+                  username: result.username,
+                  userlevel: result.userlevel
+                }
+              }));
+              console.log('Отправлен ответ:', JSON.stringify({
+                type: 'response',
+                request: 'loginSuccess',
+                name: result.dID,
+                payload: { requestId,
+                  token: result.token,
+                  username: result.username,
+                  userlevel: result.userlevel
+                },
+              }));
+            }
+          } catch (error) {
+            console.error('Необработанная ошибка:', error);
+            ws.send(JSON.stringify({
+              type: 'error',
+              request: 'loginError',
+              name: '',
+              payload: {
+                requestId: data.payload?.requestId,
+                code: 'UNHANDLED_ERROR',
+                message: 'Произошла непредвиденная ошибка'
+              }
+            }));
+          }
+          break;
+        }
+        break;
       case 'get': // Используем строку 'get' для сравнения
         console.log('WSSDash - Переходим к проверке сообщения типа get.');
             switch (data.request) {
-              case 'login':
-                const { username, password } = data;
-                const user = await loginUser(username, password);
-                if (user.error) {
-                // Если есть ошибка, отправляем её клиенту
-                ws.send(
-                  JSON.stringify({
-                    type: 'error',
-                    request:'loginError',
-                    message: user.error,
-                  })
-                );
-                // console.log('Логин и пароль ОТКЛОНЕНЫ:', user.error);
-              } else {
-                // Если ошибки нет, отправляем успешный ответ
-                ws.send(
-                  JSON.stringify({
-                    type: 'responce',
-                    request:'loginSuccess',
-                    token: user.token,
-                    username: user.username,
-                    userlevel: user.userlevel,
-                  })
-                );
-                // console.log('Логин и пароль приняты');
-              }
-                break;
                 case 'fetchUsers':
                   try {
                     const users = await fetchUsers();
@@ -444,7 +515,7 @@ ws.on('message', async (message) => {
                     // Отправляем список пользователей клиенту
                     ws.send(
                       JSON.stringify({
-                        type: 'responce',
+                        type: 'response',
                         request: 'fetchUsersSuccess',
                         requestId: data.requestId, // Возвращаем requestId
                         users: users,
@@ -470,7 +541,7 @@ ws.on('message', async (message) => {
                     // Отправляем список источников данных клиенту
                     ws.send(
                       JSON.stringify({
-                        type: 'responce',
+                        type: 'response',
                         request:'fetchDataSourcesSuccess',
                         requestId: data.requestId, // Возвращаем requestId
                         sources: dataSources,
@@ -496,44 +567,33 @@ ws.on('message', async (message) => {
         console.log('Переходим к проверке сообщения типа post.');
             switch (data.request) {
               case 'createUser':
-                      const { username, password, dataSource, permissionLevel } = data;
-                try {
-                  // Регистрируем пользователя и создаем источник данных внутри registerUser
-                  const newUser = await registerUser(username, password, permissionLevel, dataSource, dataSource);
-
-                  // Отправляем успешный ответ клиенту
-                  if (!newUser) {
-                    ws.send(
-                      JSON.stringify({
-                        type: 'error',
-                        request:'createUserError',
-                        message: 'Ошибка создания пользователя',
-                      })
-                    )
-                  } else {
-                    console.log('Пользователь успешно создан:', newUser.user);
-                    ws.send(
-                      JSON.stringify({
-                        type: 'responce',
-                        request:'createUserSuccess',
-                        user: newUser.user,
-                      })
-                    );
-                  }
-
-                } catch (error) {
-                  console.error('Ошибка при создании пользователя:', error);
-                  ws.send(
-                    JSON.stringify({
-                      type: 'error',
-                      request:'createUserError',
-                      message: error.message || 'Ошибка при создании пользователя',
-                    })
-                  );
-                }
-              break;
+                      const { username, password, dataSource, permissionLevel } = data.payload;
+                      const requestId = data.payload.requestId;
+                      try {
+                        const newUser = await registerUser(username, password, permissionLevel, dataSource);
+                        ws.send(JSON.stringify({
+                          type: 'response',
+                          request: 'createUserSuccess',
+                          name: newUser.dID,
+                          payload: {
+                            requestId,
+                            user: newUser.user
+                          }
+                        }));
+                      } catch (error) {
+                        ws.send(JSON.stringify({
+                          type: 'error',
+                          request: 'createUserError',
+                          name: '',
+                          payload: {
+                            requestId,
+                            message: error.message
+                          }
+                        }));
+                      }
+                      break;
               case 'linkUserToDataSource':
-                const { userId, dataSourceId } = data;
+                const { userId, dataSourceId } = data.payload;
                 try {
                   const linkUser = await linkDataSourceToUser(userId, dataSourceId);
                   if (linkUser.error) {
@@ -549,7 +609,7 @@ ws.on('message', async (message) => {
                     // Если ошибки нет, отправляем успешный ответ
                     ws.send(
                       JSON.stringify({
-                        type: 'responce',
+                        type: 'response',
                         request: 'linkUserToDataSourceSuccess',
                         message: 'Связь успешно создана',
                       })
@@ -570,8 +630,8 @@ ws.on('message', async (message) => {
                 break;
             }
         break;
-      case 'responce': // Используем строку 'request' для сравнения
-        console.log('Переходим к проверке сообщения типа responce.');
+      case 'response': // Используем строку 'request' для сравнения
+        console.log('Переходим к проверке сообщения типа response.');
         break;
       case 'config': // Используем строку 'request' для сравнения
         console.log('Переходим к проверке сообщения типа config.');
@@ -584,71 +644,6 @@ ws.on('message', async (message) => {
         break;
     }
 
-    // if (data.type === 'login') {
-    //   const { username, password } = data;
-
-    //   const user = await loginUser(username, password);
-
-    //   if (user.error) {
-    //     // Если есть ошибка, отправляем её клиенту
-    //     ws.send(
-    //       JSON.stringify({
-    //         type: 'loginError',
-    //         message: user.error,
-    //       })
-    //     );
-    //     console.log('Логин и пароль ОТКЛОНЕНЫ:', user.error);
-    //   } else {
-    //     // Если ошибки нет, отправляем успешный ответ
-    //     ws.send(
-    //       JSON.stringify({
-    //         type: 'loginSuccess',
-    //         token: user.token,
-    //         username: user.username,
-    //         userlevel: user.userlevel,
-    //       })
-    //     );
-    //     console.log('Логин и пароль приняты');
-    //   }
-    // }
-
-
-
-    
-//     if (data.type === 'get') {
-//       const { username, password } = data;
-//       const user = await loginUser(username, password);
-//       ws.send(JSON.stringify(user));
-//     }
-    
-//     else if (data.type === 'createUser') {
-//       const { username, password, dataSource, permissionLevel } = data;
-
-//       try {
-//         // Регистрируем пользователя и создаем источник данных внутри registerUser
-//         const newUser = await registerUser(username, password, permissionLevel, dataSource, dataSource);
-
-//         // Отправляем успешный ответ клиенту
-//         ws.send(
-//           JSON.stringify({
-//             type: 'createUserSuccess',
-//             user: newUser.user,
-//           })
-//         );
-//       } catch (error) {
-//         console.error('Ошибка при создании пользователя:', error);
-//         ws.send(
-//           JSON.stringify({
-//             type: 'createUserError',
-//             message: error.message || 'Ошибка при создании пользователя',
-//           })
-//         );
-//       }
-//     } else if (data.type === 'fetchUsers') {   
-// console.log('fetchUsers');
-//     } else if (data.type === 'fetchDataSources') {
-
-//     }
   } catch (error) {
     console.error('Ошибка при обработке сообщения:', error);
     ws.send(
