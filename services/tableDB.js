@@ -1,4 +1,6 @@
 const DBManager = require('./db'); // Импортируем DBManager
+const dotenv = require('dotenv'); // Подключаем .ENV файл с переменными окружения
+dotenv.config({path: './conf.env'}); // Указываем путь к  файлу .env
 
 const bcrypt = require('bcryptjs');
 
@@ -206,20 +208,53 @@ const register = async (username, password, email = null) => {
 
 // Вставка данных в таблицу
 const insertIntoTable = async (tableName, data, dbName) => {
-  console.log('Начинаем insertIntoTable', tableName, data);
+  console.log('Начинаем insertIntoTable - tableName:', tableName,' data:', data,'  dbName:', dbName);
   try {
+        // Проверка существования записи
+        const checkQuery = `
+        SELECT EXISTS(
+          SELECT 1 FROM ${tableName} 
+          WHERE user_id = $1 AND data_source_id = $2
+        )`;
+      const checkResult = await DBManager.query(
+        checkQuery,
+        [data.user_id, data.data_source_id],
+        dbName
+      );
+      
+      if (checkResult.rows[0].exists) {
+        console.log('Запись уже существует');
+        return { error: 'Связь уже существует' };
+      };
+
     const columns = Object.keys(data).join(', ');
     const placeholders = Object.keys(data).map((_, index) => `$${index + 1}`).join(', ');
     const values = Object.values(data);
 
+    // const result = await DBManager.query(
+    //   `INSERT INTO ${tableName} (${columns}) VALUES (${placeholders}) RETURNING *`,
+    //   values,
+    //   dbName
+    // );
+    const insertQuery = `
+    INSERT INTO ${tableName} (${columns}) 
+    VALUES (${placeholders}) 
+    RETURNING *`;
+  
     const result = await DBManager.query(
-      `INSERT INTO ${tableName} (${columns}) VALUES (${placeholders}) RETURNING *`,
+      insertQuery,
       values,
       dbName
     );
     return result.rows[0]; // Возвращаем вставленную запись
   } catch (error) {
-    console.error(`Ошибка при вставке в таблицу ${tableName}:`, error);
+    console.error(`Ошибка при работе с таблицей ${tableName}:`, error);
+    
+    // Обработка ошибки уникальности PostgreSQL
+    if (error.code === '23505') {
+      return { error: 'Связь уже существует' };
+    }
+    
     throw error;
   }
 };
@@ -231,18 +266,40 @@ const addDataSource = async (dID, name, description) => {
     name: name,
     description: description,
   };
-  return insertIntoTable('DataSources', data);
+  return insertIntoTable('DataSources', data, process.env.DB_DATABASE);
 };
 
 // Связывание источника данных с пользователем
-const linkDataSourceToUser = async (user_id, data_source_id) => {
-  const data = {
-    user_id: user_id,
-    data_source_id: data_source_id,
-  };
-  return insertIntoTable('UserDataSources', data);
+// const linkDataSourceToUser = async (user_id, data_source_id) => {
+//   console.log('Входим в linkDataSourceToUser');
+//   const data = {
+//     user_id: user_id,
+//     data_source_id: data_source_id,
+//   };
+//   console.log('Отправляем данные в insertIntoTable');
+//   return insertIntoTable('userdatasources', data, process.env.DB_DATABASE);
+// };
+const linkDataSourceToUser = async (user_id, data_source_id, dbName) => {
+  console.log('Входим в linkDataSourceToUser');
+  try {
+    const data = {
+      user_id: user_id,
+      data_source_id: data_source_id,
+    };
+    
+    const result = await insertIntoTable('userdatasources', data, dbName);
+    
+    // Проверяем наличие дубликатов
+    if (result.code === '23505') {
+      return { error: 'Связь уже существует' };
+    }
+    
+    return result;
+  } catch (error) {
+    console.error('Ошибка связывания:', error);
+    return { error: error.message };
+  }
 };
-
 // Добавление прав доступа
 const addPermission = async (user_id, data_source_id, permission_level) => {
   const data = {

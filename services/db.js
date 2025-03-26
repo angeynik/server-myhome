@@ -116,6 +116,8 @@ class DBManager {
     const Name = dbName || this.dbName;
     const User = dbUser || this.dbUser;
     const Pass = dbPass || this.dbPass;
+      console.log(`[QUERY START] ${text}`);
+      console.log(`Параметры: ${JSON.stringify(params)}`);
 
     console.log(`Выполнение запроса для ${Name}, ${User}, ${Pass}`);
     const pool = this.getPool(Name, User, Pass);

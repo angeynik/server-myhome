@@ -510,7 +510,7 @@ ws.on('message', async (message) => {
             switch (data.request) {
                 case 'fetchUsers':
                   const requestId = data.payload.requestId;
-                  console.log('WSSDash - Request - fetchUsers', requestId);
+                  //console.log('WSSDash - Request - fetchUsers', requestId);
                   try {
                     const users = await DBManager.fetchUsers();
                     console.log('Users', users);
@@ -544,9 +544,9 @@ ws.on('message', async (message) => {
                 break;
                 case 'fetchDataSources':
                   try {
-                    console.log('WSSDash - Request - fetchDataSources');
+                    //console.log('WSSDash - Request - fetchDataSources');
                     const dataSources = await DBManager.fetchDataSources();
-                    console.log('Отправляем список источников данных клиенту - dataSources', dataSources);
+                    //console.log('Отправляем список источников данных клиенту - dataSources', dataSources);
                     // Отправляем список источников данных клиенту
                     ws.send(
                       JSON.stringify({
@@ -581,17 +581,21 @@ ws.on('message', async (message) => {
       case 'post': // Используем строку 'post' для сравнения
         console.log('Переходим к проверке сообщения типа post.');
             switch (data.request) {
+              
               case 'createUser':
+                console.log('Post - createUser');
                       const { username, password, dataSource, permissionLevel } = data.payload;
-                      const requestId = data.payload.requestId;
+                      //const requestId = data.payload.requestId;
                       try {
-                        const newUser = await registerUser(username, password, permissionLevel, dataSource);
+                        const newUser = await tableDB.registerUser(username, password, permissionLevel, dataSource, dataSource, '', '', process.env.DB_DATABASE);
+                        //console.log('Результат запроса на создание Пользователя', newUser);
+
                         ws.send(JSON.stringify({
                           type: 'response',
                           request: 'createUserSuccess',
-                          name: newUser.dID,
+                          name: data.name,
                           payload: {
-                            requestId,
+                            requestId: data.payload.requestId,
                             user: newUser.user
                           }
                         }));
@@ -599,48 +603,108 @@ ws.on('message', async (message) => {
                         ws.send(JSON.stringify({
                           type: 'error',
                           request: 'createUserError',
-                          name: '',
+                          name: data.name,
                           payload: {
-                            requestId,
+                            requestId: data.payload.requestId,
                             message: error.message
                           }
                         }));
                       }
                       break;
-              case 'linkUserToDataSource':
-                const { userId, dataSourceId } = data.payload;
+              // case 'linkUserToDataSource':
+              //   console.log('Post - linkUserToDataSource');
+              //   const { userId, dataSourceId } = data.payload;
+              //   //const requestId = data.payload.requestId;
+              //   try {
+              //     const linkUser = await tableDB.linkDataSourceToUser(userId, dataSourceId, process.env.DB_DATABASE);
+              //     if (linkUser.error) {
+              //       console.log('Ошибка связывания Пользователя с dataSource', linkUser);
+              //       // Если есть ошибка, отправляем её клиенту
+              //       ws.send(
+              //         JSON.stringify({
+              //           type: 'error',
+              //           request: 'linkUserToDataSourceError',
+              //           name: data.name,
+              //           payload: {
+              //           requestId: data.payload.requestId,
+              //           message: linkUser.error,
+              //           }
+              //         })
+              //       );
+              //     } else {
+              //       console.log('Готовим результат связывания Пользователя с dataSource');
+              //       // Если ошибки нет, отправляем успешный ответ
+              //       ws.send(
+              //         JSON.stringify({
+              //           type: 'response',
+              //           request: 'linkUserToDataSourceSuccess',
+              //           name: data.name,
+              //           payload: {
+              //           requestId: data.payload.requestId,
+              //           message: 'Связь успешно создана',
+              //           linkId: linkUser.id,
+              //           }
+              //         })
+              //       );
+              //     }
+              //   } catch (error) {
+              //     console.error('Ошибка при добавлении источника к пользователю:', error);
+              //     ws.send(
+              //       JSON.stringify({
+              //         type: 'error',
+              //         request: 'linkUserToDataSourceError',
+              //         name: data.name,
+              //         payload: {
+              //         requestId: data.payload.requestId,
+              //         message: error.message || 'Ошибка при добавлении источника к пользователю',
+              //         }
+              //       })
+              //     );
+              //   }
+              //   break;
+              case 'linkUserToDataSource': {
+                console.log('Post - linkUserToDataSource');
+                const { userId, dataSourceId, requestId } = data.payload; // Выделяем requestId из payload
+                
                 try {
-                  const linkUser = await linkDataSourceToUser(userId, dataSourceId);
+                  const linkUser = await tableDB.linkDataSourceToUser(userId, dataSourceId, process.env.DB_DATABASE);
+                  
                   if (linkUser.error) {
-                    // Если есть ошибка, отправляем её клиенту
-                    ws.send(
-                      JSON.stringify({
-                        type: 'error',
-                        request: 'linkUserToDataSourceError',
-                        message: linkUser.error,
-                      })
-                    );
-                  } else {
-                    // Если ошибки нет, отправляем успешный ответ
-                    ws.send(
-                      JSON.stringify({
-                        type: 'response',
-                        request: 'linkUserToDataSourceSuccess',
-                        message: 'Связь успешно создана',
-                      })
-                    );
-                  }
-                } catch (error) {
-                  console.error('Ошибка при добавлении источника к пользователю:', error);
-                  ws.send(
-                    JSON.stringify({
+                    ws.send(JSON.stringify({
                       type: 'error',
                       request: 'linkUserToDataSourceError',
-                      message: error.message || 'Ошибка при добавлении источника к пользователю',
-                    })
-                  );
+                      name: data.name, // Используем name из входящих данных
+                      payload: {
+                        requestId: requestId,
+                        message: linkUser.error
+                      }
+                    }));
+                  } else {
+                    ws.send(JSON.stringify({
+                      type: 'response',
+                      request: 'linkUserToDataSourceSuccess',
+                      name: data.name, // Используем name из входящих данных
+                      payload: {
+                        requestId: requestId,
+                        message: 'Связь успешно создана',
+                        linkId: linkUser.id // Добавляем ID созданной связи
+                      }
+                    }));
+                  }
+                } catch (error) {
+                  console.error('Ошибка:', error);
+                  ws.send(JSON.stringify({
+                    type: 'error',
+                    request: 'linkUserToDataSourceError',
+                    name: data.name,
+                    payload: {
+                      requestId: requestId,
+                      message: error.message
+                    }
+                  }));
                 }
                 break;
+              }
               default:
                 break;
             }
