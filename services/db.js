@@ -310,6 +310,45 @@ class DBManager {
       //   }
       // }
 
+      // Функция для получения списка пользователей
+      async fetchUsers () {
+        //console.log('db - fetchUsers Начинаем проверку');
+        try {
+          // Выбираем id и username из таблицы users
+          const result = await this.query('SELECT id, username FROM users');
+          //console.log('db - fetchUsers Результат запроса', result);
+          // Преобразуем результат в массив объектов с id и username
+          const users = result.rows.map(row => ({
+            id: row.id,
+            username: row.username,
+          }));
+          //console.log('db - fetchUsers Отсортированный список пользователей', users);
+          return users; // Возвращаем список объектов с id и username
+        } catch (error) {
+          console.error('Ошибка при получении списка пользователей:', error);
+          throw error;
+        }
+      };
+
+      // Функция для получения списка источников данных
+      async fetchDataSources () {
+        console.log('db - fetch-DataSources Начинаем проверку');
+        try {
+          // Выбираем id и did из таблицы DataSources
+          const result = await this.query('SELECT id, did FROM datasources');
+          console.log('db - fetch-DataSources Результат запроса', result);
+          // Преобразуем результат в массив объектов с id и did
+          const dataSources = result.rows.map(row => ({
+            id: row.id,
+            did: row.did,
+          }));
+          console.log('db - fetch-DataSources Отсортированный список пользователей', dataSources);
+          return dataSources; // Возвращаем список объектов с id и did
+        } catch (error) {
+          console.error('Ошибка при получении списка источников данных:', error);
+          throw error;
+        }
+      };
       
 }
 

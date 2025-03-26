@@ -509,16 +509,21 @@ ws.on('message', async (message) => {
         console.log('WSSDash - Переходим к проверке сообщения типа get.');
             switch (data.request) {
                 case 'fetchUsers':
+                  const requestId = data.payload.requestId;
+                  console.log('WSSDash - Request - fetchUsers', requestId);
                   try {
-                    const users = await fetchUsers();
+                    const users = await DBManager.fetchUsers();
                     console.log('Users', users);
                     // Отправляем список пользователей клиенту
                     ws.send(
                       JSON.stringify({
                         type: 'response',
                         request: 'fetchUsersSuccess',
-                        requestId: data.requestId, // Возвращаем requestId
+                        name: data.name,
+                        payload: {
+                        requestId: data.payload.requestId, // Возвращаем requestId
                         users: users,
+                        }
                       })
                     );
                   } catch (error) {
@@ -527,8 +532,11 @@ ws.on('message', async (message) => {
                       JSON.stringify({
                         type: 'error',
                         request:'fetchUsersError',
-                        requestId: data.requestId, // Возвращаем requestId
+                        name: data.name,
+                        payload: {
+                        requestId: data.payload.requestId, // Возвращаем requestId
                         message: error.message || 'Ошибка при получении списка пользователей',
+                        }
                       })
                     );
                   }
@@ -536,15 +544,19 @@ ws.on('message', async (message) => {
                 break;
                 case 'fetchDataSources':
                   try {
-                    const dataSources = await fetchDataSources();
-                    console.log('dataSources', dataSources);
+                    console.log('WSSDash - Request - fetchDataSources');
+                    const dataSources = await DBManager.fetchDataSources();
+                    console.log('Отправляем список источников данных клиенту - dataSources', dataSources);
                     // Отправляем список источников данных клиенту
                     ws.send(
                       JSON.stringify({
                         type: 'response',
                         request:'fetchDataSourcesSuccess',
-                        requestId: data.requestId, // Возвращаем requestId
+                        name: data.name,
+                        payload: {
+                        requestId: data.payload.requestId, // Возвращаем requestId
                         sources: dataSources,
+                        }
                       })
                     );
                   } catch (error) {
@@ -553,8 +565,11 @@ ws.on('message', async (message) => {
                       JSON.stringify({
                         type: 'error',
                         request:'fetchDataSourcesError',
-                        requestId: data.requestId, // Возвращаем requestId
+                        name: data.name,
+                        payload: {
+                        requestId: data.payload.requestId, // Возвращаем requestId
                         message: error.message || 'Ошибка при получении списка источников данных',
+                        }
                       })
                     );
                   }
