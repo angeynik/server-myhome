@@ -44,53 +44,6 @@ const fetchDataSources = async () => {
   }
 };
 
-// // Создание новой базы данных
-// const createDatabase = async (databaseName) => {
-//   try {
-//     // Используем существующий пул соединений для создания новой базы данных
-//     await DBManager.query(`CREATE DATABASE "${databaseName}"`);
-//     console.log(`База данных "${databaseName}" создана успешно.`);
-//   } catch (error) {
-//     console.error(`Ошибка при создании базы данных "${databaseName}":`, error);
-//     throw error;
-//   }
-// };
-
-// Функция для создания таблиц в новой базе данных
-// const createTables = async (databaseName) => {
-//   try {
-//     await DBManager.query(`
-//       CREATE TABLE config (
-//         id SERIAL PRIMARY KEY,
-//         name TEXT NOT NULL,
-//         file JSON NOT NULL,
-//         update_date TIMESTAMP NOT NULL
-//       );
-//     `, [], databaseName);
-
-//     await DBManager.query(`
-//       CREATE TABLE data (
-//         id SERIAL PRIMARY KEY,
-//         type TEXT NOT NULL,
-//         name TEXT NOT NULL,
-//         room TEXT,
-//         location TEXT,
-//         actionStatus BOOLEAN NOT NULL,
-//         actionState BOOLEAN,
-//         actionSet BOOLEAN,
-//         dataStatus BOOLEAN NOT NULL,
-//         dataState NUMERIC,
-//         dataSet NUMERIC,
-//         create_date TIMESTAMP
-//       );
-//     `, [], databaseName);
-
-//     console.log(`Таблицы в базе данных "${databaseName}" созданы успешно.`);
-//   } catch (error) {
-//     console.error(`Ошибка при создании таблиц в базе данных "${databaseName}":`, error);
-//     throw error;
-//   }
-// };
 
 // Проверка существования базы данных
 const databaseExists = async (databaseName) => {
@@ -207,54 +160,25 @@ const register = async (username, password, email = null) => {
 };
 
 // Вставка данных в таблицу
-const insertIntoTable = async (tableName, data, dbName) => {
-  console.log('Начинаем insertIntoTable - tableName:', tableName,' data:', data,'  dbName:', dbName);
+const insertIntoTable = async (tableName, data, dbName) => { // Возвращает сообщение вида { exists: true, id: id записи } или ошибку
+  console.log('Начинаем insertIntoTable', tableName, data);
   try {
-        // Проверка существования записи
-        const checkQuery = `
-        SELECT EXISTS(
-          SELECT 1 FROM ${tableName} 
-          WHERE user_id = $1 AND data_source_id = $2
-        )`;
-      const checkResult = await DBManager.query(
-        checkQuery,
-        [data.user_id, data.data_source_id],
-        dbName
-      );
-      
-      if (checkResult.rows[0].exists) {
-        console.log('Запись уже существует');
-        return { error: 'Связь уже существует' };
-      };
-
     const columns = Object.keys(data).join(', ');
     const placeholders = Object.keys(data).map((_, index) => `$${index + 1}`).join(', ');
     const values = Object.values(data);
 
-    // const result = await DBManager.query(
-    //   `INSERT INTO ${tableName} (${columns}) VALUES (${placeholders}) RETURNING *`,
-    //   values,
-    //   dbName
-    // );
-    const insertQuery = `
-    INSERT INTO ${tableName} (${columns}) 
-    VALUES (${placeholders}) 
-    RETURNING *`;
-  
     const result = await DBManager.query(
-      insertQuery,
+      `INSERT INTO ${tableName} (${columns}) VALUES (${placeholders}) RETURNING *`,
       values,
       dbName
     );
-    return result.rows[0]; // Возвращаем вставленную запись
+    //console.log('insertIntoTable - ', result.rows[0]);
+    return {
+      exists: true, 
+      id: result.rows[0].id, // Возвращаем ID вставленной записи
+  };
   } catch (error) {
-    console.error(`Ошибка при работе с таблицей ${tableName}:`, error);
-    
-    // Обработка ошибки уникальности PostgreSQL
-    if (error.code === '23505') {
-      return { error: 'Связь уже существует' };
-    }
-    
+    console.error(`Ошибка при вставке в таблицу ${tableName}:`, error);
     throw error;
   }
 };
@@ -270,37 +194,62 @@ const addDataSource = async (dID, name, description) => {
 };
 
 // Связывание источника данных с пользователем
-// const linkDataSourceToUser = async (user_id, data_source_id) => {
-//   console.log('Входим в linkDataSourceToUser');
-//   const data = {
-//     user_id: user_id,
-//     data_source_id: data_source_id,
-//   };
-//   console.log('Отправляем данные в insertIntoTable');
-//   return insertIntoTable('userdatasources', data, process.env.DB_DATABASE);
-// };
-const linkDataSourceToUser = async (user_id, data_source_id, dbName) => {
+const linkDataSourceToUser = async (user_id, data_source_id, dbName) => { // Возвращает сообщение вида { exists: true, id: id записи } или ошибку
   console.log('Входим в linkDataSourceToUser');
   try {
     const data = {
       user_id: user_id,
       data_source_id: data_source_id,
     };
-    
+
+    // Проверяем существование связи
+    const exists = await DBManager.checkRecordExists(
+      'userdatasources',
+      { user_id, data_source_id },
+      dbName
+    );
+    console.log ('Результат проверки ', exists.id);
+    if (exists.id != null) {
+      return exists;
+    } 
+    //   // Если запись существует, получаем её ID
+    //   const existingRecord = await DBManager.query(
+    //     'SELECT id FROM userdatasources WHERE user_id = $1 AND data_source_id = $2',
+    //     [user_id, data_source_id],
+    //     dbName
+    //   );
+    //   return { 
+    //     error: 'Связь уже существует',
+    //     id: existingRecord.rows[0].id 
+    //   };
+    // }
+
+    // Если связи нет, создаем новую
     const result = await insertIntoTable('userdatasources', data, dbName);
-    
-    // Проверяем наличие дубликатов
-    if (result.code === '23505') {
-      return { error: 'Связь уже существует' };
-    }
-    
     return result;
+
   } catch (error) {
     console.error('Ошибка связывания:', error);
+    
+    // Обрабатываем случай конкурентного добавления
+    if (error.code === '23505') {
+      const existingRecord = await query(
+        'SELECT id FROM userdatasources WHERE user_id = $1 AND data_source_id = $2',
+        [user_id, data_source_id],
+        dbName
+      );
+      return { 
+        error: 'Связь уже существует',
+        id: existingRecord.rows[0].id 
+      };
+    }
+    
     return { error: error.message };
   }
 };
+
 // Добавление прав доступа
+
 const addPermission = async (user_id, data_source_id, permission_level) => {
   const data = {
     user_id: user_id,
@@ -309,7 +258,6 @@ const addPermission = async (user_id, data_source_id, permission_level) => {
   };
   return insertIntoTable('Permissions', data);
 };
-
 
 // Поиск уровня доступа пользователя
 const findLevel = async (userId) => {

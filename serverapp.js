@@ -9,11 +9,12 @@ const bodyParser = require('body-parser');
 const fs = require('fs');
 const initServer = require('../serverApp/services/initServer.js');
 const tableDB = require('./services/tableDB.js');
+const { handleAuth, handleGet, handlePost } = require('./services/messageHandlers.js'); // Подключаем обработку входящих по WS сообщений
 
 // require('dotenv').config({ path: './conf.env' }); 
 const dotenv = require('dotenv'); // Подключаем .ENV файл с переменными окружения
 dotenv.config({path: './conf.env'}); // Указываем путь к  файлу .env
-const { loginUser, verifyToken } = require('./auth'); // Импортируем функции авторизации
+//const { loginUser, verifyToken } = require('./auth'); // Импортируем функции авторизации
 
 const DBManager = require('./services/db.js'); // Импортируем DBManager
 //const { registerUser, findUser, fetchUsers, fetchDataSources, linkDataSourceToUser } = require('./userRepository'); 
@@ -206,6 +207,15 @@ const initialize = async () => {
       try {
         const DBdID = await DBManager.query('SELECT NOW()', [], envName, 'root', 'root', 'poddyPASS');
         console.log(`База данных "${envName}" существует. Результат запроса:`, DBdID.rows[0]);
+              // Проверяем существование таблиц
+      const tablesExist = await DBManager.checkTableExists(envName);
+      if (!tablesExist) {
+        console.log(`Таблицы в базе "${envName}" отсутствуют. Создаем...`);
+        await DBManager.createTableDID(envName);
+        console.log(`Таблицы успешно созданы в базе "${envName}".`);
+      } else {
+        console.log(`База данных "${envName}" содержит таблицы.`);
+      }
       } catch (error) {
         if (error.message.includes('database "' + envName + '" does not exist')) {
           console.log(`База данных "${envName}" не существует. Создаем новую базу данных...`);
@@ -305,54 +315,77 @@ let activeSocket = null; // Переменная для хранения акт�
 WSSNodeRED.on('connection', (ws) => {
 
   console.log(`Client connected to NodeRED on port ${wsRedPORT}`);
-  Slogger.info(`Client connected to NodeRED on port ${wsRedPORT}`);
-  const connectedClients = WSSNodeRED.clients.size;
-  Slogger.info(`Количество подключенных клиентов NodeRED: ${connectedClients}`);
+  //Slogger.info(`Client connected to NodeRED on port ${wsRedPORT}`);
+  //const connectedClients = WSSNodeRED.clients.size;
+  //Slogger.info(`Количество подключенных клиентов NodeRED: ${connectedClients}`);
 
-  ws.on('message', (message) => {
-    //console.log('-- 191 -- от NodRED получено сообщение', message);
-    Slogger.info(`На порт ${wsRedPORT} от NodRED получено сообщение: ${message},`);
-    sendToDash = true;
-
-      // Проверка типа сообщения
+  ws.on('message', async (message) => {
+   //console.log('-- 191 -- от NodRED получено сообщение', message);
+      try {
+// Проверка типа сообщения
 // Временно отключаем валидацию для проверки механизма пересылки от Server к 
-      console.log('Приступаем к валидации полученных  от NodRED данных');
+      //console.log('Приступаем к валидации полученных  от NodRED данных');
       const checkInputMessage = checkMessage(message);
-      if (checkInputMessage === 'ok') {
-        Slogger.info(`Проверка сообщения ${message} выполнена без ошибок, checkInputMessage = ${checkInputMessage}`);
+      if (checkInputMessage.status === 'ok') {
+        //console.log('Проверка сообщения от nodeRED выполнена успешно', checkInputMessage.data.type);
+        //Slogger.info(`Проверка сообщения ${message} выполнена без ошибок, checkInputMessage = ${checkInputMessage}`);
         sendToDash = true;
-        console.info('Проверка сообщения выполнена без ошибок, sendToDash =', sendToDash);
+        switch (checkInputMessage.data.type) {
+          case 'post':
+            //console.log('WSSNodeRED - Type - Post');
+             await handlePost(ws, checkInputMessage.data);
+
+            break;
+       
+          default:
+            break;
+        }
+
+
+        //console.info('Проверка сообщения выполнена без ошибок, sendToDash =', sendToDash);
       } else {
-        Slogger.error(`Ошибка "${checkInputMessage}" при проверке сообщения ${message} `);
+        console.log('Ошибка проверки сообщения от nodeRED checkInputMessage');
+        //Slogger.error(`Ошибка "${checkInputMessage}" при проверке сообщения ${message} `);
         sendToDash = false;
       }
+      } catch (error) {
+        
+      }
+  });
 
-      //Проверка готовности Client
-      WSSDash.clients.forEach((client) => {
-        console.log(`Проверка состояния клиента: ${client.readyState}`);
-        if (client.readyState === WebSocket.OPEN) {
-          console.log('Клиент готов принять сообщение');
-        } else {
-          console.log('Клиент не готов принять сообщение');
-        }
-      });
+//   ws.on('message', (message) => {
+//     //console.log('-- 191 -- от NodRED получено сообщение', message);
+//     Slogger.info(`На порт ${wsRedPORT} от NodRED получено сообщение: ${message},`);
+//     sendToDash = true;
+
+
+
+//       //Проверка готовности Client
+//       WSSDash.clients.forEach((client) => {
+//         console.log(`Проверка состояния клиента: ${client.readyState}`);
+//         if (client.readyState === WebSocket.OPEN) {
+//           console.log('Клиент готов принять сообщение');
+//         } else {
+//           console.log('Клиент не готов принять сообщение');
+//         }
+//       });
 
       
-      // Передача сообщения на WSSDash
-      WSSDash.clients.forEach((client) => {
-        console.log('WebSocket.Open - ', WebSocket.OPEN, ' и sendToDash=', sendToDash, 'отправка сообщения разрешена');
-        if (client.readyState === WebSocket.OPEN && sendToDash === true) {
-            client.send(message, (error) => {
-                if (error) {
-                    Slogger.error('Ошибка пересылки сообщения c NodeRED на Dashboard:', error);
-                } else {
-                    Slogger.info(`На порт ${wsDashPORT} от Server к Dashboard отправлено сообщение: ${message}`);                   
-                }
-                sendToDash = false;
-            });
-        }
-    });
-  });
+//       // Передача сообщения на WSSDash
+//       WSSDash.clients.forEach((client) => {
+//         console.log('WebSocket.Open - ', WebSocket.OPEN, ' и sendToDash=', sendToDash, 'отправка сообщения разрешена');
+//         if (client.readyState === WebSocket.OPEN && sendToDash === true) {
+//             client.send(message, (error) => {
+//                 if (error) {
+//                     Slogger.error('Ошибка пересылки сообщения c NodeRED на Dashboard:', error);
+//                 } else {
+//                     Slogger.info(`На порт ${wsDashPORT} от Server к Dashboard отправлено сообщение: ${message}`);                   
+//                 }
+//                 sendToDash = false;
+//             });
+//         }
+//     });
+//   });
 
   ws.on('error', (error) => {
       Slogger.error('WebSocket error on NodeRED:', error);
@@ -408,315 +441,27 @@ ws.on('message', async (message) => {
 
     switch (data.type) {
       case 'auth':
-        console.log('WSSDash - Переходим к проверке сообщения типа auth');
-        switch (data.request) {
-        //   case 'login':
-        //     const { username, password } = data.payload;
-        //     const requestId = data.payload.requestId;
-        //     const user = await loginUser(username, password);
-        //     if (user.error) {
-        //     // Если есть ошибка, отправляем её клиенту
-        //     ws.send(
-        //       JSON.stringify({
-        //         type: 'error',
-        //         request:'loginError',
-        //         name: '',
-        //         payload: {
-        //           requestId,
-        //           message: user.error
-        //         }
-        //       })
-        //     );
-        //     // console.log('Логин и пароль ОТКЛОНЕНЫ:', user.error);
-        //   } else {
-        //     // Если ошибки нет, отправляем успешный ответ
-        //     ws.send(
-        //       JSON.stringify({
-        //         type: 'response',
-        //         request:'loginSuccess',
-        //         name: user.dID,
-        //         payload: {
-        //           requestId,
-        //           token: user.token,
-        //           username: user.username,
-        //           userlevel: user.userlevel
-        //         }
-        //       })
-        //     );
-        //     console.log('Логин и пароль приняты');
-        //   }
-        //     break;
-        // }
-        case 'login':
-          try {
-            const { username, password } = data.payload;
-            const requestId = data.payload.requestId;
-            
-            const result = await loginUser(username, password);
-
-            if (result.error) {
-              ws.send(JSON.stringify({
-                type: 'error',
-                request: 'loginError',
-                name: '',
-                payload: {
-                  requestId,
-                  code: result.code,
-                  message: result.error
-                }
-              }));
-            } else {
-              console.log('auth-login Успешная проверка отправляем ответ Vue');
-              ws.send(JSON.stringify({
-                type: 'response',
-                request: 'loginSuccess',
-                name: result.dID,
-                payload: {
-                  requestId,
-                  token: result.token,
-                  username: result.username,
-                  userlevel: result.userlevel
-                }
-              }));
-              console.log('Отправлен ответ:', JSON.stringify({
-                type: 'response',
-                request: 'loginSuccess',
-                name: result.dID,
-                payload: { requestId,
-                  token: result.token,
-                  username: result.username,
-                  userlevel: result.userlevel
-                },
-              }));
-            }
-          } catch (error) {
-            console.error('Необработанная ошибка:', error);
-            ws.send(JSON.stringify({
-              type: 'error',
-              request: 'loginError',
-              name: '',
-              payload: {
-                requestId: data.payload?.requestId,
-                code: 'UNHANDLED_ERROR',
-                message: 'Произошла непредвиденная ошибка'
-              }
-            }));
-          }
-          break;
-        }
+        await handleAuth(ws, data);
         break;
       case 'get': // Используем строку 'get' для сравнения
-        console.log('WSSDash - Переходим к проверке сообщения типа get.');
-            switch (data.request) {
-                case 'fetchUsers':
-                  const requestId = data.payload.requestId;
-                  //console.log('WSSDash - Request - fetchUsers', requestId);
-                  try {
-                    const users = await DBManager.fetchUsers();
-                    console.log('Users', users);
-                    // Отправляем список пользователей клиенту
-                    ws.send(
-                      JSON.stringify({
-                        type: 'response',
-                        request: 'fetchUsersSuccess',
-                        name: data.name,
-                        payload: {
-                        requestId: data.payload.requestId, // Возвращаем requestId
-                        users: users,
-                        }
-                      })
-                    );
-                  } catch (error) {
-                    console.error('Ошибка при получении списка пользователей:', error);
-                    ws.send(
-                      JSON.stringify({
-                        type: 'error',
-                        request:'fetchUsersError',
-                        name: data.name,
-                        payload: {
-                        requestId: data.payload.requestId, // Возвращаем requestId
-                        message: error.message || 'Ошибка при получении списка пользователей',
-                        }
-                      })
-                    );
-                  }
-                  break;
-                break;
-                case 'fetchDataSources':
-                  try {
-                    //console.log('WSSDash - Request - fetchDataSources');
-                    const dataSources = await DBManager.fetchDataSources();
-                    //console.log('Отправляем список источников данных клиенту - dataSources', dataSources);
-                    // Отправляем список источников данных клиенту
-                    ws.send(
-                      JSON.stringify({
-                        type: 'response',
-                        request:'fetchDataSourcesSuccess',
-                        name: data.name,
-                        payload: {
-                        requestId: data.payload.requestId, // Возвращаем requestId
-                        sources: dataSources,
-                        }
-                      })
-                    );
-                  } catch (error) {
-                    console.error('Ошибка при получении списка источников данных:', error);
-                    ws.send(
-                      JSON.stringify({
-                        type: 'error',
-                        request:'fetchDataSourcesError',
-                        name: data.name,
-                        payload: {
-                        requestId: data.payload.requestId, // Возвращаем requestId
-                        message: error.message || 'Ошибка при получении списка источников данных',
-                        }
-                      })
-                    );
-                  }
-                  break; 
-              default:
-                break;
-            }
+        //console.log('WSSDash - Переходим к проверке сообщения типа get.');
+        await handleGet(ws, data);
         break;
       case 'post': // Используем строку 'post' для сравнения
-        console.log('Переходим к проверке сообщения типа post.');
-            switch (data.request) {
-              
-              case 'createUser':
-                console.log('Post - createUser');
-                      const { username, password, dataSource, permissionLevel } = data.payload;
-                      //const requestId = data.payload.requestId;
-                      try {
-                        const newUser = await tableDB.registerUser(username, password, permissionLevel, dataSource, dataSource, '', '', process.env.DB_DATABASE);
-                        //console.log('Результат запроса на создание Пользователя', newUser);
-
-                        ws.send(JSON.stringify({
-                          type: 'response',
-                          request: 'createUserSuccess',
-                          name: data.name,
-                          payload: {
-                            requestId: data.payload.requestId,
-                            user: newUser.user
-                          }
-                        }));
-                      } catch (error) {
-                        ws.send(JSON.stringify({
-                          type: 'error',
-                          request: 'createUserError',
-                          name: data.name,
-                          payload: {
-                            requestId: data.payload.requestId,
-                            message: error.message
-                          }
-                        }));
-                      }
-                      break;
-              // case 'linkUserToDataSource':
-              //   console.log('Post - linkUserToDataSource');
-              //   const { userId, dataSourceId } = data.payload;
-              //   //const requestId = data.payload.requestId;
-              //   try {
-              //     const linkUser = await tableDB.linkDataSourceToUser(userId, dataSourceId, process.env.DB_DATABASE);
-              //     if (linkUser.error) {
-              //       console.log('Ошибка связывания Пользователя с dataSource', linkUser);
-              //       // Если есть ошибка, отправляем её клиенту
-              //       ws.send(
-              //         JSON.stringify({
-              //           type: 'error',
-              //           request: 'linkUserToDataSourceError',
-              //           name: data.name,
-              //           payload: {
-              //           requestId: data.payload.requestId,
-              //           message: linkUser.error,
-              //           }
-              //         })
-              //       );
-              //     } else {
-              //       console.log('Готовим результат связывания Пользователя с dataSource');
-              //       // Если ошибки нет, отправляем успешный ответ
-              //       ws.send(
-              //         JSON.stringify({
-              //           type: 'response',
-              //           request: 'linkUserToDataSourceSuccess',
-              //           name: data.name,
-              //           payload: {
-              //           requestId: data.payload.requestId,
-              //           message: 'Связь успешно создана',
-              //           linkId: linkUser.id,
-              //           }
-              //         })
-              //       );
-              //     }
-              //   } catch (error) {
-              //     console.error('Ошибка при добавлении источника к пользователю:', error);
-              //     ws.send(
-              //       JSON.stringify({
-              //         type: 'error',
-              //         request: 'linkUserToDataSourceError',
-              //         name: data.name,
-              //         payload: {
-              //         requestId: data.payload.requestId,
-              //         message: error.message || 'Ошибка при добавлении источника к пользователю',
-              //         }
-              //       })
-              //     );
-              //   }
-              //   break;
-              case 'linkUserToDataSource': {
-                console.log('Post - linkUserToDataSource');
-                const { userId, dataSourceId, requestId } = data.payload; // Выделяем requestId из payload
-                
-                try {
-                  const linkUser = await tableDB.linkDataSourceToUser(userId, dataSourceId, process.env.DB_DATABASE);
-                  
-                  if (linkUser.error) {
-                    ws.send(JSON.stringify({
-                      type: 'error',
-                      request: 'linkUserToDataSourceError',
-                      name: data.name, // Используем name из входящих данных
-                      payload: {
-                        requestId: requestId,
-                        message: linkUser.error
-                      }
-                    }));
-                  } else {
-                    ws.send(JSON.stringify({
-                      type: 'response',
-                      request: 'linkUserToDataSourceSuccess',
-                      name: data.name, // Используем name из входящих данных
-                      payload: {
-                        requestId: requestId,
-                        message: 'Связь успешно создана',
-                        linkId: linkUser.id // Добавляем ID созданной связи
-                      }
-                    }));
-                  }
-                } catch (error) {
-                  console.error('Ошибка:', error);
-                  ws.send(JSON.stringify({
-                    type: 'error',
-                    request: 'linkUserToDataSourceError',
-                    name: data.name,
-                    payload: {
-                      requestId: requestId,
-                      message: error.message
-                    }
-                  }));
-                }
-                break;
-              }
-              default:
-                break;
-            }
+        //console.log('Переходим к проверке сообщения типа post.');
+        await handlePost(ws, data);
         break;
       case 'response': // Используем строку 'request' для сравнения
-        console.log('Переходим к проверке сообщения типа response.');
+        await handleResponse(ws, data);
         break;
-      case 'config': // Используем строку 'request' для сравнения
-        console.log('Переходим к проверке сообщения типа config.');
-        break;
+      // case 'config': // Используем строку 'request' для сравнения
+      //   await handleConfig(ws, data);
+      //   break;
       case 'set': // Используем строку 'request' для сравнения
-        console.log('Переходим к проверке сообщения типа set.');
+        await handleSet(ws, data);
+        break;
+        case 'error': // Используем строку 'request' для сравнения
+        await handleError(ws, data);
         break;
       default:
         console.log('Неизвестный тип сообщения:', data.type);
@@ -763,55 +508,55 @@ function stringToJSON(message) {
 function checkMessage(message) {
   const data = stringToJSON(message); // Преобразуем строку в объект JSON
 
-  console.log(`1 checkMessage получило сообщение: ${message}`);
+  //console.log(`1 checkMessage получило сообщение: ${message}`);
   const { error } = validType(data);
   if (error) {
     Slogger.error(`Некорректный формат полученного сообщения. ${message} Ошибка: Error validType: ${error.message}`);
     return error;
   }
-  switch (data.type) {
-    case 'config':
-        console.log('Переходим к проверке сообщения типа config:');
-      break;
-    case 'post':
-        console.log('Переходим к проверке сообщения типа post.');
-        console.log('Debug - Временно отключаем проверку на валидацию возвращаем  - ok');
-        return 'ok'; // Debug - Временно отключаем проверку на валидацию возвращаем 'ok'
+  // switch (data.type) {
+  //   case 'config':
+  //       console.log('Переходим к проверке сообщения типа config:');
+  //     break;
+  //   case 'post':
+  //       console.log('Переходим к проверке сообщения типа post.');
+  //       console.log('Debug - Временно отключаем проверку на валидацию возвращаем  - ok');
+  //       return 'ok'; // Debug - Временно отключаем проверку на валидацию возвращаем 'ok'
 
-        const resultValidPost = validPost(data);
-        console.log('Результат валидации:', resultValidPost);
-        if (resultValidPost) {
-          console.log('Результат валидации:', resultValidPost);
-          return "Error validPost: " + resultValidPost.error.message;
-        } else {
-          return 'ok';
-        }
-      // break;
-    case 'get':
-        console.log('Переходим к проверке сообщения типа get.');
-        break;
-    case 'req':
-        console.log('Переходим к проверке сообщения типа req.');
-    break;
-    case 'set':
-      console.log('Переходим к проверке сообщения типа set.');
-    break;
-    case 'createuser':
-      console.log('Переходим к созданию нового пользовотеля для VUE приложения ');
+  //       const resultValidPost = validPost(data);
+  //       console.log('Результат валидации:', resultValidPost);
+  //       if (resultValidPost) {
+  //         console.log('Результат валидации:', resultValidPost);
+  //         return "Error validPost: " + resultValidPost.error.message;
+  //       } else {
+  //         return 'ok';
+  //       }
+  //     // break;
+  //   case 'get':
+  //       console.log('Переходим к проверке сообщения типа get.');
+  //       break;
+  //   case 'req':
+  //       console.log('Переходим к проверке сообщения типа req.');
+  //   break;
+  //   case 'set':
+  //     console.log('Переходим к проверке сообщения типа set.');
+  //   break;
+  //   case 'createuser':
+  //     console.log('Переходим к созданию нового пользовотеля для VUE приложения ');
 
-      // const newUser = { id: 1, username: data.username, dataSource: data.dataSource, permissionLevel: data.permissionLevel };
-      // ws.send(JSON.stringify({ type: 'userCreated', user: newUser }));
-    break;
-    case 'getusers':
-      console.log('Переходим к созданию получению списка пользовотелей VUE приложения ');
-      // Логика получения списка пользователей
-      // const users = [{ id: 1, username: 'user1', dataSource: 'source1', permissionLevel: 1 }];
-      // ws.send(JSON.stringify({ type: 'usersList', users }));
-    break;
-    default:
-      Slogger.error(`Неизвестный тип сообщения: ${data.type}`);
-  }
-  return 'ok';
+  //     // const newUser = { id: 1, username: data.username, dataSource: data.dataSource, permissionLevel: data.permissionLevel };
+  //     // ws.send(JSON.stringify({ type: 'userCreated', user: newUser }));
+  //   break;
+  //   case 'getusers':
+  //     console.log('Переходим к созданию получению списка пользовотелей VUE приложения ');
+  //     // Логика получения списка пользователей
+  //     // const users = [{ id: 1, username: 'user1', dataSource: 'source1', permissionLevel: 1 }];
+  //     // ws.send(JSON.stringify({ type: 'usersList', users }));
+  //   break;
+  //   default:
+  //     Slogger.error(`Неизвестный тип сообщения: ${data.type}`);
+  // }
+  return {status:'ok', data: data};
 };
 
 // Работа с GPIO

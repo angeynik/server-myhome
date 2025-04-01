@@ -1,3 +1,11 @@
+// checkRecordExists - проверка существования запис
+// Возвращает сообщение вида { exists: true, id: id записи } при успешной проверке 
+// { exists: true, id: id записи } при НЕ успешной проверке 
+// или ошибку
+
+
+
+
 const { Pool } = require('pg');
 const dotenv = require('dotenv');
 dotenv.config({ path: './conf.env' });
@@ -116,44 +124,101 @@ class DBManager {
     const Name = dbName || this.dbName;
     const User = dbUser || this.dbUser;
     const Pass = dbPass || this.dbPass;
-      console.log(`[QUERY START] ${text}`);
-      console.log(`Параметры: ${JSON.stringify(params)}`);
+      //console.log(`[QUERY START] ${text}`);
+      //console.log(`Параметры: ${JSON.stringify(params)}`);
 
-    console.log(`Выполнение запроса для ${Name}, ${User}, ${Pass}`);
+    //console.log(`Выполнение запроса для ${Name}, ${User}, ${Pass}`);
     const pool = this.getPool(Name, User, Pass);
     //const start = Date.now();
     try {
       const res = await pool.query(text, params);
       //const duration = Date.now() - start;
       //console.log(`Подключение к базе данных ${finalDbName} пользователь ${finalDbUser} выполнено за ${duration} мс`);
-      //console.log(`Результат выполнения запроса - ${res}`);
+      //console.log('Результат выполнения запроса:', JSON.stringify(res, null, 2));
+  
       return res;
     } catch (error) {
       console.error('Ошибка при выполнении запроса:', error.message);
       throw error;
     }
   }
-  async createDB (createDB, dbName, dbUser, dbPass) {
-    console.log(`createDB - Создаем базу - ${createDB} Параметры подключения ${dbName} - ${dbUser}`);
-    try {
-      console.log(`Попытка создания базы данных ${createDB} ...`);
-      await this.query(`CREATE DATABASE "${createDB}"`, [], dbName, dbUser, dbPass);
-      console.log(`База данных "${createDB}" создана успешно.`);
 
-      await this.query(`ALTER DATABASE "${createDB}" OWNER TO "${dbUser}"`, [], 'root', 'root', 'poddyPASS');
-      console.log(`Владелец базы данных "${createDB}" изменен на "${dbUser}".`);
+    // Проверка существования записи в таблице по условиям
+    async checkRecordExists(tableName, param, dbName, dbUser, dbPass) {
+      //console.log('Входим в checkRecordExists');
+      if (Object.keys(param).length === 0) {
+        throw new Error('Необходимо указать условия для проверки существования записи');
+      }
+    
+      const whereClauses = [];
+      const params = [];
+      let paramIndex = 1;
+    
+      // Формируем условия WHERE
+      for (const [column, value] of Object.entries(param)) {
+        whereClauses.push(`${column} = $${paramIndex}`);
+        params.push(value);
+        paramIndex++;
+      }
+    
+      const queryText = `
+        SELECT id FROM ${tableName}
+        WHERE ${whereClauses.join(' AND ')}
+        LIMIT 1
+      `;
+      
+      console.log('checkRecordExists - Готовим запрос queryText', queryText);
+      
+      try {
+        const result = await this.query(
+          queryText, 
+          params, 
+          dbName, 
+          dbUser, 
+          dbPass
+        );
+    
+        if (result.rows.length > 0) {
+          console.log('checkRecordExists - Запись найдена, ID:', result.rows[0].id);
+          return { 
+            exists: true, 
+            id: result.rows[0].id 
+          };
+        }
+        
+        //console.log('checkRecordExists - Запись не найдена');
+        return { 
+          exists: false, 
+          id: null 
+        };
+    
+      } catch (error) {
+        console.error(`Ошибка проверки записи в таблице ${tableName}:`, error.message);
+        throw error;
+      }
+    }
 
-      await this.query(`GRANT ALL PRIVILEGES ON DATABASE "${createDB}" TO "${dbUser}"`, [], 'root', 'root', 'poddyPASS');
-      console.log(`Права на базу данных "${createDB}" переданы пользователю "${dbUser}".`);
-        // Подключаемся к новой базе данных "spring" для установки расширения "uuid-ossp"
-      await this.query(`CREATE EXTENSION IF NOT EXISTS "uuid-ossp"`, [], createDB, dbUser, dbPass);
-      console.log(`Расширение "uuid-ossp" установлено в базе данных ${createDB}.`);
+    async createDB (createDB, dbName, dbUser, dbPass) {
+      console.log(`createDB - Создаем базу - ${createDB} Параметры подключения ${dbName} - ${dbUser}`);
+      try {
+        console.log(`Попытка создания базы данных ${createDB} ...`);
+        await this.query(`CREATE DATABASE "${createDB}"`, [], dbName, dbUser, dbPass);
+        console.log(`База данных "${createDB}" создана успешно.`);
 
-    } catch (createError) {
-      console.error('Ошибка при создании базы данных:', createError.message);
-      throw createError;
-  }
-  }
+        await this.query(`ALTER DATABASE "${createDB}" OWNER TO "${dbUser}"`, [], 'root', 'root', 'poddyPASS');
+        console.log(`Владелец базы данных "${createDB}" изменен на "${dbUser}".`);
+
+        await this.query(`GRANT ALL PRIVILEGES ON DATABASE "${createDB}" TO "${dbUser}"`, [], 'root', 'root', 'poddyPASS');
+        console.log(`Права на базу данных "${createDB}" переданы пользователю "${dbUser}".`);
+          // Подключаемся к новой базе данных "spring" для установки расширения "uuid-ossp"
+        await this.query(`CREATE EXTENSION IF NOT EXISTS "uuid-ossp"`, [], createDB, dbUser, dbPass);
+        console.log(`Расширение "uuid-ossp" установлено в базе данных ${createDB}.`);
+
+      } catch (createError) {
+        console.error('Ошибка при создании базы данных:', createError.message);
+        throw createError;
+    }
+    }
 
       async createTableAuth() {
         try {
@@ -188,7 +253,8 @@ class DBManager {
         }
       }
 
-    async createTableDID() {
+    async createTableDID(db) {
+      const dbName = db || this.dbName;
         try {
           const tablesToCreate = [];
           const tables = [
@@ -198,30 +264,31 @@ class DBManager {
       
           // Проверяем существование каждой таблицы
           for (const table of tables) {
-            const tableExists = await this.checkTableExists(table.name, this.dbName, this.dbUser, this.dbPass);
+            const tableExists = await this.checkTableExists(table.name, dbName, this.dbUser, this.dbPass);
             if (!tableExists) {
               tablesToCreate.push(table.sql); // Добавляем SQL для создания таблицы
             } else {
-              console.log(`Таблица ${table.name} уже существует в базе "${this.dbName}", пропускаем создание.`);
+              console.log(`Таблица ${table.name} уже существует в базе "${dbName}", пропускаем создание.`);
             }
           }
       
           // Создаем только те таблицы, которые отсутствуют
           if (tablesToCreate.length > 0) {
-            await this.createTables(tablesToCreate, this.dbName, this.dbUser, this.dbPass);
+            await this.createTables(tablesToCreate, dbName, this.dbUser, this.dbPass);
             console.log(`Все таблицы для хранения данных успешно созданы в базе "${this.dbName}".`);
           } else {
-            console.log(`Все таблицы уже существуют в базе "${this.dbName}", создание не требуется.`);
+            console.log(`Все таблицы уже существуют в базе "${dbName}", создание не требуется.`);
           }
         } catch (error) {
           console.error('Ошибка при создании таблиц хранения данных:', error);
           throw error;
         }
       }
-      async createTables(tables) {
+      async createTables(tables, db) {
+        const dbName = db || this.dbName;
         try {
           for (const table of tables) {
-            await this.query(table, [], this.dbName, this.dbUser, this.dbPass);
+            await this.query(table, [], dbName, this.dbUser, this.dbPass);
           }
           console.log('Все таблицы успешно созданы.');
         } catch (error) {
@@ -246,19 +313,6 @@ class DBManager {
           throw error;
         }
       }
-      // async findUser(username) {
-      //   try {
-      //     const result = await this.query('SELECT * FROM users WHERE username = $1', [username]);
-      //     if (result.rows.length === 0) {
-      //       console.log(`Пользователь с именем "${username}" не найден.`);
-      //       return null; // Возвращаем null, если пользователь не найден
-      //     }
-      //     return result.rows[0]; // Возвращаем первого найденного пользователя
-      //   } catch (error) {
-      //     console.error(`Ошибка при поиске пользователя "${username}":`, error.message);
-      //     throw error; // Пробрасываем ошибку дальше, если нужно
-      //   }
-      // }
 
       async findUser(username) {
         try {
@@ -298,19 +352,6 @@ class DBManager {
         }
       }
 
-      // async findLevel(userId) {
-      //   try {
-      //     const result = await this.query('SELECT permission_level FROM permissions WHERE user_id = $1', [userId]);
-      //     if (result.rows.length === 0) {
-      //       console.log(`Уровень доступа для пользователя с ID "${userId}" не найден.`);
-      //       return null; // Возвращаем null, если уровень доступа не найден
-      //     }
-      //     return result.rows[0].permission_level; // Возвращаем уровень доступа
-      //   } catch (error) {
-      //     console.error(`Ошибка при поиске уровня доступа для пользователя с ID "${userId}":`, error.message);
-      //     throw error; // Пробрасываем ошибку дальше, если нужно
-      //   }
-      // }
 
       // Функция для получения списка пользователей
       async fetchUsers () {
