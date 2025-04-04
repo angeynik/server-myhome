@@ -266,11 +266,69 @@ const handleResponse = async (ws, data) => {
     console.log('Переходим к проверке сообщения типа response.');
     switch (data.request) {
         case 'config':
-            try {
-              
-            } catch (error) {
-              
-            }
+          try {
+            //console.log('handleResponse - Request - config', data);
+            if (data.payload) {
+              const dID = data.name;
+              const configName = Object.keys(data.payload)[0];
+              const configData = data.payload[configName];
+
+              console.log('Config ID:', dID);
+              console.log('Config Name:', configName);
+              //console.log('Config Data:', configData);
+
+                  // 1. Проверка существования конфига
+                  const checkResult = await DBManager.checkRecordExists(
+                    'config',
+                    { name: configName },
+                    dID,
+                    dbUser,
+                    dbPass
+                );
+                  // 2. Если конфиг уже существует
+                  if (checkResult.exists) {
+                    sendSuccess(ws, 'configExists', dID, {
+                        config: configName,
+                        message: `Конфиг '${configName}' уже существует в базе`,
+                        exists: true,
+                        id: checkResult.id
+                    });
+                    //continue;
+                };
+                  // 3. Создание новой записи
+                  const currentDate = new Date().toISOString();
+                  const result = await DBManager.query(
+                      `INSERT INTO config (name, file, update_date)
+                       VALUES ($1, $2, $3)
+                       RETURNING id, name, update_date`,
+                      [configName, configData, currentDate],
+                      dID,
+                      dbUser,
+                      dbPass
+                  );
+                  // 4. Отправка подтверждения
+                  sendSuccess(ws, 'configSaved', dID, {
+                    config: configName,
+                    record: {
+                        id: result.rows[0].id,
+                        name: result.rows[0].name,
+                        update_date: result.rows[0].update_date
+                    }
+                });
+
+                console.log(`Конфиг ${configName} сохранен в БД ${dID}`);
+
+          } else {
+              console.error('Invalid data structure');
+          }
+
+          } catch (error) {
+            console.error('Ошибка обработки конфига:', error);
+            sendError(ws, 'configError', data.name, {
+                message: error.message,
+                code: error.code || 'DB_ERROR'
+            });
+          }
         break;
         default:
         break;
@@ -286,5 +344,8 @@ const handleError = async (ws, data) => {
 module.exports = {
   handleAuth,
   handleGet,
-  handlePost
+  handlePost,
+  handleResponse,
+  handleSet,
+  handleError
 };

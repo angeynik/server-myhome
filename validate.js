@@ -2,7 +2,7 @@ const Joi = require('joi');
 
 // Валидация типа сообщения - type
 const schemaType = Joi.object({
-    type: Joi.string().valid('config', 'post', 'get', 'req', 'set').required(),
+    type: Joi.string().valid('response', 'config', 'post', 'get', 'req', 'set').required(),
     // Добавьте другие поля, которые должны быть в сообщении
 }).unknown(true); // Позволяет дополнительные поля
   

@@ -9,7 +9,7 @@ const bodyParser = require('body-parser');
 const fs = require('fs');
 const initServer = require('../serverApp/services/initServer.js');
 const tableDB = require('./services/tableDB.js');
-const { handleAuth, handleGet, handlePost } = require('./services/messageHandlers.js'); // Подключаем обработку входящих по WS сообщений
+const { handleAuth, handleGet, handlePost, handleResponse, handleSet, handleError} = require('./services/messageHandlers.js'); // Подключаем обработку входящих по WS сообщений
 
 // require('dotenv').config({ path: './conf.env' }); 
 const dotenv = require('dotenv'); // Подключаем .ENV файл с переменными окружения
@@ -334,9 +334,28 @@ WSSNodeRED.on('connection', (ws) => {
           case 'post':
             //console.log('WSSNodeRED - Type - Post');
              await handlePost(ws, checkInputMessage.data);
-
             break;
-       
+
+            case 'get':
+              //console.log('WSSNodeRED - Type - Post');
+               await handleGet(ws, checkInputMessage.data);
+              break;
+
+              case 'response':
+                //console.log('WSSNodeRED - Type - Post');
+                 await handleResponse(ws, checkInputMessage.data);
+                break;
+
+              case 'set':
+              //console.log('WSSNodeRED - Type - Post');
+               await handleSet(ws, checkInputMessage.data);
+              break;
+
+              case 'error':
+              //console.log('WSSNodeRED - Type - Post');
+               await handleError(ws, checkInputMessage.data);
+              break;
+
           default:
             break;
         }

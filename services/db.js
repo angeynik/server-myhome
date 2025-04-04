@@ -60,7 +60,7 @@ class DBManager {
   tableConfig = `
     CREATE TABLE config (
       id SERIAL PRIMARY KEY,
-      name TEXT NOT NULL,
+      name TEXT NOT NULL UNIQUE,
       file JSON NOT NULL,
       update_date TIMESTAMP NOT NULL
     );
@@ -167,7 +167,7 @@ class DBManager {
         LIMIT 1
       `;
       
-      console.log('checkRecordExists - Готовим запрос queryText', queryText);
+      //console.log('checkRecordExists - Готовим запрос queryText', queryText);
       
       try {
         const result = await this.query(
