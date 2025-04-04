@@ -217,7 +217,7 @@ const handlePost = async (ws, data) => {
                   const fileData = fileResult.rows[0].file;
                   
                   if (fileData && Object.keys(fileData).length > 0) {
-                    console.log('JSON файл валиден:', fileData);
+                    //console.log('JSON файл валиден:', fileData);
                   } else {
                     console.log('JSON файл существует, но пустой или содержит null');
                   sendRequest(ws, 'config', dID, {config});
