@@ -25,7 +25,7 @@ const handleAuth = async (ws, data) => {
         const { username, password } = data.payload;
         const requestId = data.payload.requestId;
         const result = await loginUser(username, password);
-        //console.log('auth-login Результат проверки:', result);
+        console.log('auth-login Результат проверки:', result);
         if (result.error) {
           sendError(ws, 'loginError', data.name, {
             requestId,
@@ -34,7 +34,7 @@ const handleAuth = async (ws, data) => {
           });
         } else {
           console.log('auth-login Успешная проверка отправляем ответ Vue');
-          sendSuccess(ws, 'loginSuccess', data.name, {
+          sendSuccess(ws, 'loginSuccess', result.dID, {
             requestId,
             token: result.token,
             username: result.username,
