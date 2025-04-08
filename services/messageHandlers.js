@@ -58,6 +58,7 @@ const handleAuth = async (ws, data) => {
 
 const handleGet = async (ws, data) => {
     console.log('handleGet - Переходим к проверке сообщения типа get');
+    const dID = data.name;
   switch (data.request) {
     case 'fetchUsers':
       try {
@@ -87,11 +88,77 @@ const handleGet = async (ws, data) => {
         });
       }
       break;
+    // case 'config':
+    //   try {
+    //     const dbDID = await DBManager.query('SELECT NOW()', [], dID, dbUser, dbPass);
+    //     if (!dbDID) {
+    //       throw new Error('Подключение к базе данных не установлено.');
+    //     } 
+    //     console.log('Подключение к базе данных успешно установлено.', dbDID.rows[0].now);
+
+    //   } catch (error) {
+        
+    //   }
+    //   break;
     case 'config':
       try {
-        
+        const { configName, requestId } = data.payload;
+        console.log('handleGet - Request - config configName - ', configName, 'requestId - ', requestId);
+        if (!configName) {
+          throw new Error('Не указано имя конфига в запросе');
+        }
+    
+        // Проверяем существование записи
+        const checkResult = await DBManager.checkRecordExists(
+          'config',
+          { name: configName },
+          dID,
+          dbUser,
+          dbPass
+        );
+    console.log('handleGet - Проверка существования конфига name - ', configName, 'результат - ', checkResult);
+        if (!checkResult.exists) {
+          sendError(ws, 'configError', dID, {
+            requestId,
+            message: `Конфиг '${configName}' не найден в базе`,
+            code: 'CONFIG_NOT_FOUND'
+          });
+          return;
+        }
+    
+        // Получаем данные конфига
+        const result = await DBManager.query(
+          'SELECT file FROM config WHERE name = $1',
+          [configName],
+          dID,
+          dbUser,
+          dbPass
+        );
+    
+        if (result.rows.length === 0) {
+          sendError(ws, 'configError', dID, {
+            requestId,
+            message: `Ошибка при получении конфига '${configName}'`,
+            code: 'CONFIG_FETCH_FAILED'
+          });
+          return;
+        }
+    
+        // Отправляем ответ с данными конфига
+        sendSuccess(ws, 'response', dID, {
+          requestId,
+          [configName]: result.rows[0].file
+        });
+    
+        console.log(`Конфиг ${configName} успешно отправлен`);
+    
       } catch (error) {
-        
+        console.error('Ошибка получения конфига:', error);
+        sendError(ws, 'configError', dID, {
+          requestId: data.payload?.requestId,
+          message: error.message,
+          code: error.code || 'DB_ERROR'
+        });
       }
       break;
     default:
@@ -158,10 +225,10 @@ const handlePost = async (ws, data) => {
       break;
       case 'init_dID':
         //console.log('handlePost - Request - init_dID', data.name);
-        const dID = data.name;
+        //const dID = data.name;
 
         try {
-          //console.log('Получены данные:', data);
+          console.log('Получены данные:', data);
 
           DBManager.getPool(authDB, dbUser, dbPass).on('error', (err) => {
             console.error('Ошибка в пуле соединений:', err);
@@ -169,11 +236,7 @@ const handlePost = async (ws, data) => {
           const dbDID = await DBManager.query('SELECT NOW()', [], dID, dbUser, dbPass);
           console.log('Подключение к базе данных успешно установлено.', dbDID.rows[0].now);
           if (!dbDID) {
-            console.log(`База данных "${dID}" не существует. Создаем...`);
-            // await DBManager.createDB(dID, authDB, dbUser, dbPass);
-            // console.log(`База данных "${dID}" успешно создана.`);
-            // await DBManager.createTableDID(dID);
-            // console.log(`Таблицы успешно созданы в базе "${dID}".`);
+            console.log(`База данных "${dID}" не существует.`);
           } else {
             console.log(`База данных "${dID}" существует.`);
 
@@ -207,7 +270,7 @@ const handlePost = async (ws, data) => {
                 // Получаем содержимое поля file
                 const fileResult = await DBManager.query(
                   'SELECT file FROM config WHERE name = $1',
-                  ['commonConfig'],
+                  [config],
                   dID,
                   dbUser,
                   dbPass
@@ -215,15 +278,13 @@ const handlePost = async (ws, data) => {
                 // Проверяем наличие данных в JSON
                 if (fileResult.rows.length > 0) {
                   const fileData = fileResult.rows[0].file;
-                  
-                  if (fileData && Object.keys(fileData).length > 0) {
-                    //console.log('JSON файл валиден:', fileData);
-                  } else {
-                    console.log('JSON файл существует, но пустой или содержит null');
-                  sendRequest(ws, 'config', dID, {config});
-                  }
+                    if (fileData && Object.keys(fileData).length > 0) {
+                      //console.log('JSON файл валиден:', fileData);
+                    } else {
+                      console.log('JSON файл существует, но пустой или содержит null');
+                    sendRequest(ws, 'config', dID, {config});
+                    }
                 }
-
               } else {
                 console.log(`Записb ${config} НЕ существует. Формируем запрос...`);
                 sendRequest(ws, 'config', dID, {config});

@@ -20,7 +20,8 @@ function sendRequest(ws, requestType, name, payload) {
       payload: payload
     };
     ws.send(JSON.stringify(response));
-    console.log('Отправлен успешный ответ:', JSON.stringify(response));
+    console.log('Отправлен успешный ответ:', JSON.stringify(response.type));
+    //console.log('Отправлен успешный ответ:', JSON.stringify(response));
   }
 
   function sendError(ws, errorType, name, payload) {
