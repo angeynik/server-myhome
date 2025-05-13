@@ -455,8 +455,9 @@ WSSDash.on('connection', (ws) => {
 
 ws.on('message', async (message) => {
   try {
+    console.log('WSSDash - Получены данные:', message);
     const data = JSON.parse(message);
-    console.log('WSSDash - Получены данные:', data);
+    console.log('WSSDash - Данные преобразованы в json:', data);
 
     switch (data.type) {
       case 'auth':
