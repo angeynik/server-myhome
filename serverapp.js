@@ -7,7 +7,7 @@ const cors = require('cors');
 const path = require('path');
 const bodyParser = require('body-parser');
 const fs = require('fs');
-const initServer = require('../serverApp/services/initServer.js');
+const initServer = require('./services/initServer.js');
 const tableDB = require('./services/tableDB.js');
 const { handleAuth, handleGet, handlePost, handleResponse, handleSet, handleError} = require('./services/messageHandlers.js'); // Подключаем обработку входящих по WS сообщений
 
@@ -455,7 +455,7 @@ WSSDash.on('connection', (ws) => {
 
 ws.on('message', async (message) => {
   try {
-    console.log('WSSDash - Получены данные:', message);
+    //console.log('WSSDash - Получены данные:', message);
     const data = JSON.parse(message);
     console.log('WSSDash - Данные преобразованы в json:', data);
 
