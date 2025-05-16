@@ -153,7 +153,7 @@ app.use(bodyParser.json());
 // Инициализация сервера
 const initialize = async () => {
   const envInit = process.env.INIT_DB;
-  // console.log('envInit - ', envInit);
+  console.log('envInit - ', envInit);
   if (envInit === 'TRUE') {
     console.log('Переходим к инициализация сервера разрешена', envInit);
     try {
@@ -331,6 +331,10 @@ WSSNodeRED.on('connection', (ws) => {
         //Slogger.info(`Проверка сообщения ${message} выполнена без ошибок, checkInputMessage = ${checkInputMessage}`);
         sendToDash = true;
         switch (checkInputMessage.data.type) {
+          case 'auth':
+            console.log('WSSNodeRED - Type - Auth');
+             //await handleAuth(ws, checkInputMessage.data);
+            break;
           case 'post':
             //console.log('WSSNodeRED - Type - Post');
              await handlePost(ws, checkInputMessage.data);
@@ -461,6 +465,11 @@ ws.on('message', async (message) => {
 
     switch (data.type) {
       case 'auth':
+        console.log('WSSDash от WebApp получено сообщение типа auth');
+        await handleAuth(ws, data);
+        break;
+      case 'login':
+        console.log('WSSDash от WebApp получено сообщение типа login');
         await handleAuth(ws, data);
         break;
       case 'get': // Используем строку 'get' для сравнения
