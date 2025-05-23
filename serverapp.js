@@ -22,122 +22,124 @@ const DBManager = require('./services/db.js'); // Импортируем DBManag
 // Подключаем функции модуля joi для валидации данных
 const {validType, validConfig, validPost} = require('./validate');
 
-const pino = require('pino'); // Подключаем pino для логирования
-const logDirectory = process.env.LOG_DIRECTORY || './logs';
-const log_level = process.env.PINO_LOG_LEVEL || 'info';
+//const pino = require('pino'); // Подключаем pino для логирования
+//const logDirectory = process.env.LOG_DIRECTORY || './logs';
+//const log_level = process.env.PINO_LOG_LEVEL || 'info';
 
-// Логирование Сервера
-const ServerTransport = pino.transport({
-  targets: [
-    {
-      target: 'pino-pretty',
-      options: {
-        destination: path.join(logDirectory, 'fatal.log'), // Логи уровня fatal
-        level: 'fatal',
-        mkdir: true,
-      },
-    },
-    {
-      target: 'pino-pretty',
-      options: {
-        destination: path.join(logDirectory, 'error.log'), // Логи уровня error
-        level: 'error',
-        mkdir: true,
-      },
-    },
-    {
-      target: 'pino-pretty',
-      options: {
-        destination: path.join(logDirectory, 'warn.log'), // Логи уровня warn
-        level: 'warn',
-        mkdir: true,
-      },
-    },
-    {
-      target: 'pino-pretty',
-      options: {
-        destination: path.join(logDirectory, 'info.log'), // Логи уровня info
-        level: 'info',
-        mkdir: true,
-        colorize: false,
-      },
-    },
-    {
-      target: 'pino-pretty',
-      options: {
-        destination: path.join(logDirectory, 'debug.log'), // Логи уровня debug
-        level: 'debug',
-        mkdir: true,
-      },
-    },
-    {
-      target: 'pino-pretty', // Консольный вывод
-      options: {
-        level: 'debug',
-        colorize: true,
-        destination: process.stdout.fd,
-      },
-    },
+// Логирование Сервера - Временно отключаем Логирование заполняет все место на сервере
+// const ServerTransport = pino.transport({
+//   targets: [
+//     {
+//       target: 'pino-pretty',
+//       options: {
+//         destination: path.join(logDirectory, 'fatal.log'), // Логи уровня fatal
+//         level: 'fatal',
+//         mkdir: true,
+//       },
+//     },
+//     {
+//       target: 'pino-pretty',
+//       options: {
+//         destination: path.join(logDirectory, 'error.log'), // Логи уровня error
+//         level: 'error',
+//         mkdir: true,
+//       },
+//     },
+//     {
+//       target: 'pino-pretty',
+//       options: {
+//         destination: path.join(logDirectory, 'warn.log'), // Логи уровня warn
+//         level: 'warn',
+//         mkdir: true,
+//       },
+//     },
+//     {
+//       target: 'pino-pretty',
+//       options: {
+//         destination: path.join(logDirectory, 'info.log'), // Логи уровня info
+//         level: 'info',
+//         mkdir: true,
+//         colorize: false,
+//       },
+//     },
+//     {
+//       target: 'pino-pretty',
+//       options: {
+//         destination: path.join(logDirectory, 'debug.log'), // Логи уровня debug
+//         level: 'debug',
+//         mkdir: true,
+//       },
+//     },
+//     {
+//       target: 'pino-pretty', // Консольный вывод
+//       options: {
+//         level: 'debug',
+//         colorize: true,
+//         destination: process.stdout.fd,
+//       },
+//     },
     
-  ],
-});
+//   ],
+// });
 
-const Slogger = pino({ level: log_level }, ServerTransport);
-module.exports = Slogger;
+// const Slogger = pino({ level: log_level }, ServerTransport);
+// module.exports = Slogger;
 
-// Логирование Клиента
-const ClientTransport = pino.transport({
-  targets: [
-    {
-      target: 'pino-pretty',
-      options: {
-        destination: path.join(logDirectory, 'client_fatal.log'), // Логи уровня fatal
-        level: 'fatal',
-        mkdir: true,
-      },
-    },
-    {
-      target: 'pino-pretty',
-      options: {
-        destination: path.join(logDirectory, 'client_error.log'), // Логи уровня error
-        level: 'error',
-        mkdir: true,
-      },
-    },
-    {
-      target: 'pino-pretty',
-      options: {
-        destination: path.join(logDirectory, 'client_warn.log'), // Логи уровня warn
-        level: 'warn',
-        mkdir: true,
-      },
-    },
-    {
-      target: 'pino-pretty',
-      options: {
-        destination: path.join(logDirectory, 'client_info.log'), // Логи уровня info
-        level: 'info',
-        mkdir: true,
-        colorize: false,
-      },
-    },
+// Логирование Клиента - Временно отключаем Логирование заполняет все место на сервере
+// const ClientTransport = pino.transport({
+//   targets: [
+//     {
+//       target: 'pino-pretty',
+//       options: {
+//         destination: path.join(logDirectory, 'client_fatal.log'), // Логи уровня fatal
+//         level: 'fatal',
+//         mkdir: true,
+//       },
+//     },
+//     {
+//       target: 'pino-pretty',
+//       options: {
+//         destination: path.join(logDirectory, 'client_error.log'), // Логи уровня error
+//         level: 'error',
+//         mkdir: true,
+//       },
+//     },
+//     {
+//       target: 'pino-pretty',
+//       options: {
+//         destination: path.join(logDirectory, 'client_warn.log'), // Логи уровня warn
+//         level: 'warn',
+//         mkdir: true,
+//       },
+//     },
+//     {
+//       target: 'pino-pretty',
+//       options: {
+//         destination: path.join(logDirectory, 'client_info.log'), // Логи уровня info
+//         level: 'info',
+//         mkdir: true,
+//         colorize: false,
+//       },
+//     },
    
-  ],
-});
+//   ],
+// });
 
-const Clogger = pino({ level: log_level }, ClientTransport); 
-module.exports = Clogger;
+// const Clogger = pino({ level: log_level }, ClientTransport); 
+// module.exports = Clogger;
+// Создаем директорию, если она не существует
+// const clientLogDir = './logs';
+// if (!fs.existsSync(clientLogDir)) {
+//     fs.mkdirSync(clientLogDir);
+// }
+
 
 //const servPORT = process.env.SERVER_PORT || 3010;
 const servPORT = process.env.SERVER_PORT || 3010;
 const wsRedPORT = process.env.WSR_PORT || 9200;
 const wsDashPORT = process.env.WSD_PORT || 9202;
 
-// Создаем директорию, если она не существует
-const clientLogDir = './logs';
-if (!fs.existsSync(clientLogDir)) {
-    fs.mkdirSync(clientLogDir);
-}
+
 
 const app = express();
 app.set(servPORT);
