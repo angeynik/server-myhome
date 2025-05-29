@@ -196,7 +196,6 @@ const initialize = async () => {
         await DBManager.query('SELECT NOW()', [], process.env.DB_DATABASE, process.env.DB_USER, process.env.DB_PASSWORD);
         // await DBManager.createDB(process.env.DEFAULT_USER_DID, 'root', 'root', 'poddyPASS');
 
-
       }
   } catch (error) {
     console.error('Ошибка при проверке таблиц и пользователя:', error.message);
