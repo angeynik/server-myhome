@@ -1,6 +1,6 @@
 const express = require('express');
 const http = require('http');
-//const axios = require('axios');
+const axios = require('axios');
 // const { v4: uuidv4 } = require('uuid');
 // const morgan = require('morgan');
 const cors = require('cors');
@@ -412,11 +412,13 @@ WSSNodeRED.on('connection', (ws) => {
 //   });
 
   ws.on('error', (error) => {
-      Slogger.error('WebSocket error on NodeRED:', error);
+    console.log('WebSocket error on NodeRED:', error);
+      //Slogger.error('WebSocket error on NodeRED:', error);
   });
 
   ws.on('close', () => {
-      Slogger.info('NodeRED WebSocket connection closed');
+    console.log('NodeRED WebSocket connection closed');
+      //Slogger.info('NodeRED WebSocket connection closed');
       redConnection = false;
   });
 //}
@@ -456,7 +458,8 @@ WSSNodeRED.on('connection', (ws) => {
 
 
 WSSDash.on('connection', (ws) => {
-  Slogger.info('-- 402 -- Client connected to Dashboard on port ' + wsDashPORT);
+  console.log('-- 402 -- Client connected to Dashboard on port ' + wsDashPORT);
+  //Slogger.info('-- 402 -- Client connected to Dashboard on port ' + wsDashPORT);
 
 ws.on('message', async (message) => {
   try {
@@ -511,18 +514,20 @@ ws.on('message', async (message) => {
 
 
   ws.on('error', (error) => {
-    Slogger.error('WebSocket error on Dashboard:', error);
+    console.log('WebSocket error on Dashboard:', error);
+    //Slogger.error('WebSocket error on Dashboard:', error);
   });
 
   ws.on('close', () => {
-    Slogger.info('Dash WebSocket connection closed');
+    console.log('Dash WebSocket connection closed');
+    //Slogger.info('Dash WebSocket connection closed');
   });
 });
 
 
 
-
-Slogger.info(`WebSocket servers are running on nodeRed ws port:${wsRedPORT} and DashBoard (client) ws port:${wsDashPORT}`);
+console.log(`WebSocket servers are running on nodeRed ws port:${wsRedPORT} and DashBoard (client) ws port:${wsDashPORT}`);
+//Slogger.info(`WebSocket servers are running on nodeRed ws port:${wsRedPORT} and DashBoard (client) ws port:${wsDashPORT}`);
 //logger.debug(`WebSocket servers are running on ws://localhost:${wsRedPORT} and ws://localhost:${wsDashPORT}`);
 setTimeout(() => {
     sendToDash = false;
@@ -541,7 +546,8 @@ function checkMessage(message) {
   //console.log(`1 checkMessage получило сообщение: ${message}`);
   const { error } = validType(data);
   if (error) {
-    Slogger.error(`Некорректный формат полученного сообщения. ${message} Ошибка: Error validType: ${error.message}`);
+    console.log(`Некорректный формат полученного сообщения. ${message} Ошибка: Error validType: ${error.message}`);
+    //Slogger.error(`Некорректный формат полученного сообщения. ${message} Ошибка: Error validType: ${error.message}`);
     return error;
   }
   // switch (data.type) {
