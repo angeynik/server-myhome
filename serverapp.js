@@ -279,19 +279,19 @@ initialize();
 
 
 //Работа с логами с Клиента
-app.post('/log', (req, res) => {
-    if (req.body.type === 'error') {
-        Clogger.error(req.body.message);
-    } else if (req.body.type === 'warn') {
-        Clogger.warn(req.body.message);
-    } else if (req.body.type === 'info') {
-        Clogger.info(req.body.message);
-    } else if (req.body.type === 'fatal') {
-        Clogger.fatal(req.body.message);
-    } else {
-        Clogger.info('Получено сообщение неопределенного ТИПА с Логами от Клиента (VUE js):', req.body.message);
-    }
-});
+//app.post('/log', (req, res) => {
+//    if (req.body.type === 'error') {
+//        Clogger.error(req.body.message);
+//    } else if (req.body.type === 'warn') {
+//        Clogger.warn(req.body.message);
+//    } else if (req.body.type === 'info') {
+//        Clogger.info(req.body.message);
+//    } else if (req.body.type === 'fatal') {
+//        Clogger.fatal(req.body.message);
+//    } else {
+//        Clogger.info('Получено сообщение неопределенного ТИПА с Логами от Клиента (VUE js):', req.body.message);
+//    }
+//});
 
 
 const WebSocket = require('ws');
@@ -321,7 +321,7 @@ WSSNodeRED.on('connection', (ws) => {
   //Slogger.info(`Количество подключенных клиентов NodeRED: ${connectedClients}`);
 
   ws.on('message', async (message) => {
-   //console.log('-- 191 -- от NodRED получено сообщение', message);
+  // console.log('-- 191 -- от NodRED получено сообщение', message);
       try {
 // Проверка типа сообщения
 // Временно отключаем валидацию для проверки механизма пересылки от Server к 
@@ -337,27 +337,27 @@ WSSNodeRED.on('connection', (ws) => {
              //await handleAuth(ws, checkInputMessage.data);
             break;
           case 'post':
-            //console.log('WSSNodeRED - Type - Post');
+           // console.log('WSSNodeRED - Type - Post');
              await handlePost(ws, checkInputMessage.data);
             break;
 
             case 'get':
-              //console.log('WSSNodeRED - Type - Post');
+             // console.log('WSSNodeRED - Type - Get');
                await handleGet(ws, checkInputMessage.data);
               break;
 
               case 'response':
-                //console.log('WSSNodeRED - Type - Post');
+                console.log('WSSNodeRED - Type - Response');
                  await handleResponse(ws, checkInputMessage.data);
                 break;
 
               case 'set':
-              //console.log('WSSNodeRED - Type - Post');
+              console.log('WSSNodeRED - Type - Set');
                await handleSet(ws, checkInputMessage.data);
               break;
 
               case 'error':
-              //console.log('WSSNodeRED - Type - Post');
+              console.log('WSSNodeRED - Type - Error');
                await handleError(ws, checkInputMessage.data);
               break;
 
@@ -477,11 +477,11 @@ ws.on('message', async (message) => {
         await handleAuth(ws, data);
         break;
       case 'get': // Используем строку 'get' для сравнения
-        //console.log('WSSDash - Переходим к проверке сообщения типа get.');
+        console.log('WSSDash - Переходим к проверке сообщения типа get.');
         await handleGet(ws, data);
         break;
       case 'post': // Используем строку 'post' для сравнения
-        //console.log('Переходим к проверке сообщения типа post.');
+        console.log('Переходим к проверке сообщения типа post.');
         await handlePost(ws, data);
         break;
       case 'response': // Используем строку 'request' для сравнения
