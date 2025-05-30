@@ -16,6 +16,7 @@ class DBManager {
     this.dbUser = process.env.DB_USER || 'root';
     this.dbPass = process.env.DB_PASSWORD || 'poddyPASS';
     this.dbName = process.env.DB_DATABASE || 'spring';
+    this.dbPort = process.env.DB_PORT || 5432;
   }
   tableUsers = `
     CREATE TABLE users (
@@ -93,7 +94,7 @@ class DBManager {
         host: 'localhost',
         database: dbName || this.dbName,
         password: dbPass || this.dbPass,
-        port: 5432,
+        port: this.dbPort || 5432,
       });
 
       console.log(`Создан новый пул для базы данных: ${dbName}`);
