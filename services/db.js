@@ -3,9 +3,6 @@
 // { exists: true, id: id записи } при НЕ успешной проверке 
 // или ошибку
 
-
-
-
 const { Pool } = require('pg');
 const dotenv = require('dotenv');
 dotenv.config({ path: './conf.env' });
@@ -28,7 +25,6 @@ class DBManager {
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
   `;
-
   tableDatasource = `
     CREATE TABLE datasources (
       id SERIAL PRIMARY KEY,
@@ -38,7 +34,6 @@ class DBManager {
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
   `;
-
   tablePermission = `
     CREATE TABLE permissions (
       id SERIAL PRIMARY KEY,
@@ -48,7 +43,6 @@ class DBManager {
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
   `;
-
   tableUserdatasource = `
     CREATE TABLE userdatasources (
       id SERIAL PRIMARY KEY,
@@ -57,31 +51,128 @@ class DBManager {
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
   `;
-
   tableConfig = `
     CREATE TABLE config (
-      id SERIAL PRIMARY KEY,
-      name TEXT NOT NULL UNIQUE,
-      file JSON NOT NULL,
-      update_date TIMESTAMP NOT NULL
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(32) NOT NULL,
+    file JSON NOT NULL,
+    update_date TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
     );
   `;
-
-  tableData = `
-    CREATE TABLE data (
-      id SERIAL PRIMARY KEY,
-      type TEXT NOT NULL,
-      name TEXT NOT NULL,
-      room TEXT,
-      location TEXT,
-      actionStatus BOOLEAN NOT NULL,
-      actionState BOOLEAN,
-      actionSet BOOLEAN,
-      dataStatus BOOLEAN NOT NULL,
-      dataState NUMERIC,
-      dataSet NUMERIC,
-      create_date TIMESTAMP
+  tableFileType = `
+    CREATE TABLE file_type (
+        id VARCHAR(32) PRIMARY KEY,
+        description VARCHAR(128) NOT NULL,
+        extensions VARCHAR(128)
     );
+    INSERT INTO file_type (id, description, extensions) VALUES
+      ('txt', 'Текстовый файл', ''),
+      ('doc', 'Doc файл', ''),
+      ('pdf', 'PDF файл', ''),
+      ('jpg', 'jpg файл', ''),
+      ('png', 'png файл', ''),
+      ('gif', 'gif файл', ''),
+      ('mp4', 'mp4 файл', ''),
+      ('avi', 'avi файл', ''),
+      ('mov', 'mov файл', ''),
+      ('raw', 'raw файл', '');
+  `;
+  tableSensorType = `
+    CREATE TABLE sensor_type (
+        id VARCHAR(16) PRIMARY KEY,
+        title VARCHAR(128) NOT NULL,
+        icon VARCHAR(32) NOT NULL,
+        data_type VARCHAR(32) NOT NULL CHECK (data_type IN ('Number', 'boolean', 'String')),
+        sign VARCHAR(16),
+        value_true VARCHAR(32),
+        value_false VARCHAR(32)
+    );
+    INSERT INTO sensor_type (id, title, icon, data_type, sign, value_true, value_false) VALUES
+      ('Temp', 'Температура', 'thermostat', 'Number', '°C', NULL, NULL),
+      ('Hum', 'Влажность', 'water', 'Number', '%', NULL, NULL),
+      ('Mov', 'Движение', 'walk', 'boolean', 'on/off', 'ON', 'OFF'),
+      ('Fire', 'Пожар', 'fire', 'boolean', 'on/off', 'Alarm', 'Norm'),
+      ('Leak', 'Протечка', 'leakage', 'boolean', 'on/off', 'Alarm', 'Norm'),
+      ('Switch', 'Розетка', 'switch', 'boolean', 'on/off', 'ON', 'OFF'),
+      ('Dimm', 'Контроллер', 'dimmer', 'boolean', 'on/off', 'ON', 'OFF'),
+      ('Pres', 'Давление', 'pressure', 'Number', 'hPa', NULL, NULL),
+      ('Noise', 'Уровень шума', 'noise', 'Number', 'dB', NULL, NULL),
+      ('Co2', 'CO2', 'co2', 'Number', 'ppm', NULL, NULL),
+      ('Voc', 'VOC', 'voc', 'Number', 'ppb', NULL, NULL),
+      ('Lum', 'Освещенность', 'brightness', 'Number', 'lux', NULL, NULL),
+      ('Button', 'Кнопка', 'button', 'boolean', 'on/off', 'ON', 'OFF'),
+      ('Relay', 'Реле', 'relay', 'boolean', 'on/off', 'ON', 'OFF'),
+      ('Batery', 'Напряжение батареи', 'battery', 'Number', 'V', NULL, NULL),
+      ('Power', 'Энергия', 'power', 'Number', 'kWh', NULL, NULL),
+      ('Smoke', 'Дым', 'smoke', 'boolean', 'on/off', 'Alarm', 'Norm'),
+      ('Unknown', 'Неизвестное', 'unknown', 'String', '?', NULL, NULL),
+      ('Current', 'Ток', 'current', 'Number', 'A', NULL, NULL),
+      ('Power_W', 'Мощность', 'power', 'Number', 'W', NULL, NULL),
+      ('FlowRate', 'Скорость протока', 'flow', 'Number', 'л/мин', NULL, NULL),
+      ('Volume', 'Объем жидкости', 'water', 'Number', 'л', NULL, NULL);
+  `;
+  tableActionStateType = `
+    CREATE TABLE action_state_type (
+        id VARCHAR(64) PRIMARY KEY,
+        description VARCHAR(255) NOT NULL,
+        category VARCHAR(64) NOT NULL
+    );
+    INSERT INTO action_state_type (id, description, category) VALUES
+      ('temp_high', 'Температура выше нормы', 'temperature'),
+      ('temp_low', 'Температура ниже нормы', 'temperature'),
+      ('temp_normal', 'Температура в норме', 'temperature'),
+      ('motion_detected', 'Обнаружено движение', 'motion'),
+      ('motion_absent', 'Движение отсутствует', 'motion'),
+      ('alarm_fire', 'Пожарная тревога', 'alarm'),
+      ('alarm_flood', 'Протечка воды', 'alarm'),
+      ('alarm_off', 'Тревога отключена', 'alarm'),
+      ('set', 'Изменено', 'common'),
+      ('high', 'Значение превышено', 'common'),
+      ('low', 'Значение ниже допустимого', 'common'),
+      ('enabled', 'Включено', 'common'),
+      ('disabled', 'Выключено', 'common'),
+      ('error', 'Ошибка', 'common');
+  `;
+  tableDataSensors = `
+    CREATE TABLE data_sensors (
+        id SERIAL PRIMARY KEY,
+        type VARCHAR(20) NOT NULL REFERENCES sensor_type(id),
+        name VARCHAR(64) UNIQUE NOT NULL,
+        value_num DOUBLE PRECISION,
+        value_bool BOOLEAN,
+        value_str TEXT,
+        room VARCHAR(64) NOT NULL,
+        location VARCHAR(64) NOT NULL,
+        create_date TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT chk_value_type CHECK (
+            (value_num IS NOT NULL AND value_bool IS NULL AND value_str IS NULL) OR
+            (value_bool IS NOT NULL AND value_num IS NULL AND value_str IS NULL) OR
+            (value_str IS NOT NULL AND value_num IS NULL AND value_bool IS NULL)
+        )
+    );
+    CREATE INDEX idx_data_sensors_type ON data_sensors(type);
+    CREATE INDEX idx_data_sensors_room_loc ON data_sensors(room, location);
+  `;
+  tableDataEvents = `
+    CREATE TABLE data_events (
+        id SERIAL PRIMARY KEY,
+        type VARCHAR(32) NOT NULL REFERENCES sensor_type(id),
+        name VARCHAR(255) UNIQUE NOT NULL,
+        action_status VARCHAR(8) NOT NULL CHECK (action_status IN ('on', 'off')),
+        action_state VARCHAR(64) REFERENCES action_state_type(id),
+        data_status VARCHAR(8) NOT NULL CHECK (data_status IN ('on', 'off')),
+        data_state DOUBLE PRECISION,
+        file_type VARCHAR(32) REFERENCES file_type(id),
+        file_name VARCHAR(255),
+        file_link TEXT,
+        create_date TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT chk_data_consistency CHECK (
+            (data_status = 'on' AND data_state IS NOT NULL) OR
+            (data_status = 'off' AND data_state IS NULL)
+        )
+    );
+    CREATE INDEX idx_data_events_type_date ON data_events(type, create_date);
+    CREATE INDEX idx_data_events_action_state ON data_events(action_state);
   `;
   // Создание или получение пула для конкретной базы данных
   getPool(dbName, dbUser, dbPass) {
@@ -102,7 +193,6 @@ class DBManager {
 
     return this.pools[key];
   }
-
   // Завершение всех пулов
   async closeAllPools() {
     for (const key of Object.keys(this.pools)) {
@@ -111,7 +201,6 @@ class DBManager {
     }
     this.pools = {};
   }
-
   // Завершение конкретного пула
   async closePool(dbName, dbUser) {
     const key = `${dbName}-${dbUser}`;
@@ -259,8 +348,12 @@ class DBManager {
         try {
           const tablesToCreate = [];
           const tables = [
-            { name: 'config', sql: this.tableConfig },
-            { name: 'data', sql: this.tableData },
+            { name: 'file_type', sql: this.tableFileType },
+            { name: 'sensor_type', sql: this.tableSensorType },
+            { name: 'action_state_type', sql: this.tableActionStateType },
+            { name: 'sensor_type', sql: this.tableConfig },
+            { name: 'data_sensors', sql: this.tableDataSensors },
+            { name: 'data_events', sql: this.tableDataEvents },
           ];
       
           // Проверяем существование каждой таблицы
@@ -268,11 +361,11 @@ class DBManager {
             const tableExists = await this.checkTableExists(table.name, dbName, this.dbUser, this.dbPass);
             if (!tableExists) {
               tablesToCreate.push(table.sql); // Добавляем SQL для создания таблицы
+              console.log(`Создаем таблицу ${table.name} в базе "${dbName}"...`);
             } else {
               console.log(`Таблица ${table.name} уже существует в базе "${dbName}", пропускаем создание.`);
             }
           }
-      
           // Создаем только те таблицы, которые отсутствуют
           if (tablesToCreate.length > 0) {
             await this.createTables(tablesToCreate, dbName, this.dbUser, this.dbPass);

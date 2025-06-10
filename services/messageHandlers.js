@@ -224,9 +224,8 @@ const handlePost = async (ws, data) => {
       }
       break;
       case 'init_dID':
-        //console.log('handlePost - Request - init_dID', data.name);
-        //const dID = data.name;
-
+        console.log('handlePost - Request - init_dID :', data.name, ' Payload: ', data.payload);
+        const dID = data.name;
         try {
           console.log('Получены данные:', data);
 
