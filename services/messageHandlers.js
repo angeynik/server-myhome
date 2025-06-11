@@ -167,7 +167,7 @@ const handleGet = async (ws, data) => {
 };
 
 const handlePost = async (ws, data) => {
-    console.log('handlePost - Переходим к проверке сообщения типа post', data.request);
+    console.log('handlePost - Переходим к проверке сообщения типа post, request - ', data.request);
   switch (data.request) {
     case 'createUser':
         console.log('handlePost - Request - createUser');
@@ -224,16 +224,16 @@ const handlePost = async (ws, data) => {
       }
       break;
       case 'init_dID':
-        console.log('handlePost - Request - init_dID :', data.name, ' Payload: ', data.payload);
+        console.log('handlePost - init_dID :', data.name);
         const dID = data.name;
         try {
-          console.log('Получены данные:', data);
-
+          //console.log('Получены данные:', data);
+          console.log ('Начинаем проверку наличия БД с именем - ', dID);
           DBManager.getPool(authDB, dbUser, dbPass).on('error', (err) => {
             console.error('Ошибка в пуле соединений:', err);
           });
           const dbDID = await DBManager.query('SELECT NOW()', [], dID, dbUser, dbPass);
-          console.log('Подключение к базе данных успешно установлено.', dbDID.rows[0].now);
+          //console.log('Подключение к базе данных успешно установлено.', dbDID.rows[0].now);
           if (!dbDID) {
             console.log(`База данных "${dID}" не существует.`);
           } else {
@@ -285,7 +285,7 @@ const handlePost = async (ws, data) => {
                     }
                 }
               } else {
-                console.log(`Записb ${config} НЕ существует. Формируем запрос...`);
+                console.log(`Запись ${config} НЕ существует. Формируем запрос к nodeRED на получение конфигурации ${config}`);
                 sendRequest(ws, 'config', dID, {config});
               }
             }

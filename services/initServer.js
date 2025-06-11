@@ -1,7 +1,9 @@
+// Действия при инициализации Пользователя по умолчанию, проверка ДБ и таблиц
 const DBManager = require('./db'); // Импортируем DBManager
 const dotenv = require('dotenv');
 dotenv.config({ path: './conf.env' });
-const bcrypt = require('bcryptjs');
+//const bcrypt = require('bcryptjs');
+const tableDB = require('./tableDB.js');
 
 const authDB = process.env.DB_DATABASE || 'spring'; // База данных по умолчанию
 const dbUser = process.env.DB_USER;
@@ -55,5 +57,94 @@ const initServer = async () => {
 
   console.log('Инициализация базы данных сервера завершена успешно.');
 };
+const initUsers = async () => {
+  try {
+    const usersTableExists = await DBManager.checkTableExists('users');
+    if (!usersTableExists) {
+      console.log('Таблица Users отсутствует, создаем ее...');
+      await DBManager.createTableAuth();
+      console.log(`Таблицы для хранения учётных записей базы созданы успешно.`);
+    } else {
+      console.log(`Таблица Users существует - ${usersTableExists}.`);
+    }
+  } catch (error) {
+    console.error('Ошибка подключения к базе данных:', error.message);
+    throw error;
+  }
+};
+const initDefaulUser = async () => {
+  console.log('initServer - initDefaulUser - Проверка наличия пользователя по умолчанию...');
+  try {
+    // Проверяем наличие пользователя по умолчанию
+      const defaultUser = await tableDB.findUser(process.env.DEFAULT_USER_NAME);
+      console.log (`Результат поиска пользователя ${process.env.DEFAULT_USER_NAME} -  ${defaultUser}`);
+      if (!defaultUser) {
+        console.log(` Пользователь по умолчанию - ${process.env.DEFAULT_USER_NAME} - отсутствует, создаем его...`);
+        await tableDB.registerUser(
+          process.env.DEFAULT_USER_NAME,
+          process.env.DEFAULT_USER_PASSWORD,
+          process.env.DEFAULT_USER_LEVEL,
+          process.env.DEFAULT_USER_DID,
+          process.env.DEFAULT_USER_SOURCE,
+          process.env.DEFAULT_USER_SOURCE_DESCRIPTION,
+          process.env.DEFAULT_USER_EMAIL,
+          process.env.DB_DATABASE
+        );
+        console.log(`Пользователь ${process.env.DEFAULT_USER_NAME}  создан успешно.`);
+        await DBManager.query('SELECT NOW()', [], process.env.DB_DATABASE, process.env.DB_USER, process.env.DB_PASSWORD);
+        // await DBManager.createDB(process.env.DEFAULT_USER_DID, 'root', 'root', 'poddyPASS');
 
-module.exports = initServer;
+      }
+  } catch (error) {
+    console.error('Ошибка проверки пользователя по умолчанию ', error.message);
+    throw error;  
+  }
+}
+const initDB_dID = async () => {
+  try {
+        const envName = process.env.DEFAULT_USER_DID;
+    if (envName) {
+      try {
+        const DBdID = await DBManager.query('SELECT NOW()', [], envName, 'root', 'root', 'poddyPASS');
+        console.log(`База данных "${envName}" существует. Результат запроса:`, DBdID.rows[0]);
+              // Проверяем существование таблиц
+      const tablesExist = await DBManager.checkTableExists(envName);
+      if (!tablesExist) {
+        console.log(`Таблицы в базе "${envName}" отсутствуют. Создаем...`);
+        await DBManager.createTableDID(envName);
+        console.log(`Таблицы успешно созданы в базе "${envName}".`);
+      } else {
+        console.log(`База данных "${envName}" содержит таблицы.`);
+      }
+      } catch (error) {
+        if (error.message.includes('database "' + envName + '" does not exist')) {
+          console.log(`База данных "${envName}" не существует. Создаем новую базу данных...`);
+          
+          // Создаем базу данных
+          await DBManager.createDB(envName, 'root', 'root', 'poddyPASS');
+          console.log(`База данных "${envName}" успешно создана.`);
+
+          // Создаем таблицы в новой базе данных
+          console.log(`Создаем таблицы в базе данных (dID) "${envName}"...`);
+          await DBManager.createTableDID(envName);
+          console.log(`Таблицы в базе данных "${envName}" успешно созданы.`);
+        } else {
+          console.error('Ошибка при выполнении запроса:', error.message);
+          throw error;
+        }
+      }
+    } else {
+      console.log(`Не удалось получить имя пользователя по умолчанию - ${envName}`);
+    }
+  } catch (error) {
+    console.error('Ошибка базы данных пользователя:', envName, error.message);
+    throw error;  
+  }
+}
+
+module.exports = {
+  initServer,
+  initUsers,
+  initDefaulUser,
+  initDB_dID
+};
