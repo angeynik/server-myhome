@@ -24,8 +24,9 @@ const {validType, validConfig, validPost} = require('./validate');
 
 //const servPORT = process.env.SERVER_PORT || 3010;
 const servPORT = process.env.SERVER_PORT || 3010;
-const wsRedPORT = process.env.WSR_PORT || 9200;
-const wsDashPORT = process.env.WSD_PORT || 9202;
+const wsRedPORT_IN = process.env.WSR_PORT_IN || 9200;
+const wsRedPORT_OUT = process.env.WSR_PORT_OUT || 9201;
+const wsDashPORT_IN = process.env.WSD_PORT_IN || 9202;
 
 
 
@@ -59,6 +60,11 @@ const initialize = async () => {
     console.log('Инициализация сервера запрещена INIT_DB - ', envInit);
   }
 
+
+};
+// Выполняем инициализацию сервера
+initialize();
+
   // Запуск сервера
   server.listen(servPORT, () => {
     console.log(`MyHome Server is running on port ${servPORT}`);
@@ -68,6 +74,7 @@ const initialize = async () => {
   const handleShutdown = async () => {
     console.log('Shutting down server...');
     try {
+
       // Закрываем все пулы соединений с базами данных
       await DBManager.closeAllPools();
       console.log('Все соединения с базами данных закрыты.');
@@ -84,18 +91,16 @@ const initialize = async () => {
   // Обрабатываем оба сигнала одним обработчиком
   process.on('SIGINT', handleShutdown);
   process.on('SIGTERM', handleShutdown);
-};
-// Выполняем инициализацию сервера
-initialize();
-
 
 const WebSocket = require('ws');
 const { mkdir } = require('fs');
 const { error } = require('console');
 
 //устанавливаем соединение через Web Socket
-const WSSNodeRED = new WebSocket.Server ({port:wsRedPORT});
-const WSSDash = new WebSocket.Server ({port:wsDashPORT});
+const WSSNodeRED= new WebSocket.Server ({port:wsRedPORT_IN});
+const WSSNodeRED_OUT= new WebSocket.Server ({port:wsRedPORT_OUT});
+
+const WSSDash = new WebSocket.Server ({port:wsDashPORT_IN});
 
 // Управление подключениями Node-RED клиентов
 const nodeRedClients = new Map(); // Хранилище подключений: id -> ws
@@ -112,15 +117,15 @@ const reconnectInterval = 100;
 // Работаем с NodeRED
 
 WSSNodeRED.on('connection', (ws) => {
-  console.log(`Client connected to NodeRED on port ${wsRedPORT}`);
+  console.log(`Client connected to NodeRED on port ${wsRedPORT_IN}`);
     // Генерируем уникальный ID для клиента
   const clientId = `red-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   nodeRedClients.set(clientId, ws);
   
   console.log(`Node-RED client connected (ID: ${clientId}). Total clients: ${nodeRedClients.size}`);
 
-  //console.log(`Client connected to NodeRED on port ${wsRedPORT}`);
-  //Slogger.info(`Client connected to NodeRED on port ${wsRedPORT}`);
+  //console.log(`Client connected to NodeRED on port ${wsRedPORT_IN}`);
+  //Slogger.info(`Client connected to NodeRED on port ${wsRedPORT_IN}`);
   //const connectedClients = WSSNodeRED.clients.size;
   //Slogger.info(`Количество подключенных клиентов NodeRED: ${connectedClients}`);
 
@@ -219,13 +224,34 @@ console.log('Приступаем к валидации полученных  о
 //}
 
 });
-
+WSSNodeRED_OUT.on('connection', (ws) => {
+  ws.on ('message', async (message) => {
+    try {
+      
+    } catch (error) {
+      
+    }
+  });
+    ws.on ('error', () => {
+    try {
+      
+    } catch (error) {
+      
+    }
+  });
+    ws.on ('close', () => {
+    try {
+      
+    } catch (error) {
+      
+    }
+  });
+});
 // Работаем с Dashboard
 
-
 WSSDash.on('connection', (ws) => {
-  console.log('-- 402 -- Client connected to Dashboard on port ' + wsDashPORT);
-  //Slogger.info('-- 402 -- Client connected to Dashboard on port ' + wsDashPORT);
+  console.log('-- 402 -- Client connected to Dashboard on port ' + wsDashPORT_IN);
+  //Slogger.info('-- 402 -- Client connected to Dashboard on port ' + wsDashPORT_IN);
 
 ws.on('message', async (message) => {
   try {
@@ -290,11 +316,9 @@ ws.on('message', async (message) => {
   });
 });
 
-
-
-console.log(`WebSocket servers are running on nodeRed ws port:${wsRedPORT} and DashBoard (client) ws port:${wsDashPORT}`);
-//Slogger.info(`WebSocket servers are running on nodeRed ws port:${wsRedPORT} and DashBoard (client) ws port:${wsDashPORT}`);
-//logger.debug(`WebSocket servers are running on ws://localhost:${wsRedPORT} and ws://localhost:${wsDashPORT}`);
+console.log(`WebSocket servers are running on nodeRed ws port:${wsRedPORT_IN} and DashBoard (client) ws port:${wsDashPORT_IN}`);
+//Slogger.info(`WebSocket servers are running on nodeRed ws port:${wsRedPORT_IN} and DashBoard (client) ws port:${wsDashPORT_IN}`);
+//logger.debug(`WebSocket servers are running on ws://localhost:${wsRedPORT_IN} and ws://localhost:${wsDashPORT_IN}`);
 setTimeout(() => {
     sendToDash = false;
 }, reconnectInterval);
