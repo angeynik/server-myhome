@@ -158,12 +158,12 @@ WSSNodeRED.on('connection', (ws) => {
       const checkInputMessage = checkMessage(message);
       //console.log('checkInputMessage - ', checkInputMessage);
       if (checkInputMessage.status === 'ok') {
-        console.log('-- 225 --- Проверка сообщения от nodeRED выполнена успешно', checkInputMessage.data.type);
+        console.log('-- 161 --- Проверка сообщения от nodeRED выполнена успешно', checkInputMessage.data);
         //Slogger.info(`Проверка сообщения ${message} выполнена без ошибок, checkInputMessage = ${checkInputMessage}`);
         sendToDash = true;
         // Добавляем ID отправителя в сообщение
         //checkInputMessage.data.senderId = clientId;
-        console.log('Добавляем ID отправителя в сообщение senderId - ', checkInputMessage.data);
+        //console.log('Добавляем ID отправителя в сообщение senderId - ', checkInputMessage.data);
         switch (checkInputMessage.data.type) {
           case 'auth':
             console.log('WSSNodeRED - Type - Auth');
@@ -172,6 +172,8 @@ WSSNodeRED.on('connection', (ws) => {
           case 'post':
            // console.log('WSSNodeRED - Type - Post');
              await handlePost(ws, checkInputMessage.data);
+            // const activeConnections = getAllClients();
+            // console.log('Текущие активные соединения:', activeConnections);
             break;
 
             case 'get':
@@ -208,16 +210,11 @@ WSSNodeRED.on('connection', (ws) => {
       } catch (error) {
         
       }
-
-      const activeConnections = getAllClients();
-      console.log('Текущие активные соединения:', activeConnections);
   });
 
 
   ws.on('error', (error) => {
-    console.error(`WebSocket error on NodeRED(${clientId}):`, error);
-    //console.log('WebSocket error on NodeRED:', error);
-      //Slogger.error('WebSocket error on NodeRED:', error);
+    console.log('WebSocket error on NodeRED:', error);
   });
 
   ws.on('close', () => {
@@ -227,14 +224,6 @@ WSSNodeRED.on('connection', (ws) => {
     } else {
       console.log('Соединение закрыто, но клиент не был зарегистрирован через init_dID.');
     }
-
-    const activeConnections = getAllClients();
-    console.log('Текущие активные соединения:', activeConnections);
-
-    //console.log(`Node-RED connection closed (ID: ${clientId}). Remaining clients: ${nodeRedClients_IN.size}`);
-    //console.log('NodeRED WebSocket connection closed');
-      //Slogger.info('NodeRED WebSocket connection closed');
-      //redConnection = false;
   });
 //}
 

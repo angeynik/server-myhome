@@ -35,7 +35,6 @@ function getAllClients() {
       allClients[idClient][typeConnect] = {
         dID: ws.dID, // сохраненный dID
         typeConnect: ws.typeConnect, // сохраненный тип подключения
-        lastActivity: ws.lastActivity,
         clientId: ws.socket || 'нет идентификатора',
         connected: ws.readyState === WebSocket.OPEN,
         sender: ws.sender || 'нет идентификатора'    

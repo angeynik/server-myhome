@@ -10,7 +10,7 @@ const dbPass = process.env.DB_PASSWORD;
 
 const { loginUser, verifyToken } = require('../auth'); // Импортируем функции авторизации
 
-const { registerClient, getClient } = require('./clientsStore.js');
+const { registerClient, getClient, getAllClients} = require('./clientsStore.js');
 const { sendSuccess, sendError, sendRequest} = require('./wsHelpers');
 // Получаем список имен конфигов из переменной окружения
 const configNames = JSON.parse(process.env.DB_CONFIG_NAMES || '[]');
@@ -168,7 +168,20 @@ const handleGet = async (ws, data) => {
 };
 
 const handlePost = async (ws, data) => {
-    console.log('handlePost - Переходим к проверке сообщения типа post, request - ', data.request);
+      ws.lastProcessedRequests = ws.lastProcessedRequests || {}; // Инициализируем объект для отслеживания последних обработанных запросов на ws, если ещё не создан
+      // Выбираем окно (в мс), в течение которого повторный запрос будет отброшен
+      const debounceTime = 1000; // например, 5 секунд
+      const isDuplicate = (reqType) => { // Функция для проверки, был ли запрос уже обработан
+        const lastProcessed = ws.lastProcessedRequests[reqType];
+        if (!lastProcessed) return false;
+        return Date.now() - lastProcessed < debounceTime;
+      };
+      const markProcessed = (reqType) => { // Функция для отметки обработки запроса
+        ws.lastProcessedRequests[reqType] = Date.now();
+      };
+
+
+    //console.log('handlePost - Переходим к проверке сообщения типа post, request - ', data.request);
   switch (data.request) {
     case 'createUser':
         console.log('handlePost - Request - createUser');
@@ -225,6 +238,13 @@ const handlePost = async (ws, data) => {
       }
       break;
     case 'init_dID':
+        // Проверяем дублирование для init_dID
+          if (isDuplicate('init_dID')) {
+            console.log('handlePost - Duplicate init_dID request ignored.');
+            return;
+          }
+          markProcessed('init_dID');
+
         console.log('handlePost - init_dID :', data.name);
         const dID = data.name;
         try {
@@ -300,7 +320,14 @@ const handlePost = async (ws, data) => {
         }
     break;
     case 'init_ws':
-        console.log('handlePost - init_ws :', data.name, 'typeConnect:', data.payload.typeConnect);
+      // Проверяем дублирование для init_ws
+        if (isDuplicate('init_ws')) {
+          console.log('handlePost - Duplicate init_ws request ignored.');
+          return;
+        }
+        markProcessed('init_ws');
+
+        //console.log('handlePost - init_ws :', data.name, 'typeConnect:', data.payload.typeConnect);
         // const dID = data.name;
         // const typeConnect = data.payload.typeConnect;
           try {
@@ -309,16 +336,18 @@ const handlePost = async (ws, data) => {
             registerClient(data.name, ws, data.payload.typeConnect);
             ws.dID = data.name;
             ws.typeConnect = data.payload.typeConnect;
-            lastActivity = Date.now();
-            console.log(`handlePost - Зарегистрирован клиент ws.dID ${ws.dID} ws.typeConnect -(${ws.typeConnect})`);
+            //console.log(`handlePost - Зарегистрирован клиент ws.dID ${ws.dID} ws.typeConnect -(${ws.typeConnect})`);
             ws.lastActivity = Date.now();
-            console.log(`handlePost - Выполнена регистрацияКлиента ${data.name} (${data.payload.typeConnect})`);
+            const activeConnections = getAllClients();
+            console.log('Текущие активные соединения:', activeConnections);
+            //console.log(`handlePost - Выполнена регистрацияКлиента ${data.name} (${data.payload.typeConnect})`);
           } else {
             console.log(`handlePost - Клиент ${data.name} (${data.payload.typeConnect}) уже зарегистрирован.`);
           }
         } catch (error) {
           console.error('handlePost - Ошибка при регистрации клиента:', error);
         }
+
         break;
     case 'config':
         console.log('handlePost - Request - config');
