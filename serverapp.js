@@ -5,7 +5,10 @@ const cors = require('cors');
 const path = require('path');
 const bodyParser = require('body-parser');
 const fs = require('fs');
+
+const { getAllClients, removeClient } = require('./services/clientsStore.js');
 const {initServer, initUsers, initDefaulUser, initDB_dID} = require('./services/initServer.js');
+//const { setupHeartbeat } = require('./services/wsHelpers.js');
 //const tableDB = require('./services/tableDB.js');
 const { handleAuth, handleGet, handlePost, handleResponse, handleSet, handleError} = require('./services/messageHandlers.js'); // Подключаем обработку входящих по WS сообщений
 
@@ -62,35 +65,60 @@ const initialize = async () => {
 
 
 };
-// Выполняем инициализацию сервера
-initialize();
+initialize(); // Выполняем инициализацию сервера
 
-  // Запуск сервера
-  server.listen(servPORT, () => {
-    console.log(`MyHome Server is running on port ${servPORT}`);
-  });
 
-  // Корректное завершение работы сервера и закрытие соединения с базой данных
   const handleShutdown = async () => {
     console.log('Shutting down server...');
     try {
-
       // Закрываем все пулы соединений с базами данных
       await DBManager.closeAllPools();
       console.log('Все соединения с базами данных закрыты.');
+
+    // Закрываем все активные WebSocket-соединения
+    console.log('Closing all WebSocket connections...');
+    // Для входящих соединений
+    // WSSNodeRED.clients.forEach((client) => {
+    //   try {
+    //     client.close(1001, 'Server shutting down'); // 1001 код означает, что сервер закрывается
+    //   } catch (error) {
+    //     console.error('Error closing client in WSSNodeRED:', error);
+    //   }
+    // });
+    // // Для исходящих соединений
+    // WSSNodeRED_OUT.clients.forEach((client) => {
+    //   try {
+    //     client.close(1001, 'Server shutting down');
+    //   } catch (error) {
+    //     console.error('Error closing client in WSSNodeRED_OUT:', error);
+    //   }
+    // });
+
+
+
+    console.log('Все WebSocket-соединения закрыты.');
+
       server.close(() => {
         console.log('Server has been shut down.');
         process.exit(0); // Завершаем процесс после закрытия сервера
       });
+
+    
     } catch (error) {
       console.error('Ошибка при завершении работы сервера:', error);
       process.exit(1); // Завершаем процесс с кодом ошибки
     }
   };
-
   // Обрабатываем оба сигнала одним обработчиком
   process.on('SIGINT', handleShutdown);
   process.on('SIGTERM', handleShutdown);
+
+  // Запуск сервера
+  server.listen(servPORT, () => {
+    console.log(`MyHome Server is running on port ${servPORT}`);
+  });
+  // Корректное завершение работы сервера и закрытие соединения с базой данных
+
 
 const WebSocket = require('ws');
 const { mkdir } = require('fs');
@@ -103,8 +131,8 @@ const WSSNodeRED_OUT= new WebSocket.Server ({port:wsRedPORT_OUT});
 const WSSDash = new WebSocket.Server ({port:wsDashPORT_IN});
 
 // Управление подключениями Node-RED клиентов
-const nodeRedClients = new Map(); // Хранилище подключений: id -> ws
-
+//const nodeRedClients_IN = new Map(); // Хранилище подключений: id -> ws
+//const nodeRedClients_OUT = new Map(); // Хранилище подключений: id -> ws
 // Блок с переменными
 let sendToDash = true;
 //let sendToRed = false;
@@ -117,41 +145,16 @@ const reconnectInterval = 100;
 // Работаем с NodeRED
 
 WSSNodeRED.on('connection', (ws) => {
-  console.log(`Client connected to NodeRED on port ${wsRedPORT_IN}`);
-    // Генерируем уникальный ID для клиента
-  const clientId = `red-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-  nodeRedClients.set(clientId, ws);
-  
-  console.log(`Node-RED client connected (ID: ${clientId}). Total clients: ${nodeRedClients.size}`);
-
-  //console.log(`Client connected to NodeRED on port ${wsRedPORT_IN}`);
-  //Slogger.info(`Client connected to NodeRED on port ${wsRedPORT_IN}`);
-  //const connectedClients = WSSNodeRED.clients.size;
-  //Slogger.info(`Количество подключенных клиентов NodeRED: ${connectedClients}`);
-
-// Отправляем клиенту его ID
-    // ws.send(JSON.stringify({
-    //   type: 'post',
-    //   request: 'WSconnectID',
-    //   name: '',
-    //   payload: {
-    //   WSconnectID: clientId
-    //   }
-    // }));
+  //console.log(`Input - Client connected to NodeRED on port ${wsRedPORT_IN.address().port}`);
+  console.log(`Input - Client connected to NodeRED on port ${wsRedPORT_IN}`);
 
   ws.on('message', async (message) => {
   //console.log('-- 210 -- от NodRED получено сообщение', message);
   //console.log('Приступаем к валидации полученных  от NodRED данных');
       try {
-  // Отправка сообщения всем Dashboard-клиентам
-        // clients.dash.forEach(client => {
-        //     if (client.readyState === WebSocket.OPEN) {
-        //         client.send(message);
-        //     }
-        // });
-// Проверка типа сообщения
-// Временно отключаем валидацию для проверки механизма пересылки от Server к 
-console.log('Приступаем к валидации полученных  от NodRED данных');
+      // Проверка типа сообщения
+      // Временно отключаем валидацию для проверки механизма пересылки от Server к 
+      console.log('Приступаем к валидации полученных  от NodRED данных');
       const checkInputMessage = checkMessage(message);
       //console.log('checkInputMessage - ', checkInputMessage);
       if (checkInputMessage.status === 'ok') {
@@ -159,7 +162,7 @@ console.log('Приступаем к валидации полученных  о
         //Slogger.info(`Проверка сообщения ${message} выполнена без ошибок, checkInputMessage = ${checkInputMessage}`);
         sendToDash = true;
         // Добавляем ID отправителя в сообщение
-        checkInputMessage.data.senderId = clientId;
+        //checkInputMessage.data.senderId = clientId;
         console.log('Добавляем ID отправителя в сообщение senderId - ', checkInputMessage.data);
         switch (checkInputMessage.data.type) {
           case 'auth':
@@ -205,6 +208,9 @@ console.log('Приступаем к валидации полученных  о
       } catch (error) {
         
       }
+
+      const activeConnections = getAllClients();
+      console.log('Текущие активные соединения:', activeConnections);
   });
 
 
@@ -215,33 +221,50 @@ console.log('Приступаем к валидации полученных  о
   });
 
   ws.on('close', () => {
-    nodeRedClients.delete(clientId);
-    console.log(`Node-RED connection closed (ID: ${clientId}). Remaining clients: ${nodeRedClients.size}`);
+     if (ws.dID && ws.typeConnect) {
+      removeClient(ws.dID, ws.typeConnect);
+      console.log(`Соединение закрыто для клиента ${ws.dID} (${ws.typeConnect}).`);
+    } else {
+      console.log('Соединение закрыто, но клиент не был зарегистрирован через init_dID.');
+    }
+
+    const activeConnections = getAllClients();
+    console.log('Текущие активные соединения:', activeConnections);
+
+    //console.log(`Node-RED connection closed (ID: ${clientId}). Remaining clients: ${nodeRedClients_IN.size}`);
     //console.log('NodeRED WebSocket connection closed');
       //Slogger.info('NodeRED WebSocket connection closed');
-      redConnection = false;
+      //redConnection = false;
   });
 //}
 
 });
 WSSNodeRED_OUT.on('connection', (ws) => {
+  console.log(`Output - Client connected to NodeRED on port ${wsRedPORT_OUT}`);
+  
+  //console.log(`Node-RED client connected (ID: ${clientId_out}). Total clients: ${nodeRedClients_OUT.size}`);
   ws.on ('message', async (message) => {
     try {
-      
+      console.log(`Received from ${clientId_out}:`, message);
     } catch (error) {
       
     }
   });
     ws.on ('error', () => {
     try {
-      
+      console.error(`WebSocket error (${clientId_out}):`, error);
     } catch (error) {
       
     }
   });
     ws.on ('close', () => {
     try {
-      
+      if (ws.dID && ws.typeConnect) {
+      removeClient(ws.dID, ws.typeConnect);
+      console.log(`Соединение закрыто для клиента ${ws.dID} (${ws.typeConnect}).`);
+    } else {
+      console.log('Соединение закрыто, но клиент не был зарегистрирован через init_dID.');
+    }
     } catch (error) {
       
     }
@@ -250,6 +273,7 @@ WSSNodeRED_OUT.on('connection', (ws) => {
 // Работаем с Dashboard
 
 WSSDash.on('connection', (ws) => {
+  console.log(`Output - Client connected to NodeRED on port ${WSSNodeRED_OUT.address().port}`);
   console.log('-- 402 -- Client connected to Dashboard on port ' + wsDashPORT_IN);
   //Slogger.info('-- 402 -- Client connected to Dashboard on port ' + wsDashPORT_IN);
 
@@ -311,7 +335,14 @@ ws.on('message', async (message) => {
   });
 
   ws.on('close', () => {
-    console.log('Dash WebSocket connection closed');
+     if (ws.dID && ws.typeConnect) {
+      removeClient(ws.dID, ws.typeConnect);
+      console.log(`Соединение закрыто для клиента ${ws.dID} (${ws.typeConnect}).`);
+    } else {
+      console.log('Соединение закрыто, но клиент не был зарегистрирован через init_dID.');
+    }
+
+    //console.log('Dash WebSocket connection closed');
     //Slogger.info('Dash WebSocket connection closed');
   });
 });

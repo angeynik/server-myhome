@@ -10,6 +10,7 @@ const dbPass = process.env.DB_PASSWORD;
 
 const { loginUser, verifyToken } = require('../auth'); // Импортируем функции авторизации
 
+const { registerClient, getClient } = require('./clientsStore.js');
 const { sendSuccess, sendError, sendRequest} = require('./wsHelpers');
 // Получаем список имен конфигов из переменной окружения
 const configNames = JSON.parse(process.env.DB_CONFIG_NAMES || '[]');
@@ -223,7 +224,7 @@ const handlePost = async (ws, data) => {
         });
       }
       break;
-      case 'init_dID':
+    case 'init_dID':
         console.log('handlePost - init_dID :', data.name);
         const dID = data.name;
         try {
@@ -298,9 +299,27 @@ const handlePost = async (ws, data) => {
           // Обработка ошибки
         }
     break;
-
-
-
+    case 'init_ws':
+        console.log('handlePost - init_ws :', data.name, 'typeConnect:', data.payload.typeConnect);
+        // const dID = data.name;
+        // const typeConnect = data.payload.typeConnect;
+          try {
+          const wsConnection = getClient(data.name, data.payload.typeConnect);
+          if (!wsConnection) {
+            registerClient(data.name, ws, data.payload.typeConnect);
+            ws.dID = data.name;
+            ws.typeConnect = data.payload.typeConnect;
+            lastActivity = Date.now();
+            console.log(`handlePost - Зарегистрирован клиент ws.dID ${ws.dID} ws.typeConnect -(${ws.typeConnect})`);
+            ws.lastActivity = Date.now();
+            console.log(`handlePost - Выполнена регистрацияКлиента ${data.name} (${data.payload.typeConnect})`);
+          } else {
+            console.log(`handlePost - Клиент ${data.name} (${data.payload.typeConnect}) уже зарегистрирован.`);
+          }
+        } catch (error) {
+          console.error('handlePost - Ошибка при регистрации клиента:', error);
+        }
+        break;
     case 'config':
         console.log('handlePost - Request - config');
         try {
