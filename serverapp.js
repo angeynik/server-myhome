@@ -8,9 +8,9 @@ const fs = require('fs');
 
 const { getAllClients, removeClient } = require('./services/clientsStore.js');
 const {initServer, initUsers, initDefaulUser, initDB_dID} = require('./services/initServer.js');
-//const { setupHeartbeat } = require('./services/wsHelpers.js');
+const { sendSuccess, sendError, sendRequest} = require('./services/wsHelpers');
 //const tableDB = require('./services/tableDB.js');
-const { handleAuth, handleGet, handlePost, handleResponse, handleSet, handleError} = require('./services/messageHandlers.js'); // Подключаем обработку входящих по WS сообщений
+const { nodeRedInit, nodeRedPost, handleAuth, handleGet, handlePost, handleResponse, handleSet, handleError} = require('./services/messageHandlers.js'); // Подключаем обработку входящих по WS сообщений
 
 // require('dotenv').config({ path: './conf.env' }); 
 const dotenv = require('dotenv'); // Подключаем .ENV файл с переменными окружения
@@ -209,9 +209,15 @@ WSSNodeRED.on('connection', (ws) => {
             console.log('WSSNodeRED - Type - Auth');
              //await handleAuth(ws, checkInputMessage.data);
             break;
+            case 'init':
+            console.log('WSSNodeRED - Type - Init');
+             await nodeRedInit(ws, checkInputMessage.data);
+            // const activeConnections = getAllClients();
+            // console.log('Текущие активные соединения:', activeConnections);
+            break;
           case 'post':
            // console.log('WSSNodeRED - Type - Post');
-             await handlePost(ws, checkInputMessage.data);
+             await nodeRedPost(ws, checkInputMessage.data);
             // const activeConnections = getAllClients();
             // console.log('Текущие активные соединения:', activeConnections);
             break;
@@ -270,8 +276,11 @@ WSSNodeRED.on('connection', (ws) => {
 });
 WSSNodeRED_OUT.on('connection', (ws) => {
   console.log(`Output - Client connected to NodeRED on port ${wsRedPORT_OUT}`);
-  
-  //console.log(`Node-RED client connected (ID: ${clientId_out}). Total clients: ${nodeRedClients_OUT.size}`);
+  ws.send("WSSNodeRED_OUT - проверка связи");
+
+ //sendSuccess('angey_bmax', 'inputConnectSuccess', 'dID', 'payload');
+sendSuccess(ws, 'inputConnectSuccess', 'dID', 'payload');
+
   ws.on ('message', async (message) => {
     try {
       console.log(`Received from ${clientId_out}:`, message);
@@ -400,48 +409,7 @@ function checkMessage(message) {
     //Slogger.error(`Некорректный формат полученного сообщения. ${message} Ошибка: Error validType: ${error.message}`);
     return error;
   }
-  // switch (data.type) {
-  //   case 'config':
-  //       console.log('Переходим к проверке сообщения типа config:');
-  //     break;
-  //   case 'post':
-  //       console.log('Переходим к проверке сообщения типа post.');
-  //       console.log('Debug - Временно отключаем проверку на валидацию возвращаем  - ok');
-  //       return 'ok'; // Debug - Временно отключаем проверку на валидацию возвращаем 'ok'
 
-  //       const resultValidPost = validPost(data);
-  //       console.log('Результат валидации:', resultValidPost);
-  //       if (resultValidPost) {
-  //         console.log('Результат валидации:', resultValidPost);
-  //         return "Error validPost: " + resultValidPost.error.message;
-  //       } else {
-  //         return 'ok';
-  //       }
-  //     // break;
-  //   case 'get':
-  //       console.log('Переходим к проверке сообщения типа get.');
-  //       break;
-  //   case 'req':
-  //       console.log('Переходим к проверке сообщения типа req.');
-  //   break;
-  //   case 'set':
-  //     console.log('Переходим к проверке сообщения типа set.');
-  //   break;
-  //   case 'createuser':
-  //     console.log('Переходим к созданию нового пользовотеля для VUE приложения ');
-
-  //     // const newUser = { id: 1, username: data.username, dataSource: data.dataSource, permissionLevel: data.permissionLevel };
-  //     // ws.send(JSON.stringify({ type: 'userCreated', user: newUser }));
-  //   break;
-  //   case 'getusers':
-  //     console.log('Переходим к созданию получению списка пользовотелей VUE приложения ');
-  //     // Логика получения списка пользователей
-  //     // const users = [{ id: 1, username: 'user1', dataSource: 'source1', permissionLevel: 1 }];
-  //     // ws.send(JSON.stringify({ type: 'usersList', users }));
-  //   break;
-  //   default:
-  //     Slogger.error(`Неизвестный тип сообщения: ${data.type}`);
-  // }
   return {status:'ok', data: data};
 };
 
