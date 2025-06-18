@@ -67,57 +67,98 @@ const initialize = async () => {
 };
 initialize(); // Выполняем инициализацию сервера
 
-
-  const handleShutdown = async () => {
-    console.log('Shutting down server...');
-    try {
-      // Закрываем все пулы соединений с базами данных
-      await DBManager.closeAllPools();
-      console.log('Все соединения с базами данных закрыты.');
-
-    // Закрываем все активные WebSocket-соединения
-    console.log('Closing all WebSocket connections...');
-    // Для входящих соединений
-    // WSSNodeRED.clients.forEach((client) => {
-    //   try {
-    //     client.close(1001, 'Server shutting down'); // 1001 код означает, что сервер закрывается
-    //   } catch (error) {
-    //     console.error('Error closing client in WSSNodeRED:', error);
-    //   }
-    // });
-    // // Для исходящих соединений
-    // WSSNodeRED_OUT.clients.forEach((client) => {
-    //   try {
-    //     client.close(1001, 'Server shutting down');
-    //   } catch (error) {
-    //     console.error('Error closing client in WSSNodeRED_OUT:', error);
-    //   }
-    // });
-
-
-
-    console.log('Все WebSocket-соединения закрыты.');
-
-      server.close(() => {
-        console.log('Server has been shut down.');
-        process.exit(0); // Завершаем процесс после закрытия сервера
-      });
-
-    
-    } catch (error) {
-      console.error('Ошибка при завершении работы сервера:', error);
-      process.exit(1); // Завершаем процесс с кодом ошибки
-    }
-  };
-  // Обрабатываем оба сигнала одним обработчиком
-  process.on('SIGINT', handleShutdown);
-  process.on('SIGTERM', handleShutdown);
-
   // Запуск сервера
   server.listen(servPORT, () => {
     console.log(`MyHome Server is running on port ${servPORT}`);
   });
-  // Корректное завершение работы сервера и закрытие соединения с базой данных
+
+  // Корректное завершение работы сервера и закрытие соединения с базой данных //////////////////////////////////////////////////////
+let isShuttingDown = false;
+let forceShutdownTimer;
+
+const handleShutdown = async () => {
+  if (isShuttingDown) {
+    safeWrite('ℹ️ Завершение уже начато, ожидайте...');
+    return;
+  }
+  
+  isShuttingDown = true;
+  safeWrite('\n🛑 Получен сигнал завершения. Начинаю остановку сервера...');
+
+  try {
+    // 1. Закрываем соединения с БД
+    await DBManager.closeAllPools();
+    safeWrite('✅ Все соединения с базами данных закрыты.');
+
+    // 2. Закрываем WebSocket-серверы и их соединения
+    const wsServers = [
+      { name: 'WSSNodeRED', instance: WSSNodeRED },
+      { name: 'WSSNodeRED_OUT', instance: WSSNodeRED_OUT },
+      { name: 'WSSDash', instance: WSSDash }
+    ];
+    
+    await Promise.all(wsServers.map(server => 
+      new Promise(resolve => {
+        if (server.instance && typeof server.instance.close === 'function') {
+          server.instance.clients.forEach(client => client.terminate()); // Принудительное закрытие клиентских соединений
+          server.instance.close(err => {
+            if (err) {
+              safeWrite(`🛑 ${server.name}: ошибка закрытия - ${err.message}`);
+            } else {
+              safeWrite(`✅ ${server.name}: успешно закрыт`);
+            }
+            resolve();
+          });
+        } else {
+          safeWrite(`ℹ️ ${server.name}: невалидный сервер или уже закрыт`);
+          resolve();
+        }
+      })
+    ));
+
+    safeWrite('✅ Все WebSocket-соединения закрыты.');
+
+    // 3. Закрываем Express сервер
+    if (server && server.listening) {
+      await new Promise(resolve => {
+        server.close(err => {
+          if (err) {
+            safeWrite(`⛔ Ошибка закрытия сервера: ${err.message}`);
+          } else {
+            safeWrite('✅ Сервер Express успешно остановлен');
+          }
+          resolve();
+        });
+      });
+    } else {
+      safeWrite('ℹ️ Сервер Express не запущен или уже остановлен');
+    }
+
+    // 4. Принудительно завершаем процесс после успешного закрытия всех сервисов
+    safeWrite('🎯 Завершение выполнено успешно.');
+    process.exit(0);
+
+  } catch (error) {
+    safeWrite(`⚠️ Критическая ошибка: ${error.message}`);
+  } finally {
+    // Таймер принудительного завершения (если процесс зависает)
+    forceShutdownTimer = setTimeout(() => {
+      safeWrite('⏱️ Принудительное завершение по таймауту');
+      process.exit(1);
+    }, 5000);
+  }
+};
+
+// Функция безопасного вывода
+const safeWrite = (message) => {
+  try {
+    process.stderr.write(message + '\n');
+  } catch (e) {}
+};
+
+// Обработчики сигналов
+process.on('SIGINT', () => handleShutdown());
+process.on('SIGTERM', () => handleShutdown());
 
 
 const WebSocket = require('ws');
@@ -142,8 +183,7 @@ const reconnectInterval = 100;
 
 
 
-// Работаем с NodeRED
-
+// Работаем с NodeRED //////////////////////////////////////////////////////
 WSSNodeRED.on('connection', (ws) => {
   //console.log(`Input - Client connected to NodeRED on port ${wsRedPORT_IN.address().port}`);
   console.log(`Input - Client connected to NodeRED on port ${wsRedPORT_IN}`);
@@ -259,8 +299,8 @@ WSSNodeRED_OUT.on('connection', (ws) => {
     }
   });
 });
-// Работаем с Dashboard
 
+// Работаем с Dashboard //////////////////////////////////////////////////////
 WSSDash.on('connection', (ws) => {
   console.log(`Output - Client connected to NodeRED on port ${WSSNodeRED_OUT.address().port}`);
   console.log('-- 402 -- Client connected to Dashboard on port ' + wsDashPORT_IN);
