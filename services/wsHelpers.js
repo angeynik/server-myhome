@@ -12,7 +12,7 @@ function sendRequest(ws, requestType, name, payload) {
   }
  
   function sendSuccess(ws, requestType, name, payload) {
-    //console.log('sendSuccess - Переходим к отправке ответа');
+    console.log('sendSuccess - Переходим к отправке ответа');
     const response = {
       type: 'response',
       request: requestType,

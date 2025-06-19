@@ -171,9 +171,6 @@ const WSSNodeRED_OUT= new WebSocket.Server ({port:wsRedPORT_OUT});
 
 const WSSDash = new WebSocket.Server ({port:wsDashPORT_IN});
 
-// Управление подключениями Node-RED клиентов
-//const nodeRedClients_IN = new Map(); // Хранилище подключений: id -> ws
-//const nodeRedClients_OUT = new Map(); // Хранилище подключений: id -> ws
 // Блок с переменными
 let sendToDash = true;
 //let sendToRed = false;
@@ -276,21 +273,24 @@ WSSNodeRED.on('connection', (ws) => {
 });
 WSSNodeRED_OUT.on('connection', (ws) => {
   console.log(`Output - Client connected to NodeRED on port ${wsRedPORT_OUT}`);
-  ws.send("WSSNodeRED_OUT - проверка связи");
+  //ws.send("WSSNodeRED_OUT - проверка связи");
+    ws.isAlive = true;
+    ws.on('pong', () => ws.isAlive = true);
 
- //sendSuccess('angey_bmax', 'inputConnectSuccess', 'dID', 'payload');
-sendSuccess(ws, 'inputConnectSuccess', 'dID', 'payload');
+sendSuccess(ws, 'inputConnectSuccess', 'dID', 'Проверка связи');
 
   ws.on ('message', async (message) => {
     try {
-      console.log(`Received from ${clientId_out}:`, message);
+      const checkInputMessage = checkMessage(message);
+      console.log(`WSSNodeRED_OUT - получено сообщение:`, checkInputMessage.data);
+      
     } catch (error) {
       
     }
   });
     ws.on ('error', () => {
     try {
-      console.error(`WebSocket error (${clientId_out}):`, error);
+      console.error(`WSSNodeRED_OUT - WebSocket error:`, error);
     } catch (error) {
       
     }
@@ -386,8 +386,6 @@ ws.on('message', async (message) => {
 });
 
 console.log(`WebSocket servers are running on nodeRed ws port:${wsRedPORT_IN} and DashBoard (client) ws port:${wsDashPORT_IN}`);
-//Slogger.info(`WebSocket servers are running on nodeRed ws port:${wsRedPORT_IN} and DashBoard (client) ws port:${wsDashPORT_IN}`);
-//logger.debug(`WebSocket servers are running on ws://localhost:${wsRedPORT_IN} and ws://localhost:${wsDashPORT_IN}`);
 setTimeout(() => {
     sendToDash = false;
 }, reconnectInterval);

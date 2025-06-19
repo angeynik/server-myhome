@@ -32,112 +32,6 @@ const nodeRedPost = async (ws, data) => {
     console.log('--32 -- nodeRedPost - Проверяем соединение, wsConnection - ', wsConnection);
     //console.log('handlePost - Переходим к проверке сообщения типа post, request - ', data.request);
   switch (data.request) {
-    case 'init_dID':
-        // Проверяем дублирование для init_dID
-          if (isDuplicate('init_dID')) {
-            console.log('handlePost - Duplicate init_dID request ignored.');
-            return;
-          }
-          markProcessed('init_dID');
-
-        console.log('handlePost - init_dID :', data.name);
-        const dID = data.name;
-        try {
-          //console.log('Получены данные:', data);
-          console.log ('Начинаем проверку наличия БД с именем - ', dID);
-          DBManager.getPool(authDB, dbUser, dbPass).on('error', (err) => {
-            console.error('Ошибка в пуле соединений:', err);
-          });
-          const dbDID = await DBManager.query('SELECT NOW()', [], dID, dbUser, dbPass);
-          //console.log('Подключение к базе данных успешно установлено.', dbDID.rows[0].now);
-          if (!dbDID) {
-            console.log(`База данных "${dID}" не существует.`);
-          } else {
-            console.log(`База данных "${dID}" существует.`);
-
-                          // Проверяем существование таблиц config и data в базе dID
-          const tablesToCheck = ['config', 'data'];
-          let allTablesExist = true;
-
-          for (const table of tablesToCheck) {
-            const exists = await DBManager.checkTableExists(table, dID, dbUser, dbPass);
-            if (!exists) {
-              allTablesExist = false;
-              break;
-            }
-          }
-          
-          if (!allTablesExist) {
-            console.log(`Таблицы в базе "${dID}" отсутствуют.`);
-          } else {
-            console.log(`Таблицы в базе "${dID}" существуют.`);
-            for (const config of configNames) {
-              const checkResult = await DBManager.checkRecordExists(
-                'config', 
-                { name: config },  // Условия поиска
-                dID,                       // База данных
-                dbUser,                    // Пользователь
-                dbPass                     // Пароль
-              );
-
-              if (checkResult.exists) {
-                console.log(`Запись ${config} существует. Проверяем файл...`);
-                // Получаем содержимое поля file
-                const fileResult = await DBManager.query(
-                  'SELECT file FROM config WHERE name = $1',
-                  [config],
-                  dID,
-                  dbUser,
-                  dbPass
-                );
-                // Проверяем наличие данных в JSON
-                if (fileResult.rows.length > 0) {
-                  const fileData = fileResult.rows[0].file;
-                    if (fileData && Object.keys(fileData).length > 0) {
-                      //console.log('JSON файл валиден:', fileData);
-                    } else {
-                      console.log('JSON файл существует, но пустой или содержит null');
-                    sendRequest(ws, 'config', dID, {config});
-                    }
-                }
-              } else {
-                console.log(`Запись ${config} НЕ существует. Формируем запрос к nodeRED на получение конфигурации ${config}`);
-                sendRequest(ws, 'config', dID, {config});
-              }
-            }
-          }
-          }
-
-
-        } catch (error) {
-          console.error('Ошибка обращения к базе данных', dID, ' вероятно ее не существует');
-          // Обработка ошибки
-        }
-    break;
-    case 'init_ws':
-
-        //console.log('handlePost - init_ws :', data.name, 'typeConnect:', data.payload.typeConnect);
-        // const dID = data.name;
-        // const typeConnect = data.payload.typeConnect;
-          try {
-          //const wsConnection = getClient(data.name, data.payload.typeConnect);
-          if (!wsConnection) {
-            registerClient(data.name, ws, data.payload.typeConnect);
-            ws.dID = data.name;
-            ws.typeConnect = data.payload.typeConnect;
-            //console.log(`handlePost - Зарегистрирован клиент ws.dID ${ws.dID} ws.typeConnect -(${ws.typeConnect})`);
-            ws.lastActivity = Date.now();
-            const activeConnections = getAllClients();
-            console.log('Текущие активные соединения:', activeConnections);
-            //console.log(`handlePost - Выполнена регистрацияКлиента ${data.name} (${data.payload.typeConnect})`);
-          } else {
-            console.log(`handlePost - Клиент ${data.name} (${data.payload.typeConnect}) уже зарегистрирован.`);
-          }
-        } catch (error) {
-          console.error('handlePost - Ошибка при регистрации клиента:', error);
-        }
-
-        break;
     case 'config':
         console.log('handlePost - Request - config');
         try {
@@ -243,26 +137,8 @@ const nodeRedInit = async (ws, data) => {
           // Обработка ошибки
         }
     break;
-    case 'input':
-
-        console.log('nodeRedInit - input :', data.name, 'typeConnect:', data.payload.typeConnect);
-        // const dID = data.name;
-        // const typeConnect = data.payload.typeConnect;
-          try {
-            registerClient(data.name, ws, data.request);
-            ws.dID = data.name;
-            ws.typeConnect = data.request;
-            //console.log(`handlePost - Зарегистрирован клиент ws.dID ${ws.dID} ws.typeConnect -(${ws.typeConnect})`);
-            ws.lastActivity = Date.now();
-            const activeConnections = getAllClients();
-            console.log('Текущие активные соединения:', activeConnections);
-            //console.log(`handlePost - Выполнена регистрацияКлиента ${data.name} (${data.payload.typeConnect})`);
-        } catch (error) {
-          console.error('handlePost - Ошибка при регистрации клиента:', error);
-        }
-
-        break;
-        case 'output':
+ы
+    case 'init_ws':
         try {
           console.log('nodeRedInit - output :', data.name, 'typeConnect:', data.request);
             registerClient(data.name, ws, data.request);
@@ -275,7 +151,7 @@ const nodeRedInit = async (ws, data) => {
             //console.log(`handlePost - Выполнена регистрацияКлиента ${data.name} (${data.payload.typeConnect})`);
         } catch (error) {
           console.error('handlePost - Ошибка при регистрации клиента:', error);
-        }
+    }
     default:
       break;
   }
@@ -503,118 +379,6 @@ const handlePost = async (ws, data) => {
         });
       }
       break;
-    case 'init_dID':
-        // Проверяем дублирование для init_dID
-          if (isDuplicate('init_dID')) {
-            console.log('handlePost - Duplicate init_dID request ignored.');
-            return;
-          }
-          markProcessed('init_dID');
-
-        console.log('handlePost - init_dID :', data.name);
-        const dID = data.name;
-        try {
-          //console.log('Получены данные:', data);
-          console.log ('Начинаем проверку наличия БД с именем - ', dID);
-          DBManager.getPool(authDB, dbUser, dbPass).on('error', (err) => {
-            console.error('Ошибка в пуле соединений:', err);
-          });
-          const dbDID = await DBManager.query('SELECT NOW()', [], dID, dbUser, dbPass);
-          //console.log('Подключение к базе данных успешно установлено.', dbDID.rows[0].now);
-          if (!dbDID) {
-            console.log(`База данных "${dID}" не существует.`);
-          } else {
-            console.log(`База данных "${dID}" существует.`);
-
-                          // Проверяем существование таблиц config и data в базе dID
-          const tablesToCheck = ['config', 'data'];
-          let allTablesExist = true;
-
-          for (const table of tablesToCheck) {
-            const exists = await DBManager.checkTableExists(table, dID, dbUser, dbPass);
-            if (!exists) {
-              allTablesExist = false;
-              break;
-            }
-          }
-          
-          if (!allTablesExist) {
-            console.log(`Таблицы в базе "${dID}" отсутствуют.`);
-          } else {
-            console.log(`Таблицы в базе "${dID}" существуют.`);
-            for (const config of configNames) {
-              const checkResult = await DBManager.checkRecordExists(
-                'config', 
-                { name: config },  // Условия поиска
-                dID,                       // База данных
-                dbUser,                    // Пользователь
-                dbPass                     // Пароль
-              );
-
-              if (checkResult.exists) {
-                console.log(`Запись ${config} существует. Проверяем файл...`);
-                // Получаем содержимое поля file
-                const fileResult = await DBManager.query(
-                  'SELECT file FROM config WHERE name = $1',
-                  [config],
-                  dID,
-                  dbUser,
-                  dbPass
-                );
-                // Проверяем наличие данных в JSON
-                if (fileResult.rows.length > 0) {
-                  const fileData = fileResult.rows[0].file;
-                    if (fileData && Object.keys(fileData).length > 0) {
-                      //console.log('JSON файл валиден:', fileData);
-                    } else {
-                      console.log('JSON файл существует, но пустой или содержит null');
-                    sendRequest(ws, 'config', dID, {config});
-                    }
-                }
-              } else {
-                console.log(`Запись ${config} НЕ существует. Формируем запрос к nodeRED на получение конфигурации ${config}`);
-                sendRequest(ws, 'config', dID, {config});
-              }
-            }
-          }
-          }
-
-
-        } catch (error) {
-          console.error('Ошибка обращения к базе данных', dID, ' вероятно ее не существует');
-          // Обработка ошибки
-        }
-    break;
-    case 'init_ws':
-      // Проверяем дублирование для init_ws
-        if (isDuplicate('init_ws')) {
-          console.log('handlePost - Duplicate init_ws request ignored.');
-          return;
-        }
-        markProcessed('init_ws');
-
-        //console.log('handlePost - init_ws :', data.name, 'typeConnect:', data.payload.typeConnect);
-        // const dID = data.name;
-        // const typeConnect = data.payload.typeConnect;
-          try {
-          const wsConnection = getClient(data.name, data.payload.typeConnect);
-          if (!wsConnection) {
-            registerClient(data.name, ws, data.payload.typeConnect);
-            ws.dID = data.name;
-            ws.typeConnect = data.payload.typeConnect;
-            //console.log(`handlePost - Зарегистрирован клиент ws.dID ${ws.dID} ws.typeConnect -(${ws.typeConnect})`);
-            ws.lastActivity = Date.now();
-            const activeConnections = getAllClients();
-            console.log('Текущие активные соединения:', activeConnections);
-            //console.log(`handlePost - Выполнена регистрацияКлиента ${data.name} (${data.payload.typeConnect})`);
-          } else {
-            console.log(`handlePost - Клиент ${data.name} (${data.payload.typeConnect}) уже зарегистрирован.`);
-          }
-        } catch (error) {
-          console.error('handlePost - Ошибка при регистрации клиента:', error);
-        }
-
-        break;
     case 'config':
         console.log('handlePost - Request - config');
         try {
