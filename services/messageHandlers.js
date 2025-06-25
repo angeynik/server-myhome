@@ -10,154 +10,10 @@ const dbPass = process.env.DB_PASSWORD;
 
 const { loginUser, verifyToken } = require('../auth'); // Импортируем функции авторизации
 
-const { registerClient, getClient, getAllClients} = require('./clientsStore.js');
+const { nodeRedClients  } = require('./clientsStore');
 const { sendSuccess, sendError, sendRequest} = require('./wsHelpers');
 // Получаем список имен конфигов из переменной окружения
 const configNames = JSON.parse(process.env.DB_CONFIG_NAMES || '[]');
-
-const nodeRedPost = async (ws, data) => {
-      ws.lastProcessedRequests = ws.lastProcessedRequests || {}; // Инициализируем объект для отслеживания последних обработанных запросов на ws, если ещё не создан
-      // Выбираем окно (в мс), в течение которого повторный запрос будет отброшен
-      const debounceTime = 1000; // например, 1 секунд
-      const isDuplicate = (reqType) => { // Функция для проверки, был ли запрос уже обработан
-        const lastProcessed = ws.lastProcessedRequests[reqType];
-        if (!lastProcessed) return false;
-        return Date.now() - lastProcessed < debounceTime;
-      };
-      const markProcessed = (reqType) => { // Функция для отметки обработки запроса
-        ws.lastProcessedRequests[reqType] = Date.now();
-      };
-
-    const wsConnection = getClient(data.name, data.payload.typeConnect);
-    console.log('--32 -- nodeRedPost - Проверяем соединение, wsConnection - ', wsConnection);
-    //console.log('handlePost - Переходим к проверке сообщения типа post, request - ', data.request);
-  switch (data.request) {
-    case 'config':
-        console.log('handlePost - Request - config');
-        try {
-          
-        } catch (error) {
-          
-        }
-    break;
-    case 'sensors':
-        console.log('handlePost - Request - sensor');
-        try {
-          //console.log('Получены данные:', data);
-        } catch (error) {
-          
-        }
-    break;
-    default:
-      break;
-  }
-};
-const nodeRedInit = async (ws, data) => {
-    console.log('nodeRedInit - Переходим к проверке сообщения типа init');
-  switch (data.request) {
-    case 'init_dID':
-        // Проверяем дублирование для init_dID
-          if (isDuplicate('init_dID')) {
-            console.log('handlePost - Duplicate init_dID request ignored.');
-            return;
-          }
-          markProcessed('init_dID');
-
-        console.log('nodeRedInit - init_dID :', data.name);
-        const dID = data.name;
-        try {
-          //console.log('Получены данные:', data);
-          console.log ('Начинаем проверку наличия БД с именем - ', dID);
-          DBManager.getPool(authDB, dbUser, dbPass).on('error', (err) => {
-            console.error('Ошибка в пуле соединений:', err);
-          });
-          const dbDID = await DBManager.query('SELECT NOW()', [], dID, dbUser, dbPass);
-          //console.log('Подключение к базе данных успешно установлено.', dbDID.rows[0].now);
-          if (!dbDID) {
-            console.log(`База данных "${dID}" не существует.`);
-          } else {
-            console.log(`База данных "${dID}" существует.`);
-
-                          // Проверяем существование таблиц config и data в базе dID
-          const tablesToCheck = ['config', 'data'];
-          let allTablesExist = true;
-
-          for (const table of tablesToCheck) {
-            const exists = await DBManager.checkTableExists(table, dID, dbUser, dbPass);
-            if (!exists) {
-              allTablesExist = false;
-              break;
-            }
-          }
-          
-          if (!allTablesExist) {
-            console.log(`Таблицы в базе "${dID}" отсутствуют.`);
-          } else {
-            console.log(`Таблицы в базе "${dID}" существуют.`);
-            for (const config of configNames) {
-              const checkResult = await DBManager.checkRecordExists(
-                'config', 
-                { name: config },  // Условия поиска
-                dID,                       // База данных
-                dbUser,                    // Пользователь
-                dbPass                     // Пароль
-              );
-
-              if (checkResult.exists) {
-                console.log(`Запись ${config} существует. Проверяем файл...`);
-                // Получаем содержимое поля file
-                const fileResult = await DBManager.query(
-                  'SELECT file FROM config WHERE name = $1',
-                  [config],
-                  dID,
-                  dbUser,
-                  dbPass
-                );
-                // Проверяем наличие данных в JSON
-                if (fileResult.rows.length > 0) {
-                  const fileData = fileResult.rows[0].file;
-                    if (fileData && Object.keys(fileData).length > 0) {
-                      //console.log('JSON файл валиден:', fileData);
-                    } else {
-                      console.log('JSON файл существует, но пустой или содержит null');
-                    sendRequest(ws, 'config', dID, {config});
-                    }
-                }
-              } else {
-                console.log(`Запись ${config} НЕ существует. Формируем запрос к nodeRED на получение конфигурации ${config}`);
-                sendRequest(ws, 'config', dID, {config});
-              }
-            }
-          }
-          }
-
-
-        } catch (error) {
-          console.error('Ошибка обращения к базе данных', dID, ' вероятно ее не существует');
-          // Обработка ошибки
-        }
-    break;
-ы
-    case 'init_ws':
-        try {
-          console.log('nodeRedInit - output :', data.name, 'typeConnect:', data.request);
-            registerClient(data.name, ws, data.request);
-            ws.dID = data.name;
-            ws.typeConnect = data.request;
-            //console.log(`handlePost - Зарегистрирован клиент ws.dID ${ws.dID} ws.typeConnect -(${ws.typeConnect})`);
-            ws.lastActivity = Date.now();
-            const activeConnections = getAllClients();
-            console.log('Текущие активные соединения:', activeConnections);
-            //console.log(`handlePost - Выполнена регистрацияКлиента ${data.name} (${data.payload.typeConnect})`);
-        } catch (error) {
-          console.error('handlePost - Ошибка при регистрации клиента:', error);
-    }
-    default:
-      break;
-  }
-}
-
-
 
 
 
@@ -200,6 +56,7 @@ const handleAuth = async (ws, data) => {
       break;
   }
 };
+
 const handleGet = async (ws, data) => {
     console.log('handleGet - Переходим к проверке сообщения типа get');
     const dID = data.name;
@@ -309,21 +166,9 @@ const handleGet = async (ws, data) => {
       break;
   }
 };
+
 const handlePost = async (ws, data) => {
-      ws.lastProcessedRequests = ws.lastProcessedRequests || {}; // Инициализируем объект для отслеживания последних обработанных запросов на ws, если ещё не создан
-      // Выбираем окно (в мс), в течение которого повторный запрос будет отброшен
-      const debounceTime = 1000; // например, 5 секунд
-      const isDuplicate = (reqType) => { // Функция для проверки, был ли запрос уже обработан
-        const lastProcessed = ws.lastProcessedRequests[reqType];
-        if (!lastProcessed) return false;
-        return Date.now() - lastProcessed < debounceTime;
-      };
-      const markProcessed = (reqType) => { // Функция для отметки обработки запроса
-        ws.lastProcessedRequests[reqType] = Date.now();
-      };
-
-
-    //console.log('handlePost - Переходим к проверке сообщения типа post, request - ', data.request);
+    console.log('handlePost - Переходим к проверке сообщения типа post, request - ', data.request);
   switch (data.request) {
     case 'createUser':
         console.log('handlePost - Request - createUser');
@@ -379,6 +224,91 @@ const handlePost = async (ws, data) => {
         });
       }
       break;
+    case 'init_dID':
+        console.log('handlePost - init_dID :', data.name);
+        const dID = data.name;
+        try {
+          //console.log('Получены данные:', data);
+          console.log ('Начинаем проверку наличия БД с именем - ', dID);
+          DBManager.getPool(authDB, dbUser, dbPass).on('error', (err) => {
+            console.error('Ошибка в пуле соединений:', err);
+          });
+          const dbDID = await DBManager.query('SELECT NOW()', [], dID, dbUser, dbPass);
+          //console.log('Подключение к базе данных успешно установлено.', dbDID.rows[0].now);
+          if (!dbDID) {
+            console.log(`База данных "${dID}" не существует.`);
+          } else {
+            console.log(`База данных "${dID}" существует.`);
+
+                          // Проверяем существование таблиц config и data в базе dID
+          const tablesToCheck = ['config', 'data'];
+          let allTablesExist = true;
+
+          for (const table of tablesToCheck) {
+            const exists = await DBManager.checkTableExists(table, dID, dbUser, dbPass);
+            if (!exists) {
+              allTablesExist = false;
+              break;
+            }
+          }
+          
+          if (!allTablesExist) {
+            console.log(`Таблицы в базе "${dID}" отсутствуют.`);
+          } else {
+            console.log(`Таблицы в базе "${dID}" существуют.`);
+            for (const config of configNames) {
+              const checkResult = await DBManager.checkRecordExists(
+                'config', 
+                { name: config },  // Условия поиска
+                dID,                       // База данных
+                dbUser,                    // Пользователь
+                dbPass                     // Пароль
+              );
+
+              if (checkResult.exists) {
+                console.log(`Запись ${config} существует. Проверяем файл...`);
+                // Получаем содержимое поля file
+                const fileResult = await DBManager.query(
+                  'SELECT file FROM config WHERE name = $1',
+                  [config],
+                  dID,
+                  dbUser,
+                  dbPass
+                );
+                // Проверяем наличие данных в JSON
+                if (fileResult.rows.length > 0) {
+                  const fileData = fileResult.rows[0].file;
+                    if (fileData && Object.keys(fileData).length > 0) {
+                      //console.log('JSON файл валиден:', fileData);
+                    } else {
+                      console.log('JSON файл существует, но пустой или содержит null');
+                    sendRequest(clientId, 'config', dID, {config});
+                    }
+                }
+              } else {
+                console.log(`Запись ${config} НЕ существует. Формируем запрос к nodeRED на получение конфигурации ${config}`);
+                sendRequest(ws, 'config', dID, {config});
+              }
+            }
+          }
+          }
+
+
+        } catch (error) {
+          console.error('Ошибка обращения к базе данных', dID, ' вероятно ее не существует');
+          // Обработка ошибки
+        }
+    break;
+    case 'wsConnect':
+        console.log('handlePost - Request - wsConnect');
+        try {
+          //console.log('Получены данные:', data);
+        } catch (error) {
+          
+        }
+    break;
+
+
     case 'config':
         console.log('handlePost - Request - config');
         try {
@@ -399,8 +329,10 @@ const handlePost = async (ws, data) => {
       break;
   }
 };
-const handleResponse = async (ws, data) => {
+
+const handleResponse = async (clientId, data) => {
     console.log('Переходим к проверке сообщения типа response.');
+    const client = nodeRedClients.get(clientId)
     switch (data.request) {
         case 'config':
           try {
@@ -424,7 +356,7 @@ const handleResponse = async (ws, data) => {
                 );
                   // 2. Если конфиг уже существует
                   if (checkResult.exists) {
-                    sendSuccess(ws, 'configExists', dID, {
+                    sendSuccess(client.output, 'configExists', dID, {
                         config: configName,
                         message: `Конфиг '${configName}' уже существует в базе`,
                         exists: true,
@@ -444,7 +376,7 @@ const handleResponse = async (ws, data) => {
                       dbPass
                   );
                   // 4. Отправка подтверждения
-                  sendSuccess(ws, 'configSaved', dID, {
+                  sendSuccess(client.output, 'configSaved', dID, {
                     config: configName,
                     record: {
                         id: result.rows[0].id,
@@ -461,7 +393,7 @@ const handleResponse = async (ws, data) => {
 
           } catch (error) {
             console.error('Ошибка обработки конфига:', error);
-            sendError(ws, 'configError', data.name, {
+            sendError(client.output, 'configError', data.name, {
                 message: error.message,
                 code: error.code || 'DB_ERROR'
             });
@@ -471,16 +403,14 @@ const handleResponse = async (ws, data) => {
         break;
     }
 };
-const handleSet = async (ws, data) => {
+const handleSet = async (clientId, data) => {
     console.log('Переходим к проверке сообщения типа set.');
 };
-const handleError = async (ws, data) => {
+const handleError = async (clientId, data) => {
     console.log('Переходим к проверке сообщения типа Error');
 };
 
 module.exports = {
-  nodeRedInit,
-  nodeRedPost,
   handleAuth,
   handleGet,
   handlePost,
