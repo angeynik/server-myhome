@@ -179,148 +179,164 @@ const reconnectInterval = 100;
 // Управление подключениями Node-RED клиентов
 //const nodeRedClients = new Map(); // Хранит клиентов в формате: { clientId: { input: WebSocket, output: WebSocket } }
 // Работаем с NodeRED
-
 WSSNodeRED.on('connection', (ws, req) => {
-  console.log(`Client connected to NodeRED on port ${wsRedPORT}`);
-  //console.log(`Client connected to NodeRED on port ${wsRedPORT}, request: ${JSON.stringify(req)}`);
-  let clientId = null;
-  let connectionType = null;
+console.log(`Client connected to NodeRED on port ${wsRedPORT}`);
 
-    ws.on('message', async (message) => {
+ws.on('message', async (message) => {
       console.log(`Starting heartbeat: interval=${pingInterval}ms, timeout=${timeOut}ms`);
       startHeartbeat(pingInterval, timeOut);
-
-        //console.log('-- 121 -- от NodRED получено сообщение', message);
-        //console.log('Приступаем к валидации полученных  от NodRED данных');
-        try {
-        //console.log('Приступаем к валидации полученных  от NodRED данных');
+      
+      try {
         const checkInputMessage = checkMessage(message);
-        //console.log('-- 126 -- checkInputMessage - ', checkInputMessage.data);
-        if (checkInputMessage.status === 'ok') {
-
-          console.log('-- 128 --- Проверка сообщения от nodeRED выполнена успешно Type -', checkInputMessage.data.type, 'Request -', checkInputMessage.data.request, 'ConnectionType -', checkInputMessage.data.payload.typeConnect);
-          sendToDash = true;
-          clientId = checkInputMessage.data.name;
-          connectionType = checkInputMessage.data.payload.typeConnect;
-                  // Обработка аутентификации соединения
-                  if (checkInputMessage.data.type === 'init' && checkInputMessage.data.request === 'init_ws') {
-                     console.log('Пришло сообщение init_ws'); 
-
-
-                      if (!clientId || !connectionType) {
-                          console.error('Invalid wsConnect message');
-                          ws.close();
-                          return;
-                      }
-
-                      // Регистрация соединения
-                      registerClient(clientId, ws, connectionType);
-                      console.log('Registered connection for client:', getAllClients());
-                  }
-
-                  // Проверка зарегистрированного соединения
-                  if (!clientId) {
-                      console.error('Message received before authentication');
-                      ws.close();
-                      return;
-                  }
-
-                  const wsClient = getClient(clientId, connectionType);
-                  if (!wsClient) {
-                    console.error(`Client ${clientId} (${connectionType}) not registered`);
-                    return;      // или ws.close() того соединения, на котором вы вешали этот хандлер
-                  }
-
-                  // проверяем live-флаг или readyState
-                  if (!wsClient.isAlive || wsClient.readyState !== WebSocket.OPEN) {
-                    console.warn(`Closing stale connection ${clientId}/${connectionType}`);
-                    wsClient.terminate();    // или .close(), но .terminate() сразу убивает
-                    // при желании:
-                    // const client = nodeRedClients.get(clientId);
-                    // client[connectionType] = null;
-                    // nodeRedClients.set(clientId, client);
-                    return;
-                  }
-
-                  // … дальше работаем с wsClient
-
-
-                  // Проверка типа соединения для сообщений
-                  if (connectionType !== 'input') {
-                      console.error(`Non-input connection (${connectionType}) sent message`);
-                      return;
-                  }
-
-
-
-          switch (checkInputMessage.data.type) {
-            case 'connect':
-            case 'auth':
-              console.log('WSSNodeRED - Type - Auth');
-              //await handleAuth(ws, checkInputMessage.data);
-              break;
-            case 'post':
-            // console.log('WSSNodeRED - Type - Post');
-              await handlePost(clientId, checkInputMessage.data);
-              break;
-            case 'get':
-              // console.log('WSSNodeRED - Type - Get');
-                await handleGet(ws, checkInputMessage.data);
-                break;
-            case 'response':
-                  console.log('WSSNodeRED - Type - Response');
-                  await handleResponse(ws, checkInputMessage.data);
-                  break;
-            case 'set':
-                console.log('WSSNodeRED - Type - Set');
-                await handleSet(ws, checkInputMessage.data);
-                break;
-            case 'error':
-                console.log('WSSNodeRED - Type - Error');
-                await handleError(ws, checkInputMessage.data);
-                break;
-
-            default:
-              break;
-          }
-
-
-          //console.info('Проверка сообщения выполнена без ошибок, sendToDash =', sendToDash);
-        } else {
-          console.log('Ошибка проверки сообщения от nodeRED checkInputMessage');
-          //Slogger.error(`Ошибка "${checkInputMessage}" при проверке сообщения ${message} `);
-          sendToDash = false;
-        }
-        } catch (error) {
-          console.error('Error WS.on processing message:', error);
-        }
-    });
-
-      ws.on('error', (error) => {
-        console.error(`WebSocket error (${connectionType}):`, error);
-        if (clientId) {
-            nodeRedClients.delete(clientId);
-            console.log(`Removed client ${clientId} due to error`);
-        }
-    });
-  
-    ws.on('close', () => {
-        console.log(`Connection closed for ${clientId} (${connectionType})`);
-        if (clientId) {
-            const client = nodeRedClients.get(clientId);
-            if (client) {
-                if (connectionType === 'input') client.input = null;
-                else if (connectionType === 'output') client.output = null;
-                
-                if (!client.input && !client.output) {
-                    nodeRedClients.delete(clientId);
-                    console.log(`Client ${clientId} fully removed`);
-                }
-            }
-        }
-    });
+        console.log('-- 126 -- checkInputMessage - ', checkInputMessage.data);
+      } catch (error) {
+        console.error('Error  -- checkInputMessage -', error);
+      }
+});
 
 });
+
+// WSSNodeRED.on('connection', (ws, req) => {
+//   console.log(`Client connected to NodeRED on port ${wsRedPORT}`);
+//   //console.log(`Client connected to NodeRED on port ${wsRedPORT}, request: ${JSON.stringify(req)}`);
+//   let clientId = null;
+//   let connectionType = null;
+
+//     ws.on('message', async (message) => {
+//       console.log(`Starting heartbeat: interval=${pingInterval}ms, timeout=${timeOut}ms`);
+//       startHeartbeat(pingInterval, timeOut);
+
+//         //console.log('-- 121 -- от NodRED получено сообщение', message);
+//         //console.log('Приступаем к валидации полученных  от NodRED данных');
+//         try {
+//         //console.log('Приступаем к валидации полученных  от NodRED данных');
+//         const checkInputMessage = checkMessage(message);
+//         //console.log('-- 126 -- checkInputMessage - ', checkInputMessage.data);
+//         if (checkInputMessage.status === 'ok') {
+
+//           console.log('-- 128 --- Проверка сообщения от nodeRED выполнена успешно Type -', checkInputMessage.data.type, 'Request -', checkInputMessage.data.request, 'ConnectionType -', checkInputMessage.data.payload.typeConnect);
+//           sendToDash = true;
+//           clientId = checkInputMessage.data.name;
+//           connectionType = checkInputMessage.data.payload.typeConnect;
+//                   // Обработка аутентификации соединения
+//                   if (checkInputMessage.data.type === 'init' && checkInputMessage.data.request === 'init_ws') {
+//                      console.log('Пришло сообщение init_ws'); 
+
+
+//                       if (!clientId || !connectionType) {
+//                           console.error('Invalid wsConnect message');
+//                           ws.close();
+//                           return;
+//                       }
+
+//                       // Регистрация соединения
+//                       registerClient(clientId, ws, connectionType);
+//                       console.log('Registered connection for client:', getAllClients());
+//                   }
+
+//                   // Проверка зарегистрированного соединения
+//                   if (!clientId) {
+//                       console.error('Message received before authentication');
+//                       ws.close();
+//                       return;
+//                   }
+
+//                   const wsClient = getClient(clientId, connectionType);
+//                   if (!wsClient) {
+//                     console.error(`Client ${clientId} (${connectionType}) not registered`);
+//                     return;      // или ws.close() того соединения, на котором вы вешали этот хандлер
+//                   }
+
+//                   // проверяем live-флаг или readyState
+//                   if (!wsClient.isAlive || wsClient.readyState !== WebSocket.OPEN) {
+//                     console.warn(`Closing stale connection ${clientId}/${connectionType}`);
+//                     wsClient.terminate();    // или .close(), но .terminate() сразу убивает
+//                     // при желании:
+//                     // const client = nodeRedClients.get(clientId);
+//                     // client[connectionType] = null;
+//                     // nodeRedClients.set(clientId, client);
+//                     return;
+//                   }
+
+//                   // … дальше работаем с wsClient
+
+
+//                   // Проверка типа соединения для сообщений
+//                   if (connectionType !== 'input') {
+//                       console.error(`Non-input connection (${connectionType}) sent message`);
+//                       return;
+//                   }
+
+
+
+//           switch (checkInputMessage.data.type) {
+//             case 'connect':
+//             case 'auth':
+//               console.log('WSSNodeRED - Type - Auth');
+//               //await handleAuth(ws, checkInputMessage.data);
+//               break;
+//             case 'post':
+//             // console.log('WSSNodeRED - Type - Post');
+//               await handlePost(clientId, checkInputMessage.data);
+//               break;
+//             case 'get':
+//               // console.log('WSSNodeRED - Type - Get');
+//                 await handleGet(ws, checkInputMessage.data);
+//                 break;
+//             case 'response':
+//                   console.log('WSSNodeRED - Type - Response');
+//                   await handleResponse(ws, checkInputMessage.data);
+//                   break;
+//             case 'set':
+//                 console.log('WSSNodeRED - Type - Set');
+//                 await handleSet(ws, checkInputMessage.data);
+//                 break;
+//             case 'error':
+//                 console.log('WSSNodeRED - Type - Error');
+//                 await handleError(ws, checkInputMessage.data);
+//                 break;
+
+//             default:
+//               break;
+//           }
+
+
+//           //console.info('Проверка сообщения выполнена без ошибок, sendToDash =', sendToDash);
+//         } else {
+//           console.log('Ошибка проверки сообщения от nodeRED checkInputMessage');
+//           //Slogger.error(`Ошибка "${checkInputMessage}" при проверке сообщения ${message} `);
+//           sendToDash = false;
+//         }
+//         } catch (error) {
+//           console.error('Error WS.on processing message:', error);
+//         }
+//     });
+
+//       ws.on('error', (error) => {
+//         console.error(`WebSocket error (${connectionType}):`, error);
+//         if (clientId) {
+//             nodeRedClients.delete(clientId);
+//             console.log(`Removed client ${clientId} due to error`);
+//         }
+//     });
+  
+//     ws.on('close', () => {
+//         console.log(`Connection closed for ${clientId} (${connectionType})`);
+//         if (clientId) {
+//             const client = nodeRedClients.get(clientId);
+//             if (client) {
+//                 if (connectionType === 'input') client.input = null;
+//                 else if (connectionType === 'output') client.output = null;
+                
+//                 if (!client.input && !client.output) {
+//                     nodeRedClients.delete(clientId);
+//                     console.log(`Client ${clientId} fully removed`);
+//                 }
+//             }
+//         }
+//     });
+
+// });
 
 // Работаем с Dashboard
 
