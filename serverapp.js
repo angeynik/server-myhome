@@ -28,7 +28,7 @@ const servPORT = process.env.SERVER_PORT || 3010;
 const wsRedPORT = process.env.WSR_PORT || 9200;
 const wsDashPORT = process.env.WSD_PORT || 9202;
 const pingInterval = process.env.WS_PING_INTERVAL || 150000;
-const timeOut = process.env.WS_TIME_OUT || 300000;
+const timeOut = (pingInterval + process.env.WS_TIME_OUT) || (pingInterval + 300000);
 
 const app = express();
 app.set(servPORT);
@@ -187,6 +187,7 @@ WSSNodeRED.on('connection', (ws, req) => {
   let connectionType = null;
 
     ws.on('message', async (message) => {
+      console.log(`Starting heartbeat: interval=${pingInterval}ms, timeout=${timeOut}ms`);
       startHeartbeat(pingInterval, timeOut);
 
         //console.log('-- 121 -- от NodRED получено сообщение', message);

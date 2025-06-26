@@ -46,6 +46,12 @@ function cleanupConnection(clientId, connectionType) {
   if (!client || !client[connectionType]) return;
 
   const ws = client[connectionType];
+
+    // Удаляем обработчики чтобы избежать утечек памяти
+  ws.removeAllListeners('pong');
+  ws.removeAllListeners('close');
+  ws.removeAllListeners('error');
+  
   if (ws.readyState === WebSocket.OPEN) {
     // сразу убиваем
     ws.terminate();
@@ -75,8 +81,13 @@ function startHeartbeat(interval, timeOut) {
         if (!ws) return;
         const calcTimeOut = Date.now() - ws.lastActivity;
 
+        // Проверка существования и состояния сокета
+          if (!ws || ws.readyState !== WebSocket.OPEN) {
+            return;
+          }
+
           // Проверяем, не провалился ли предыдущий PONG
-          if (!ws.isAlive) {
+          if (!ws.isAlive || calcTimeOut > timeOut) {
             console.warn(`💀 heartbeat — ${clientId}/${type} dead, cleaning up`);
             cleanupConnection(clientId, type);
             return;
@@ -85,7 +96,21 @@ function startHeartbeat(interval, timeOut) {
 
         // иначе знак жизни сбрасываем и шлём новый ping
         ws.isAlive = false;
-        ws.ping(() => {}); // привязка колбэка нужна в некоторых реализациях
+        // ws.ping(() => {}); // привязка колбэка нужна в некоторых реализациях
+          // Отправка ping с обработкой ошибок
+          ws.isAlive = false;
+          try {
+            ws.ping(null, false, (err) => {
+              if (err) {
+                console.error(`Ping error for ${clientId}/${type}:`, err);
+                cleanupConnection(clientId, type);
+              }
+            });
+          } catch (error) {
+            console.error(`Ping failed for ${clientId}/${type}:`, error);
+            cleanupConnection(clientId, type);
+          }
+
       });
     });
   } catch (err) {
