@@ -7,7 +7,7 @@ const bodyParser = require('body-parser');
 const fs = require('fs');
 const {initServer, initUsers, initDefaulUser, initDB_dID} = require('./services/initServer.js');
 //const tableDB = require('./services/tableDB.js');
-const { nodeRedClients, registerClient, getAllClients, getClient, startHeartbeat } = require('./services/clientsStore');
+const { nodeRedClients, registerClient, getAllClients, getClient, startHeartbeat, addMessageToQueue, removeFromQueue, processQueueForClient} = require('./services/clientsStore');
 const { handleAuth, handleGet, handlePost, handleResponse, handleSet, handleError} = require('./services/messageHandlers.js'); // Подключаем обработку входящих по WS сообщений
 
 // require('dotenv').config({ path: './conf.env' }); 
@@ -28,7 +28,7 @@ const servPORT = process.env.SERVER_PORT || 3010;
 const wsRedPORT = process.env.WSR_PORT || 9200;
 const wsDashPORT = process.env.WSD_PORT || 9202;
 const pingInterval = process.env.WS_PING_INTERVAL || 150000;
-const timeOut = (pingInterval + process.env.WS_TIME_OUT) || (pingInterval + 300000);
+const timeOut = process.env.WS_TIME_OUT || 300000;
 
 const app = express();
 app.set(servPORT);
@@ -189,11 +189,74 @@ ws.on('message', async (message) => {
       try {
         const checkInputMessage = checkMessage(message);
         console.log('-- 126 -- checkInputMessage - ', checkInputMessage.data);
+        if(checkInputMessage.status === 'ok') {
+          sendToDash = true;
+          const clientId = checkInputMessage.data.name;
+          const connectionType = checkInputMessage.data.payload.typeConnect;
+          switch (checkInputMessage.data.type) {
+             case 'init':
+                  if (checkInputMessage.data.request === 'init_ws') {
+                     console.log('Пришло сообщение init_ws'); 
+                      if (!clientId || !connectionType) {
+                          console.error('Invalid wsConnect message');
+                          return;
+                      }
+                      // Регистрация соединения
+                      console.log('--205 -- serverapp.js - Регистрация соединения', connectionType);
+                      registerClient(clientId, ws, connectionType);
+                      console.log('Список всех зарегистрированных клинтов:', getAllClients());
+                  }
+                  const wsClient = getClient(clientId, connectionType);
+                  if (!wsClient) {
+                    console.error(`Client ${clientId} (${connectionType}) not registered`);
+                    return;      // или ws.close() того соединения, на котором вы вешали этот хандлер
+                  }
+
+              break;
+            default:
+              console.log('Добавляем сообщение в очередь');
+              const key = `${checkInputMessage.data.type}|${checkInputMessage.data.name}|${checkInputMessage.data.request}`;
+          // Проверяем готовность выходного соединения
+          const outputSocket = getClient(clientId, 'output');
+          
+          if (outputSocket && outputSocket.readyState === WebSocket.OPEN) {
+            try {
+              // Пытаемся отправить сразу
+              outputSocket.send(JSON.stringify(checkInputMessage.data));
+              console.log(`✉️ Сообщение отправлено сразу. Ключ: ${key}`);
+            } catch (error) {
+              console.error(`⚠️ Ошибка прямой отправки: ${error.message}`);
+              // При ошибке добавляем в очередь
+              addMessageToQueue(clientId, checkInputMessage.data);
+            }
+          } else {
+            // Если соединение не готово - добавляем в очередь
+            addMessageToQueue(clientId, checkInputMessage.data);
+          }
+              break;
+          }
+
+        }
       } catch (error) {
         console.error('Error  -- checkInputMessage -', error);
       }
 });
 
+ws.on('close', () => {
+  if (clientId) {
+    // ... существующий код
+    
+    // Очищаем очередь для клиента
+    if (messageQueue.has(clientId)) {
+      console.log(`🧹 Очистка очереди для ${clientId}`);
+      messageQueue.delete(clientId);
+    }
+  }
+});
+
+ws.on('error', (error) => {
+  console.error(`WebSocket error: ${error.message}`);
+});
 });
 
 // WSSNodeRED.on('connection', (ws, req) => {

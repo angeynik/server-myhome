@@ -1,16 +1,19 @@
 // clientsStore.js
 const WebSocket = require('ws');
+const messageQueue = new Map();
 
 // Формат Map: clientId → { input: WebSocket|null, output: WebSocket|null }
 const nodeRedClients = new Map();
 
 function registerClient(clientId, ws, connectionType) {
+  console.log( '--9-- clientStore - registerClient - Начинаем регистрацию');
   if (!['input', 'output'].includes(connectionType)) {
     throw new TypeError(`registerClient: invalid connectionType "${connectionType}"`);
   }
 
   // Получаем или создаём контейнер
   const client = nodeRedClients.get(clientId) || { input: null, output: null, meta: {} };
+  console.log( '-- 16 -- clientStore - registerClient - Получили client'); 
 
   // Метаданные для отладки
   client.meta = {
@@ -143,6 +146,86 @@ function getAllClients() {
   );
 }
 
+/**
+ * Добавляет сообщение в очередь для указанного клиента
+ * @param {string} clientId - Идентификатор клиента
+ * @param {object} message - Сообщение для добавления в очередь
+ */
+function addMessageToQueue(clientId, message) {
+  if (!messageQueue.has(clientId)) {
+    messageQueue.set(clientId, new Map());
+  }
+  
+  const queue = messageQueue.get(clientId);
+  const key = `${message.type}|${message.name}|${message.request}`;
+  
+  // Проверяем, есть ли уже такое сообщение в очереди
+  if (!queue.has(key)) {
+    queue.set(key, {
+      message,
+      timestamp: Date.now(),
+      retryCount: 0
+    });
+    console.log(`📬 Сообщение добавлено в очередь для ${clientId}. Ключ: ${key}`);
+  } else {
+    console.log(`⚠️ Сообщение уже в очереди. Ключ: ${key}`);
+  }
+}
+
+/**
+ * Удаляет сообщение из очереди по ключу
+ * @param {string} clientId - Идентификатор клиента
+ * @param {string} key - Ключ сообщения
+ */
+function removeFromQueue(clientId, key) {
+  if (messageQueue.has(clientId)) {
+    const queue = messageQueue.get(clientId);
+    if (queue.delete(key)) {
+      console.log(`✅ Сообщение удалено из очереди. Клиент: ${clientId}, ключ: ${key}`);
+      
+      // Если очередь пуста - удаляем запись клиента
+      if (queue.size === 0) {
+        messageQueue.delete(clientId);
+      }
+    }
+  }
+}
+
+/**
+ * Отправляет все сообщения из очереди для указанного клиента
+ * @param {string} clientId - Идентификатор клиента
+ */
+function processQueueForClient(clientId) {
+  if (messageQueue.has(clientId)) {
+    const queue = messageQueue.get(clientId);
+    const outputSocket = getClient(clientId, 'output');
+    
+    if (!outputSocket || outputSocket.readyState !== WebSocket.OPEN) {
+      console.log(`⌛ Выходное соединение для ${clientId} не готово`);
+      return;
+    }
+    
+    console.log(`🔁 Обработка очереди для ${clientId} (${queue.size} сообщений)`);
+    
+    for (const [key, item] of queue) {
+      try {
+        outputSocket.send(JSON.stringify(item.message));
+        console.log(`✉️ Сообщение отправлено из очереди. Ключ: ${key}`);
+        removeFromQueue(clientId, key);
+      } catch (error) {
+        console.error(`⚠️ Ошибка отправки сообщения из очереди: ${error.message}`);
+        item.retryCount++;
+        
+        // Удаляем сообщение после 3 неудачных попыток
+        if (item.retryCount >= 3) {
+          console.error(`🗑️ Удаление сообщения после 3 неудачных попыток. Ключ: ${key}`);
+          removeFromQueue(clientId, key);
+        }
+      }
+    }
+  }
+}
+
 
 module.exports = {
   nodeRedClients,
@@ -150,5 +233,8 @@ module.exports = {
   cleanupConnection,
   getClient,
   getAllClients,
-  startHeartbeat
+  startHeartbeat,
+  addMessageToQueue,
+  removeFromQueue,
+  processQueueForClient
 };
