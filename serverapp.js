@@ -7,7 +7,7 @@ const bodyParser = require('body-parser');
 const fs = require('fs');
 const {initServer, initUsers, initDefaulUser, initDB_dID} = require('./services/initServer.js');
 //const tableDB = require('./services/tableDB.js');
-const { nodeRedClients, registerClient, getAllClients, getClient, startHeartbeat, addMessageToQueue, removeFromQueue, processQueueForClient} = require('./services/clientsStore');
+const { nodeRedClients, registerClient, getAllClients, getClient, startHeartbeat, addMessageToQueue, addMessageToQueue, processQueueForClient} = require('./services/clientsStore');
 const { handleAuth, handleGet, handlePost, handleResponse, handleSet, handleError} = require('./services/messageHandlers.js'); // Подключаем обработку входящих по WS сообщений
 
 // require('dotenv').config({ path: './conf.env' }); 
@@ -183,18 +183,22 @@ WSSNodeRED.on('connection', (ws, req) => {
 console.log(`Client connected to NodeRED on port ${wsRedPORT}`);
 
 ws.on('message', async (message) => {
-      console.log(`Starting heartbeat: interval=${pingInterval}ms, timeout=${timeOut}ms`);
-      startHeartbeat(pingInterval, timeOut);
-      
+      // console.log(`Starting heartbeat: interval=${pingInterval}ms, timeout=${timeOut}ms`);
+      // startHeartbeat(pingInterval, timeOut);
+     
       try {
         const checkInputMessage = checkMessage(message);
         console.log('-- 126 -- checkInputMessage - ', checkInputMessage.data);
         if(checkInputMessage.status === 'ok') {
+
+
+
+
           sendToDash = true;
           const clientId = checkInputMessage.data.name;
           const connectionType = checkInputMessage.data.payload.typeConnect;
           switch (checkInputMessage.data.type) {
-             case 'init':
+            case 'init':
                   if (checkInputMessage.data.request === 'init_ws') {
                      console.log('Пришло сообщение init_ws'); 
                       if (!clientId || !connectionType) {
@@ -213,9 +217,13 @@ ws.on('message', async (message) => {
                   }
 
               break;
+              case 'post':
+                  console.log('-- Post -- Добавляем сообщение в очередь');
+              break
             default:
               console.log('Добавляем сообщение в очередь');
               const key = `${checkInputMessage.data.type}|${checkInputMessage.data.name}|${checkInputMessage.data.request}`;
+              console.log('Ключ:', key);
           // Проверяем готовность выходного соединения
           const outputSocket = getClient(clientId, 'output');
           

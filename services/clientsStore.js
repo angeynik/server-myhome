@@ -13,7 +13,7 @@ function registerClient(clientId, ws, connectionType) {
 
   // Получаем или создаём контейнер
   const client = nodeRedClients.get(clientId) || { input: null, output: null, meta: {} };
-  console.log( '-- 16 -- clientStore - registerClient - Получили client'); 
+  //console.log( '-- 16 -- clientStore - registerClient - Получили client'); 
 
   // Метаданные для отладки
   client.meta = {
