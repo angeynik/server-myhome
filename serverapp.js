@@ -7,7 +7,7 @@ const bodyParser = require('body-parser');
 const fs = require('fs');
 const {initServer, initUsers, initDefaulUser, initDB_dID} = require('./services/initServer.js');
 //const tableDB = require('./services/tableDB.js');
-const { nodeRedClients, registerClient, getAllClients, getClient, startHeartbeat, addMessageToQueue, addMessageToQueue, processQueueForClient} = require('./services/clientsStore');
+const { nodeRedClients, registerClient, getAllClients, getClient, startHeartbeat, addMessageToQueue, processQueueForClient} = require('./services/clientsStore');
 const { handleAuth, handleGet, handlePost, handleResponse, handleSet, handleError} = require('./services/messageHandlers.js'); // Подключаем обработку входящих по WS сообщений
 
 // require('dotenv').config({ path: './conf.env' }); 
@@ -191,16 +191,13 @@ ws.on('message', async (message) => {
         console.log('-- 126 -- checkInputMessage - ', checkInputMessage.data);
         if(checkInputMessage.status === 'ok') {
 
-
-
-
           sendToDash = true;
-          const clientId = checkInputMessage.data.name;
-          const connectionType = checkInputMessage.data.payload.typeConnect;
           switch (checkInputMessage.data.type) {
             case 'init':
                   if (checkInputMessage.data.request === 'init_ws') {
-                     console.log('Пришло сообщение init_ws'); 
+                    console.log('Пришло сообщение init_ws'); 
+                    const clientId = checkInputMessage.data.name;
+                    const connectionType = checkInputMessage.data.payload.typeConnect;
                       if (!clientId || !connectionType) {
                           console.error('Invalid wsConnect message');
                           return;
