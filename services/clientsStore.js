@@ -201,26 +201,7 @@ function processQueueForClient(clientId) {
   }
 }
 
-function processAllQueues (){
-  if (messageQueue.size === 0) return;
-  console.log(`🔁 Приступаем к обработке очереди из (${messageQueue.size} сообщений)`);
-  messageQueue.forEach((clientId) => {
-    switch (messageQueue.data.type) {
-      case 'post':
-        console.log('processAllQueue - Type - Post');
-        if (handlePost(clientId, checkInputMessage.data)=== 'ok'){
-          const key = `${message.type}|${message.name}|${message.request}|${message.payload.room}|${message.payload.item_name}`;
-          removeFromQueue(clientId, key);
-          console.log(`сообщение с ключом ${key} удалено из очере`);
-        } else {
-          console.log('processAllQueue - Type - Post - Error');
-        };
-        break;
-      default:
-        console.log(`⚠️ Неизвестный тип сообщения: ${messageQueue.data.type}`);
-    }
-  });
-}
+
 
 module.exports = {
   nodeRedClients,
@@ -230,6 +211,5 @@ module.exports = {
   getAllClients,
   startHeartbeat,
   removeFromQueue,
-  processQueueForClient,
-  processAllQueues
+  processQueueForClient
 };

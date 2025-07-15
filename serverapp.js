@@ -7,8 +7,8 @@ const bodyParser = require('body-parser');
 const fs = require('fs');
 const {initServer, initUsers, initDefaulUser, initDB_dID} = require('./services/initServer.js');
 //const tableDB = require('./services/tableDB.js');
-const { nodeRedClients, messageQueue, registerClient, getAllClients, getClient, startHeartbeat, processQueueForClient, processAllQueues} = require('./services/clientsStore');
-const { addMessageToQueue, getAllQueueMessages, } = require('./services/messageStore.js');
+const { nodeRedClients, messageQueue, registerClient, getAllClients, getClient, startHeartbeat, processQueueForClient} = require('./services/clientsStore');
+const { addMessageToQueue, getAllQueueMessages, processAllQueues, } = require('./services/messageStore.js');
 const { handleAuth, handleGet, handlePost, handleResponse, handleSet, handleError} = require('./services/messageHandlers.js'); // Подключаем обработку входящих по WS сообщений
 
 // require('dotenv').config({ path: './conf.env' }); 
