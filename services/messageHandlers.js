@@ -190,6 +190,7 @@ const handlePost = async (ws, data) => {
           requestId: data.payload.requestId,
           user: newUser.user
         });
+        return 'ok';
       } catch (error) {
         sendError(ws, 'createUserError', data.name, {
           requestId: data.payload.requestId,

@@ -7,7 +7,7 @@ const bodyParser = require('body-parser');
 const fs = require('fs');
 const {initServer, initUsers, initDefaulUser, initDB_dID} = require('./services/initServer.js');
 //const tableDB = require('./services/tableDB.js');
-const { nodeRedClients, registerClient, getAllClients, getClient, startHeartbeat, addMessageToQueue, processQueueForClient} = require('./services/clientsStore');
+const { nodeRedClients, registerClient, getAllClients, getClient, startHeartbeat, addMessageToQueue, processQueueForClient, processAllQueues} = require('./services/clientsStore');
 const { handleAuth, handleGet, handlePost, handleResponse, handleSet, handleError} = require('./services/messageHandlers.js'); // Подключаем обработку входящих по WS сообщений
 
 // require('dotenv').config({ path: './conf.env' }); 
@@ -21,9 +21,6 @@ const DBManager = require('./services/db.js'); // Импортируем DBManag
 const {validType, validConfig, validPost} = require('./validate');
 
 
-
-
-//const servPORT = process.env.SERVER_PORT || 3010;
 const servPORT = process.env.SERVER_PORT || 3010;
 const wsRedPORT = process.env.WSR_PORT || 9200;
 const wsDashPORT = process.env.WSD_PORT || 9202;
@@ -166,7 +163,11 @@ const { error } = require('console');
 const WSSNodeRED = new WebSocket.Server ({port:wsRedPORT});
 const WSSDash = new WebSocket.Server ({port:wsDashPORT});
 
-
+// Запускаем обработчик очередей WebSocket сообщений каждые 5 секунд (можно чаще, например, каждую секунду)
+const QUEUE_PROCESS_INTERVAL = 5000;
+setInterval(() => {
+  processAllQueues();
+}, QUEUE_PROCESS_INTERVAL).unref();
 
 // Блок с переменными
 let sendToDash = true;
