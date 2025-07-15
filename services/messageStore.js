@@ -28,8 +28,22 @@ function addMessageToQueue(clientId, message) {
   }
 }
 
+function getAllQueueMessages() {
+      messageQueue.forEach((queue, clientId) => {
+      console.groupCollapsed(`📂 Client: ${clientId}`);               // Группируем вывод по clientId
+      queue.forEach((entry, key) => {
+        console.log(`🔑 ${key}`, {
+          message: entry.message,
+          timestamp: entry.timestamp,
+          retryCount: entry.retryCount
+        });
+      });
+      console.groupEnd();
+    });
+}
 module.exports = {
     messageQueue,
-  addMessageToQueue
+  addMessageToQueue,
+  getAllQueueMessages
 };
 

@@ -8,7 +8,7 @@ const fs = require('fs');
 const {initServer, initUsers, initDefaulUser, initDB_dID} = require('./services/initServer.js');
 //const tableDB = require('./services/tableDB.js');
 const { nodeRedClients, messageQueue, registerClient, getAllClients, getClient, startHeartbeat, processQueueForClient, processAllQueues} = require('./services/clientsStore');
-const { addMessageToQueue } = require('./services/messageStore.js');
+const { addMessageToQueue, getAllQueueMessages, } = require('./services/messageStore.js');
 const { handleAuth, handleGet, handlePost, handleResponse, handleSet, handleError} = require('./services/messageHandlers.js'); // Подключаем обработку входящих по WS сообщений
 
 // require('dotenv').config({ path: './conf.env' }); 
@@ -167,21 +167,7 @@ const WSSDash = new WebSocket.Server ({port:wsDashPORT});
 // Запускаем обработчик очередей WebSocket сообщений каждые 5 секунд (можно чаще, например, каждую секунду)
 const QUEUE_PROCESS_INTERVAL = 5000;
 setInterval(() => {
-
-  messageQueue.forEach((queue, clientId) => {
-  console.group(`📂 Client: ${clientId}`);               // Группируем вывод по clientId
-  queue.forEach((entry, key) => {
-    console.log(`🔑 ${key}`, {
-      message: entry.message,
-      timestamp: entry.timestamp,
-      retryCount: entry.retryCount
-    });
-  });
-  console.groupEnd();
-});
-
-
-
+  getAllQueueMessages();
   processAllQueues();
 }, QUEUE_PROCESS_INTERVAL).unref();
 
