@@ -217,7 +217,11 @@ ws.on('message', async (message) => {
               break;
               case 'post':
                   console.log('-- Post -- Добавляем сообщение в очередь');
-                  const key = `${checkInputMessage.data.type}|${checkInputMessage.data.name}|${checkInputMessage.data.request}`;
+                  const key = `${checkInputMessage.data.type}|
+                  ${checkInputMessage.data.name}|
+                  ${checkInputMessage.data.request}|
+                  ${checkInputMessage.data.payload.room}|
+                  ${checkInputMessage.data.payload.item_name}`;
                   console.log('Ключ:', key);
                   addMessageToQueue(clientId, checkInputMessage.data);
               break
