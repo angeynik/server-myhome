@@ -152,6 +152,7 @@ function getAllClients() {
  * @param {object} message - Сообщение для добавления в очередь
  */
 function addMessageToQueue(clientId, message) {
+  console.log
   if (!messageQueue.has(clientId)) {
     messageQueue.set(clientId, new Map());
   }

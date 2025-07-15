@@ -192,12 +192,13 @@ ws.on('message', async (message) => {
         if(checkInputMessage.status === 'ok') {
 
           sendToDash = true;
+          const clientId = checkInputMessage.data.name;
           switch (checkInputMessage.data.type) {
             case 'init':
+                    const connectionType = checkInputMessage.data.payload.typeConnect;
                   if (checkInputMessage.data.request === 'init_ws') {
                     console.log('Пришло сообщение init_ws'); 
-                    const clientId = checkInputMessage.data.name;
-                    const connectionType = checkInputMessage.data.payload.typeConnect;
+
                       if (!clientId || !connectionType) {
                           console.error('Invalid wsConnect message');
                           return;
@@ -216,11 +217,14 @@ ws.on('message', async (message) => {
               break;
               case 'post':
                   console.log('-- Post -- Добавляем сообщение в очередь');
+                  const key = `${checkInputMessage.data.type}|${checkInputMessage.data.name}|${checkInputMessage.data.request}`;
+                  console.log('Ключ:', key);
+                  addMessageToQueue(clientId, checkInputMessage.data);
               break
             default:
-              console.log('Добавляем сообщение в очередь');
-              const key = `${checkInputMessage.data.type}|${checkInputMessage.data.name}|${checkInputMessage.data.request}`;
-              console.log('Ключ:', key);
+              // console.log('Добавляем сообщение в очередь');
+              // const key = `${checkInputMessage.data.type}|${checkInputMessage.data.name}|${checkInputMessage.data.request}`;
+              // console.log('Ключ:', key);
           // Проверяем готовность выходного соединения
           const outputSocket = getClient(clientId, 'output');
           
