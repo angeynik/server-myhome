@@ -63,7 +63,9 @@ function processAllQueues() {
           case 'post':
             console.log('processAllQueue - Type - Post');
             // Вызываем обработчик и проверяем результат
-            if (handlePost(clientId, message) === 'ok') {
+            const resultHandler = handlePost(clientId, message);
+            console.log('processAllQueue - resultHandler - ', resultHandler);
+            if (resultHandler === 'ok') {
               processedKeys.push(key);
               console.log(`✅ Сообщение обработано: ${key}`);
             } else {
