@@ -7,8 +7,8 @@ const bodyParser = require('body-parser');
 const fs = require('fs');
 const {initServer, initUsers, initDefaulUser, initDB_dID} = require('./services/initServer.js');
 //const tableDB = require('./services/tableDB.js');
-const { nodeRedClients, messageQueue, registerClient, getAllClients, getClient, startHeartbeat, processQueueForClient} = require('./services/clientsStore');
-const { addMessageToQueue, getAllQueueMessages, processAllQueues, } = require('./services/messageStore.js');
+const { nodeRedClients, registerClient, getAllClients, getClient, startHeartbeat} = require('./services/clientsStore');
+const { addMessageToQueue, getAllQueueMessages, processAllQueues, removeFromQueue, triggerQueueProcessing} = require('./services/messageStore.js');
 const { handleAuth, handleGet, handlePost, handleResponse, handleSet, handleError} = require('./services/messageHandlers.js'); // Подключаем обработку входящих по WS сообщений
 
 // require('dotenv').config({ path: './conf.env' }); 
@@ -166,9 +166,14 @@ const WSSDash = new WebSocket.Server ({port:wsDashPORT});
 
 // Запускаем обработчик очередей WebSocket сообщений каждые 5 секунд (можно чаще, например, каждую секунду)
 const QUEUE_PROCESS_INTERVAL = 5000;
-setInterval(() => {
-  getAllQueueMessages();
-  processAllQueues();
+setInterval(async () => {
+  try {
+    console.log('Выводим список всех сообщений в очереди:');
+    getAllQueueMessages();
+    await processAllQueues();
+  } catch (error) {
+    console.error('Ошибка обработки очереди:', error);
+  }
 }, QUEUE_PROCESS_INTERVAL).unref();
 
 // Блок с переменными
@@ -218,7 +223,7 @@ ws.on('message', async (message) => {
                   }
 
               break;
-              case 'post':
+            case 'post':
                   console.log('-- Post -- Добавляем сообщение в очередь');
                   const key = `${checkInputMessage.data.type}|
                   ${checkInputMessage.data.name}|
@@ -227,6 +232,7 @@ ws.on('message', async (message) => {
                   ${checkInputMessage.data.payload.item_name}`;
                   console.log('Ключ:', key);
                   addMessageToQueue(clientId, checkInputMessage.data);
+                  triggerQueueProcessing(); // Немедленный запуск обработки
               break
             default:
               break;
@@ -239,15 +245,7 @@ ws.on('message', async (message) => {
 });
 
 ws.on('close', () => {
-  if (clientId) {
-    // ... существующий код
-    
-    // Очищаем очередь для клиента
-    if (messageQueue.has(clientId)) {
-      console.log(`🧹 Очистка очереди для ${clientId}`);
-      messageQueue.delete(clientId);
-    }
-  }
+  console.log('WebSocket connection closed');
 });
 
 ws.on('error', (error) => {

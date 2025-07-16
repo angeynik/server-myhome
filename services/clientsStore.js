@@ -145,71 +145,11 @@ function getAllClients() {
   );
 }
 
-
-
-/**
- * Удаляет сообщение из очереди по ключу
- * @param {string} clientId - Идентификатор клиента
- * @param {string} key - Ключ сообщения
- */
-function removeFromQueue(clientId, key) {
-  if (messageQueue.has(clientId)) {
-    const queue = messageQueue.get(clientId);
-    if (queue.delete(key)) {
-      console.log(`✅ Сообщение удалено из очереди. Клиент: ${clientId}, ключ: ${key}`);
-      
-      // Если очередь пуста - удаляем запись клиента
-      if (queue.size === 0) {
-        messageQueue.delete(clientId);
-      }
-    }
-  }
-}
-
-/**
- * Отправляет все сообщения из очереди для указанного клиента
- * @param {string} clientId - Идентификатор клиента
- */
-function processQueueForClient(clientId) {
-  if (messageQueue.has(clientId)) {
-    const queue = messageQueue.get(clientId);
-    const outputSocket = getClient(clientId, 'output');
-    
-    if (!outputSocket || outputSocket.readyState !== WebSocket.OPEN) {
-      console.log(`⌛ Выходное соединение для ${clientId} не готово`);
-      return;
-    }
-    
-    console.log(`🔁 Обработка очереди для ${clientId} (${queue.size} сообщений)`);
-    
-    for (const [key, item] of queue) {
-      try {
-        outputSocket.send(JSON.stringify(item.message));
-        console.log(`✉️ Сообщение отправлено из очереди. Ключ: ${key}`);
-        removeFromQueue(clientId, key);
-      } catch (error) {
-        console.error(`⚠️ Ошибка отправки сообщения из очереди: ${error.message}`);
-        item.retryCount++;
-        
-        // Удаляем сообщение после 3 неудачных попыток
-        if (item.retryCount >= 3) {
-          console.error(`🗑️ Удаление сообщения после 3 неудачных попыток. Ключ: ${key}`);
-          removeFromQueue(clientId, key);
-        }
-      }
-    }
-  }
-}
-
-
-
 module.exports = {
   nodeRedClients,
   registerClient,
   cleanupConnection,
   getClient,
   getAllClients,
-  startHeartbeat,
-  removeFromQueue,
-  processQueueForClient
+  startHeartbeat
 };
