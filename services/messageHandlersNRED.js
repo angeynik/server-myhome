@@ -4,10 +4,26 @@ const dotenv = require('dotenv');
 dotenv.config({ path: './conf.env' });
 const dataDir = process.env.DATA_DIR || './configData';
 
+// Функция для безопасного извлечения значений (массив/строка)
+function getValue(value) {
+    return Array.isArray(value) ? value[0] : value;
+}
+
 async function handlePost(clientId, message) {
 
-    const { name, payload } = message;
-    const { room, item_name, item_value, title, groop } = payload;
+    const { name, payload = {}, time = new Date().toISOString() } = message;
+
+// Извлекаем значения из payload (учитываем массивы)
+        const room = getValue(payload.room);
+        const item_name = getValue(payload.item_name);
+        const item_value = getValue(payload.item_value);
+        const title = getValue(payload.title);
+        const group = getValue(payload.group);
+
+        // Проверка обязательных полей
+        if (!room || !item_name || item_value === undefined) {
+            throw new Error(`Missing required fields: room=${room}, item_name=${item_name}, item_value=${item_value}`);
+        }
 
     // Создаем директорию рекурсивно
     if (!fs.existsSync(dataDir)) {
@@ -43,7 +59,7 @@ async function handlePost(clientId, message) {
         data[room] = {
             id: Object.keys(data).filter(k => k.startsWith('room')).length,
             title: title || `Комната-${room}`,
-            group: groop || '',
+            group: group || '',
             sensors: {},
             time: {},
             actuators: {}
