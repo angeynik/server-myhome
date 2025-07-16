@@ -1,26 +1,31 @@
 const fs = require('fs');
 const path = require('path');
-const dotenv = require('dotenv'); // Подключаем .ENV файл с переменными окружения
-dotenv.config({path: './conf.env'}); // Указываем путь к  файлу .env
-const dataDir = process.env.DATA_DIR ||'.configData'; // Путь к директории с данными
+const dotenv = require('dotenv');
+dotenv.config({ path: './conf.env' });
+const dataDir = process.env.DATA_DIR || './configData';
 
 async function handlePost(clientId, message) {
     const { name, payload, time } = message;
-    const { room, item_name, item_value } = payload;
+    const { room, item_name, item_value, title, groop } = payload;
 
-    // Создаем директорию для хранения данных рекурсивно
+    // Создаем директорию рекурсивно
     if (!fs.existsSync(dataDir)) {
-        fs.mkdirSync(dataDir, { recursive: true }); // Добавляем рекурсивное создание
+        fs.mkdirSync(dataDir, { recursive: true });
         console.log(`📂 Создана директория: ${dataDir}`);
     }
 
-    // Путь к файлу данных
     const filePath = path.join(dataDir, `${name}.json`);
-
-    let data = { rooms: [] };
     
+    // Шаблон по умолчанию (соответствует требуемой структуре)
+    let data = {
+        init: {
+            title: "",
+            dID: ""
+        }
+    };
+
     try {
-        // Чтение существующих данных, если файл есть
+        // Загрузка существующих данных
         if (fs.existsSync(filePath)) {
             console.log(`📂 Читаем данные из ${filePath}`);
             const rawData = fs.readFileSync(filePath, 'utf8');
@@ -31,43 +36,29 @@ async function handlePost(clientId, message) {
         return 'error';
     }
 
-    // Поиск комнаты
-    let roomObj = data.rooms.find(r => r.roomName === room);
-    
-    // Создаем новую комнату если не найдена
-    if (!roomObj) {
-        roomObj = {
-            id: data.rooms.length + 1,
-            roomName: room,
-            params: []
+    // Проверяем, существует ли комната
+    if (!data[room]) {
+        // Создаем новую комнату с базовой структурой
+        data[room] = {
+            id: Object.keys(data).filter(k => k.startsWith('room')).length,
+            title: title || `Комната-${room}`,
+            group: groop || '',
+            sensors: {},
+            time: {},
+            actuators: {}
         };
-        data.rooms.push(roomObj);
     }
 
-    // Поиск параметра в комнате
-    let param = roomObj.params.find(p => p.paramName === item_name);
-    
-    if (param) {
-        // Обновляем существующий параметр
-        param.value = item_value;
-        param.time = time;
-    } else {
-        // Создаем новый параметр
-        param = {
-            paramName: item_name,
-            value: item_value,
-            time: time
-        };
-        roomObj.params.push(param);
-    }
+    // Обновляем сенсор и временную метку
+    data[room].sensors[item_name] = item_value;
+    data[room].time[`${item_name}_time`] = Date.now();
 
-    // Сохранение обновленных данных
+    // Сохранение данных
     try {
-        fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+        const dataString = JSON.stringify(data, null, 2);
+        fs.writeFileSync(filePath, dataString);
         console.log(`✅ Данные успешно обновлены в ${filePath}`);
-            // Вывод содержимого файла в консоль
-        console.log('Содержимое файла:');
-        console.log(dataString);
+        console.log('Содержимое файла:', dataString);
         return 'ok';
     } catch (err) {
         console.error(`Ошибка записи в файл ${filePath}:`, err);
