@@ -5,7 +5,8 @@ dotenv.config({ path: './conf.env' });
 const dataDir = process.env.DATA_DIR || './configData';
 
 async function handlePost(clientId, message) {
-    const { name, payload, time } = message;
+
+    const { name, payload } = message;
     const { room, item_name, item_value, title, groop } = payload;
 
     // Создаем директорию рекурсивно
@@ -20,7 +21,7 @@ async function handlePost(clientId, message) {
     let data = {
         init: {
             title: "",
-            dID: ""
+            dID: name,
         }
     };
 
