@@ -25,4 +25,4 @@ DEFAULT_USER_DID='*_*'
 DEFAULT_USER_LEVEL=1
 DEFAULT_USER_SOURCE=''
 
-DATA_DIR='.sm/configData'
+DATA_DIR='.configData'

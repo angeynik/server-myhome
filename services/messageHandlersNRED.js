@@ -2,16 +2,16 @@ const fs = require('fs');
 const path = require('path');
 const dotenv = require('dotenv'); // Подключаем .ENV файл с переменными окружения
 dotenv.config({path: './conf.env'}); // Указываем путь к  файлу .env
-const dataDir = process.env.DATA_DIR ||'.sm/configData'; // Путь к директории с данными
-DATA_DIR='.sm/configData'
+const dataDir = process.env.DATA_DIR ||'.configData'; // Путь к директории с данными
 
 async function handlePost(clientId, message) {
     const { name, payload, time } = message;
     const { room, item_name, item_value } = payload;
 
-    // Создаем директорию для хранения данных, если ее нет
+    // Создаем директорию для хранения данных рекурсивно
     if (!fs.existsSync(dataDir)) {
-        fs.mkdirSync(dataDir);
+        fs.mkdirSync(dataDir, { recursive: true }); // Добавляем рекурсивное создание
+        console.log(`📂 Создана директория: ${dataDir}`);
     }
 
     // Путь к файлу данных
