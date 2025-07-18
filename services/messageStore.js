@@ -1,5 +1,6 @@
 const { handlePost} = require('./messageHandlersNRED.js');
 const messageQueue = new Map();
+const clientLocks = new Map(); // Блокировки для каждого клиента
 let isProcessing = false;
 
 /**
@@ -21,7 +22,8 @@ function addMessageToQueue(clientId, message) {
     queue.set(key, {
       message,
       timestamp: Date.now(),
-      retryCount: 0
+      retryCount: 0,
+      lastAttempt: 0
     });
     console.log(`📬 Сообщение добавлено в очередь для ${clientId}. Ключ: ${key}`);
   } else {
@@ -44,63 +46,135 @@ function getAllQueueMessages() {
     });
 }
 
-
-function processAllQueues() {
-  if (messageQueue.size === 0) return;
-  console.log(`🔁 Приступаем к обработке очереди из (${messageQueue.size} клиентов)`);
-
-  messageQueue.forEach((clientQueue, clientId) => {
-    console.log(`🔁 Обработка очереди для клиента ${clientId} (сообщений: ${clientQueue.size})`);
+async function processClientQueue(clientId) {
+    if (!messageQueue.has(clientId) || clientLocks.has(clientId)) return;
     
+    clientLocks.set(clientId, true); // Блокируем клиента
+    const clientQueue = messageQueue.get(clientId);
     const processedKeys = [];
+    const now = Date.now();
     
-    clientQueue.forEach((entry, key) => {
-      const message = entry.message;
-      console.log(`🔁 Обработка сообщения: ${key}`);
-      
-      try {
-        switch (message.type) {
-          case 'post':
-            console.log('processAllQueue - Type - Post');
-            // Вызываем обработчик и проверяем результат
-            const resultHandler = handlePost(clientId, message);
-            console.log('processAllQueue - resultHandler - ', resultHandler);
-            if (resultHandler === 'ok') {
-              processedKeys.push(key);
-              console.log(`✅ Сообщение обработано: ${key}`);
-            } else {
-              console.log('❌ Ошибка обработки сообщения');
-              entry.retryCount++;
-              if (entry.retryCount > 3) {
-                processedKeys.push(key);
-                console.log(`♻️ Сообщение ${key} удалено после 3 неудачных попыток`);
-              }
+    try {
+        for (const [key, entry] of clientQueue.entries()) {
+            // Пропускаем если не прошло 5 секунд с последней попытки
+            if (now - entry.lastAttempt < 5000) continue;
+            
+            console.log(`🔁 Обработка сообщения: ${key}`);
+            entry.lastAttempt = now;
+            
+            try {
+                let result = 'error';
+                switch (entry.message.type) {
+                    case 'post':
+                        result = await handlePost(clientId, entry.message);
+                        break;
+                    default:
+                        console.warn(`⚠️ Неизвестный тип сообщения: ${entry.message.type}`);
+                }
+                
+                if (result === 'ok') {
+                    processedKeys.push(key);
+                    console.log(`✅ Сообщение обработано: ${key}`);
+                } else {
+                    entry.retryCount++;
+                    if (entry.retryCount > 3) {
+                        processedKeys.push(key);
+                        console.warn(`♻️ Сообщение ${key} удалено после 3 неудачных попыток`);
+                    }
+                }
+            } catch (error) {
+                console.error(`❌ Ошибка обработки: ${error.message}`);
+                entry.retryCount++;
             }
-            break;
-          default:
-            console.log(`⚠️ Неизвестный тип сообщения: ${message.type}`);
-            processedKeys.push(key); // Удаляем неизвестные типы
-            break;
         }
-      } catch (error) {
-        console.error(`❌ Ошибка обработки: ${error.message}`);
-        entry.retryCount++;
-      }
-    });
-    
-    // Удаляем обработанные сообщения
-    processedKeys.forEach(key => {
-      clientQueue.delete(key);
-      console.log(`🧹 Удалено сообщение: ${key}`);
-    });
-    
-    // Если очередь клиента пуста, удаляем клиента
-    if (clientQueue.size === 0) {
-      messageQueue.delete(clientId);
-      console.log(`🧹 Очередь клиента ${clientId} пуста, удаляем.`);
+    } finally {
+        // Удаляем обработанные сообщения
+        processedKeys.forEach(key => clientQueue.delete(key));
+        
+        if (clientQueue.size === 0) {
+            messageQueue.delete(clientId);
+        }
+        
+        clientLocks.delete(clientId); // Снимаем блокировку
     }
-  });
 }
+
+async function processAllQueues() {
+    if (messageQueue.size === 0) return;
+    
+    const processingPromises = [];
+    for (const clientId of messageQueue.keys()) {
+        processingPromises.push(processClientQueue(clientId));
+    }
+    
+    await Promise.all(processingPromises);
+}
+
+
+// async function processAllQueues() {
+//   if (messageQueue.size === 0 || isProcessing) return;
+//   isProcessing = true;
+
+//   try {
+//     console.log(`🔁 Приступаем к обработке очереди из (${messageQueue.size} клиентов)`);
+
+//     for (const [clientId, clientQueue] of messageQueue.entries()) {
+//       console.log(`🔁 Обработка очереди для клиента ${clientId} (сообщений: ${clientQueue.size})`);
+      
+//       const processedKeys = [];
+      
+//       for (const [key, entry] of clientQueue.entries()) {
+//         const message = entry.message;
+//         console.log(`🔁 Обработка сообщения: ${key}`);
+        
+//         try {
+//           let resultHandler;
+//           switch (message.type) {
+//             case 'post':
+//               console.log('processAllQueue - Type - Post');
+//               resultHandler = await handlePost(clientId, message);
+//               console.log('processAllQueue - resultHandler - ', resultHandler);
+              
+//               if (resultHandler === 'ok') {
+//                 processedKeys.push(key);
+//                 console.log(`✅ Сообщение обработано: ${key}`);
+//               } else {
+//                 console.log('❌ Ошибка обработки сообщения');
+//                 entry.retryCount++;
+//                 if (entry.retryCount > 3) {
+//                   processedKeys.push(key);
+//                   console.log(`♻️ Сообщение ${key} удалено после 3 неудачных попыток`);
+//                 }
+//               }
+//               break;
+//             default:
+//               console.log(`⚠️ Неизвестный тип сообщения: ${message.type}`);
+//               processedKeys.push(key);
+//               break;
+//           }
+//         } catch (error) {
+//           console.error(`❌ Ошибка обработки: ${error.message}`);
+//           entry.retryCount++;
+//         }
+//       }
+      
+//       processedKeys.forEach(key => {
+//         clientQueue.delete(key);
+//         console.log(`🧹 Удалено сообщение: ${key}`);
+//       });
+      
+//       if (clientQueue.size === 0) {
+//         messageQueue.delete(clientId);
+//         console.log(`🧹 Очередь клиента ${clientId} пуста, удаляем.`);
+//       }
+//     }
+//   } catch (error) {
+//     console.error('Ошибка при обработке очереди:', error);
+//   } finally {
+//     isProcessing = false;
+//   }
+// }
+
 async function triggerQueueProcessing() {
   if (isProcessing) return;
   isProcessing = true;

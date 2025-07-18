@@ -1,0 +1,60 @@
+{
+  "init": {
+    "title": "",
+    "dID": "angey_bmax"
+  },
+  "room02": {
+    "id": 0,
+    "title": "Спальня",
+    "group": "Родители",
+    "sensors": {
+      "dHum2": "26.7",
+      "dTemp2": "24.7"
+    },
+    "time": {
+      "dHum2_time": 1752834090522,
+      "dTemp2_time": 1752834088831
+    },
+    "actuators": {}
+  },
+  "room05": {
+    "id": 1,
+    "title": "Спальня Леша",
+    "group": "",
+    "sensors": {
+      "dTemp7": "13.2",
+      "dTemp5": "24.8",
+      "dHum5": "30.2"
+    },
+    "time": {
+      "dTemp7_time": 1752834105843,
+      "dTemp5_time": 1752834104310,
+      "dHum5_time": 1752834027164
+    },
+    "actuators": {}
+  },
+  "room06": {
+    "id": 2,
+    "title": "Кухня",
+    "group": "",
+    "sensors": {
+      "dTemp6": "23.2"
+    },
+    "time": {
+      "dTemp6_time": 1752834076372
+    },
+    "actuators": {}
+  },
+  "room07": {
+    "id": 3,
+    "title": "Спальня Миша",
+    "group": "",
+    "sensors": {
+      "dTemp7": "19.9"
+    },
+    "time": {
+      "dTemp7_time": 1752834103945
+    },
+    "actuators": {}
+  }
+}
