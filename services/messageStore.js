@@ -33,14 +33,14 @@ function addMessageToQueue(clientId, message) {
 
 function getAllQueueMessages() {
     messageQueue.forEach((queue, clientId) => {
-    console.log('Выводим список всех сообщений в очереди:');
-      console.groupCollapsed(`📂 Client: ${clientId}`);               // Группируем вывод по clientId
+    //console.log('Выводим список всех сообщений в очереди:');
+      //console.groupCollapsed(`📂 Client: ${clientId}`);               // Группируем вывод по clientId
       queue.forEach((entry, key) => {
-        console.log(`🔑 ${key}`, {
-          message: entry.message,
-          timestamp: entry.timestamp,
-          retryCount: entry.retryCount
-        });
+        // console.log(`🔑 ${key}`, {
+        //   message: entry.message,
+        //   timestamp: entry.timestamp,
+        //   retryCount: entry.retryCount
+        // });
       });
       console.groupEnd();
     });
@@ -59,7 +59,7 @@ async function processClientQueue(clientId) {
             // Пропускаем если не прошло 5 секунд с последней попытки
             if (now - entry.lastAttempt < 5000) continue;
             
-            console.log(`🔁 Обработка сообщения: ${key}`);
+            //console.log(`🔁 Обработка сообщения: ${key}`);
             entry.lastAttempt = now;
             
             try {
@@ -111,70 +111,6 @@ async function processAllQueues() {
 }
 
 
-// async function processAllQueues() {
-//   if (messageQueue.size === 0 || isProcessing) return;
-//   isProcessing = true;
-
-//   try {
-//     console.log(`🔁 Приступаем к обработке очереди из (${messageQueue.size} клиентов)`);
-
-//     for (const [clientId, clientQueue] of messageQueue.entries()) {
-//       console.log(`🔁 Обработка очереди для клиента ${clientId} (сообщений: ${clientQueue.size})`);
-      
-//       const processedKeys = [];
-      
-//       for (const [key, entry] of clientQueue.entries()) {
-//         const message = entry.message;
-//         console.log(`🔁 Обработка сообщения: ${key}`);
-        
-//         try {
-//           let resultHandler;
-//           switch (message.type) {
-//             case 'post':
-//               console.log('processAllQueue - Type - Post');
-//               resultHandler = await handlePost(clientId, message);
-//               console.log('processAllQueue - resultHandler - ', resultHandler);
-              
-//               if (resultHandler === 'ok') {
-//                 processedKeys.push(key);
-//                 console.log(`✅ Сообщение обработано: ${key}`);
-//               } else {
-//                 console.log('❌ Ошибка обработки сообщения');
-//                 entry.retryCount++;
-//                 if (entry.retryCount > 3) {
-//                   processedKeys.push(key);
-//                   console.log(`♻️ Сообщение ${key} удалено после 3 неудачных попыток`);
-//                 }
-//               }
-//               break;
-//             default:
-//               console.log(`⚠️ Неизвестный тип сообщения: ${message.type}`);
-//               processedKeys.push(key);
-//               break;
-//           }
-//         } catch (error) {
-//           console.error(`❌ Ошибка обработки: ${error.message}`);
-//           entry.retryCount++;
-//         }
-//       }
-      
-//       processedKeys.forEach(key => {
-//         clientQueue.delete(key);
-//         console.log(`🧹 Удалено сообщение: ${key}`);
-//       });
-      
-//       if (clientQueue.size === 0) {
-//         messageQueue.delete(clientId);
-//         console.log(`🧹 Очередь клиента ${clientId} пуста, удаляем.`);
-//       }
-//     }
-//   } catch (error) {
-//     console.error('Ошибка при обработке очереди:', error);
-//   } finally {
-//     isProcessing = false;
-//   }
-// }
-
 async function triggerQueueProcessing() {
   if (isProcessing) return;
   isProcessing = true;
@@ -196,7 +132,7 @@ function removeFromQueue(clientId, key) {
     const clientQueue = messageQueue.get(clientId);
     if (clientQueue.has(key)) {
       clientQueue.delete(key);
-      console.log(`✅ Сообщение удалено из очереди: ${key}`);
+      //console.log(`✅ Сообщение удалено из очереди: ${key}`);
       
       // Удаляем пустую очередь клиента
       if (clientQueue.size === 0) {

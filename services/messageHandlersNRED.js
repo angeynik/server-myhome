@@ -91,7 +91,7 @@ async function handlePost(clientId, message) {
         const dataString = JSON.stringify(data, null, 2);
         await writeFileSafely(filePath, dataString);
         console.log(`✅ Данные успешно обновлены в ${filePath}`);
-        console.log('Содержимое файла:', dataString);
+        //console.log('Содержимое файла:', dataString);
         return 'ok';
     } catch (err) {
         console.error(`Ошибка при работе с файлом ${filePath}:`, err);
