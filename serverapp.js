@@ -177,7 +177,6 @@ setInterval(async () => {
 }, QUEUE_PROCESS_INTERVAL).unref();
 
 // Блок с переменными
-let sendToDash = true;
 let sendToRed = false;
 const reconnectInterval = 100;
 
@@ -194,7 +193,6 @@ ws.on('message', async (message) => {
         //console.log('-- 126 -- checkInputMessage - ', checkInputMessage.data);
         if(checkInputMessage.status === 'ok') {
 
-          sendToDash = true;
           const clientId = checkInputMessage.data.name;
           switch (checkInputMessage.data.type) {
             case 'init':
@@ -227,6 +225,12 @@ ws.on('message', async (message) => {
                   ${checkInputMessage.data.payload.item_name}`;
                   //console.log('Ключ:', key);
                   addMessageToQueue(clientId, checkInputMessage.data);
+                  try {
+                    sendToClient(clientId, checkInputMessage.data);
+                  } catch (error) {
+                    console.log('--233-- Ошибка добавления отправки полученного сообщения от NodeRED  клиенту WSSDash:', error);
+                  }
+                  
                   //await triggerQueueProcessing(); // Немедленный запуск обработки
               break
             default:
@@ -235,7 +239,7 @@ ws.on('message', async (message) => {
 
         }
       } catch (error) {
-        console.error('Error  -- checkInputMessage -', error);
+        console.error('-- 239 -- Error  -- checkInputMessage -', error);
       }
 });
 
@@ -248,83 +252,89 @@ ws.on('error', (error) => {
 });
 });
 
+// Работаем с Dashboard
 
 WSSDash.on('connection', (ws) => {
-  console.log('-- 402 -- Client connected to Dashboard on port ' + wsDashPORT);
-  //Slogger.info('-- 402 -- Client connected to Dashboard on port ' + wsDashPORT);
+  WSSDash.clients.forEach((client) => {
+    client.send(
+                        JSON.stringify({
+                          type: 'Проверка связи',
+                          request:'serverConnected',
+                          message: 'Проверка связи',
+                        }))
+  });
 
-ws.on('message', async (message) => {
-  try {
-    //console.log('WSSDash - Получены данные:', message);
-    const data = JSON.parse(message);
-    console.log('WSSDash - Данные преобразованы в json:', data);
+  ws.on('message', (message) => {
+      console.log (`WSSDash получено сообщение ${message}`);
 
-    switch (data.type) {
-      case 'auth':
-        console.log('WSSDash от WebApp получено сообщение типа auth');
-        await handleAuth(ws, data);
-        break;
-      case 'login':
-        console.log('WSSDash от WebApp получено сообщение типа login');
-        await handleAuth(ws, data);
-        break;
-      case 'get': // Используем строку 'get' для сравнения
-        console.log('WSSDash - Переходим к проверке сообщения типа get.');
-        await handleGet(ws, data);
-        break;
-      case 'post': // Используем строку 'post' для сравнения
-        console.log('Переходим к проверке сообщения типа post.');
-        await handlePost(ws, data);
-        break;
-      case 'response': // Используем строку 'request' для сравнения
-        await handleResponse(ws, data);
-        break;
-      // case 'config': // Используем строку 'request' для сравнения
-      //   await handleConfig(ws, data);
-      //   break;
-      case 'set': // Используем строку 'request' для сравнения
-        await handleSet(ws, data);
-        break;
-        case 'error': // Используем строку 'request' для сравнения
-        await handleError(ws, data);
-        break;
-      default:
-        console.log('Неизвестный тип сообщения:', data.type);
-        break;
-    }
+      sendToRed = true;
+      // Передача сообщения на WSSDash
+      WSSNodeRED.clients.forEach((client) => {
+        if (client.readyState === WebSocket.OPEN && sendToRed === true) {
+            client.send(message, (error) => {
+                if (error) {
+                    console.error('Ошибка пересылки сообщения c Dashboard на NodeRED :', error);
+                } else {
+                    console.info(`На порт ${wsRedPORT} от Server  к NodeRED  отправлено сообщение: ${message}`);
+                }
 
-  } catch (error) {
-    console.error('Ошибка при обработке сообщения:', error);
-    ws.send(
-      JSON.stringify({
-        type: 'error',
-        message: 'Произошла ошибка при обработке запроса',
-      })
-    );
-  }
-});
-
+            });
+        }
+    });
+  });
 
   ws.on('error', (error) => {
-    console.log('WebSocket error on Dashboard:', error);
-    //Slogger.error('WebSocket error on Dashboard:', error);
+      console.error('WebSocket error on Dashboard:', error);
   });
 
   ws.on('close', () => {
-    console.log('Dash WebSocket connection closed');
-    //Slogger.info('Dash WebSocket connection closed');
+      console.info('Dash WebSocket connection closed');
   });
 });
 
 
 
 console.log(`WebSocket servers are running on nodeRed ws port:${wsRedPORT} and DashBoard (client) ws port:${wsDashPORT}`);
-//Slogger.info(`WebSocket servers are running on nodeRed ws port:${wsRedPORT} and DashBoard (client) ws port:${wsDashPORT}`);
-//logger.debug(`WebSocket servers are running on ws://localhost:${wsRedPORT} and ws://localhost:${wsDashPORT}`);
-setTimeout(() => {
-    sendToDash = false;
-}, reconnectInterval);
 
+
+function sendToClient(dID, data) {
+  console.log('sendToClient: dID =', dID, 'data =', data);
+  
+  // Создаем копию данных с добавлением dID
+  const dataWithDID = {
+    ...data,
+    dID: dID
+  };
+  
+  const messageString = JSON.stringify(dataWithDID);
+
+  // Проверка готовности клиентов
+  let hasOpenClients = false;
+  WSSDash.clients.forEach((client) => {
+    console.log(`Состояние клиента Dashboard: ${client.readyState} (${client.readyState === WebSocket.OPEN ? 'открыт' : 'не открыт'})`);
+    if (client.readyState === WebSocket.OPEN) {
+      hasOpenClients = true;
+    }
+  });
+
+  if (!hasOpenClients) {
+    console.log('Нет подключенных клиентов Dashboard в состоянии OPEN.');
+    return;
+  }
+
+  // Отправка сообщения всем открытым клиентам
+  WSSDash.clients.forEach((client) => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(messageString, (error) => {
+        if (error) {
+          console.error('Ошибка отправки сообщения на Dashboard:', error);
+        } else {
+          console.log(`Сообщение отправлено на Dashboard: ${messageString}`);
+        }
+      });
+    }
+  });
+};
 
 function stringToJSON(message) {
   const data = message.toString('utf8');
@@ -339,7 +349,6 @@ function checkMessage(message) {
   const { error } = validType(data);
   if (error) {
     console.log(`Некорректный формат полученного сообщения. ${message} Ошибка: Error validType: ${error.message}`);
-    //Slogger.error(`Некорректный формат полученного сообщения. ${message} Ошибка: Error validType: ${error.message}`);
     return error;
   }
   return {status:'ok', data: data};

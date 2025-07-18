@@ -8,12 +8,12 @@
     "title": "Спальня",
     "group": "Родители",
     "sensors": {
-      "dHum2": "27.0",
+      "dHum2": "27.1",
       "dTemp2": "24.6"
     },
     "time": {
-      "dHum2_time": 1752836331245,
-      "dTemp2_time": 1752836312839
+      "dHum2_time": 1752844552860,
+      "dTemp2_time": 1752844552863
     },
     "actuators": {}
   },
@@ -22,14 +22,14 @@
     "title": "Спальня Леша",
     "group": "",
     "sensors": {
-      "dTemp7": "13.4",
-      "dTemp5": "24.9",
-      "dHum5": "30.1"
+      "dTemp7": "13.3",
+      "dTemp5": "24.8",
+      "dHum5": "30.4"
     },
     "time": {
-      "dTemp7_time": 1752836331246,
-      "dTemp5_time": 1752836312842,
-      "dHum5_time": 1752836312841
+      "dTemp7_time": 1752844552854,
+      "dTemp5_time": 1752844552858,
+      "dHum5_time": 1752844552862
     },
     "actuators": {}
   },
@@ -38,10 +38,10 @@
     "title": "Кухня",
     "group": "",
     "sensors": {
-      "dTemp6": "22.8"
+      "dTemp6": "22.7"
     },
     "time": {
-      "dTemp6_time": 1752836331241
+      "dTemp6_time": 1752844552861
     },
     "actuators": {}
   },
@@ -50,10 +50,10 @@
     "title": "Спальня Миша",
     "group": "",
     "sensors": {
-      "dTemp7": "20.3"
+      "dTemp7": "19.9"
     },
     "time": {
-      "dTemp7_time": 1752836331244
+      "dTemp7_time": 1752843839093
     },
     "actuators": {}
   }
