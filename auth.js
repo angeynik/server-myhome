@@ -19,7 +19,7 @@ const secret = process.env.JWT_SECRET || 'default-secret-key';
  * @returns {Object} - Данные пользователя и токен
  */
 const loginUser = async (username, password) => {
-  console.log('-- auth -- loginUser - проверяем пользователя --', username, 'с паролем --', password);
+  //console.log('-- auth -- loginUser - проверяем пользователя --', username, 'с паролем --', password);
   try {
     const user = await DBManager.findUser(username);
     
@@ -33,7 +33,7 @@ const loginUser = async (username, password) => {
     }
 
     const token = jwt.sign({ id: user.id }, secret, { expiresIn: '1h' });
-
+    console.log(`User ${user.username} Login successfull`);
     return {
       success: true,
       token,

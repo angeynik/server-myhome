@@ -169,7 +169,7 @@ const QUEUE_PROCESS_INTERVAL = 15000;
 setInterval(async () => {
   try {
     console.log('Выводим список всех сообщений в очереди:');
-    getAllQueueMessages();
+    //getAllQueueMessages();
     await processAllQueues();
   } catch (error) {
     console.error('Ошибка обработки очереди:', error);
@@ -269,7 +269,7 @@ WSSDash.on('connection', (ws) => {
       //console.log (`WSSDash получено сообщение ${message}`);
       try {
         const dashData = checkMessage(message);
-        console.log('-- 280 -- WSSDash - checkInputMessage - ', dashData.data);
+        console.log('-- 272 -- WSSDash - checkInputMessage - ', dashData.data);
         if(dashData.status === 'ok') {
           //console.log('-- 282 -- WSSDash - checkInputMessage - OK ');
                     switch (dashData.data.type) {
@@ -277,6 +277,10 @@ WSSDash.on('connection', (ws) => {
                 const auth = dashData.data.payload;
                 //console.log('-- auth --', auth);
                 handleAuth(ws, dashData.data);
+                break;
+                case 'get': // Используем строку 'get' для сравнения
+                //console.log('WSSDash - Переходим к проверке сообщения типа get.');
+                handleGet(ws, dashData.data);
                 break;
             default:
               break;

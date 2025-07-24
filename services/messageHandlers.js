@@ -1,5 +1,6 @@
 // Метод обработки получаемых Сервером по Web Socket сообщений
 
+const path = require('path');
 const DBManager = require('./db');
 const tableDB = require('./tableDB');
 const dotenv = require('dotenv');
@@ -9,25 +10,79 @@ const dbUser = process.env.DB_USER;
 const dbPass = process.env.DB_PASSWORD;
 
 const { loginUser, verifyToken } = require('../auth'); // Импортируем функции авторизации
-
+const { writeFileSafely, readFileSafely  } = require('./configStore');
 const { nodeRedClients  } = require('./clientsStore');
 const { sendSuccess, sendError, sendRequest} = require('./wsHelpers');
 // Получаем список имен конфигов из переменной окружения
 const configNames = JSON.parse(process.env.DB_CONFIG_NAMES || '[]');
 
+function getValue(value) {
+    return Array.isArray(value) ? value[0] : value;
+};
+
+async function handlePostNodeRED(clientId, message) {
+    const { name, payload = {} } = message;
+    // const dataDir = process.env.DATA_DIR || './configData';
+    // const filePath = path.join(dataDir, `${name}.json`);
+    // console.log('Проверяем переменные dataDir - ', dataDir, ' и filePath - ',filePath);
+
+    // Извлекаем значения из payload
+    const room = getValue(payload.room);
+    const item_name = getValue(payload.item_name);
+    const item_value = getValue(payload.item_value);
+    const title = getValue(payload.title);
+    const group = getValue(payload.group);
+
+    // Проверка обязательных полей (раскомментировать)
+    if (!room || !item_name || item_value === undefined) {
+        throw new Error(`Missing required fields: room=${room}, item_name=${item_name}, item_value=${item_value}`);
+    }
+
+    // Читаем данные из конфигурационного файла на диске
+    const {data, dataDir, filePath} = await readFileSafely(name);
+
+    try {
+        // Проверяем, существует ли комната
+        if (!data[room]) {
+            // Создаем новую комнату
+            data[room] = {
+                id: Object.keys(data).filter(k => k.startsWith('room')).length,
+                title: title || `Комната-${room}`,
+                group: group || '',
+                sensors: {},
+                time: {},
+                actuators: {}
+            };
+        }
+
+        // Обновляем сенсор и временную метку
+        data[room].sensors[item_name] = item_value;
+        data[room].time[`${item_name}_time`] = Date.now();
+
+        // Сохранение данных
+        const dataString = JSON.stringify(data, null, 2);
+        await writeFileSafely(filePath, dataString);
+        //console.log(`✅ Данные успешно обновлены в ${filePath}`);
+        //console.log('Содержимое файла:', dataString);
+        return 'ok';
+    } catch (err) {
+        console.error(`Ошибка при работе с файлом ${filePath}:`, err);
+        return 'error';
+    }
+};
 
 
 const handleAuth = async (ws, data) => {
-    console.log('handleAuth - Переходим к проверке сообщения типа auth');
+    console.log('handleAuth - messageHandlers - Переходим к проверке сообщения типа auth');
     //console.log('handleAuth - Request - ', data);
   switch (data.request) {
     case 'login':
-        console.log('handleAuth - Request - login');
+        //console.log('handleAuth - Request - login');
       try {
         const { username, password } = data.payload;
         const requestId = data.payload.requestId;
         const result = await loginUser(username, password);
-        console.log('auth-login Результат проверки:', result);
+        //console.log('auth-login Результат проверки:', result);
         if (result.error) {
           sendError(ws, 'loginError', data.name, {
             requestId,
@@ -35,7 +90,7 @@ const handleAuth = async (ws, data) => {
             message: result.error
           });
         } else {
-          console.log('auth-login Успешная проверка отправляем ответ Vue');
+          //console.log('auth-login Успешная проверка отправляем ответ Vue');
           sendSuccess(ws, 'loginSuccess', result.dID, {
             requestId,
             token: result.token,
@@ -59,7 +114,7 @@ const handleAuth = async (ws, data) => {
 };
 
 const handleGet = async (ws, data) => {
-    console.log('handleGet - Переходим к проверке сообщения типа get');
+    console.log('handleGet - messageHandlers - Переходим к проверке сообщения типа get');
     const dID = data.name;
   switch (data.request) {
     case 'fetchUsers':
@@ -90,68 +145,26 @@ const handleGet = async (ws, data) => {
         });
       }
       break;
-    // case 'config':
-    //   try {
-    //     const dbDID = await DBManager.query('SELECT NOW()', [], dID, dbUser, dbPass);
-    //     if (!dbDID) {
-    //       throw new Error('Подключение к базе данных не установлено.');
-    //     } 
-    //     console.log('Подключение к базе данных успешно установлено.', dbDID.rows[0].now);
 
-    //   } catch (error) {
-        
-    //   }
-    //   break;
     case 'config':
       try {
         const { configName, requestId } = data.payload;
-        console.log('handleGet - Request - config configName - ', configName, 'requestId - ', requestId);
-        if (!configName) {
+        const { name } = data;
+        console.log('handleGet - Request - config -- configName - ', configName, 'requestId - ', requestId, 'dID - ', name);
+        if (!name) {
           throw new Error('Не указано имя конфига в запросе');
         }
     
-        // Проверяем существование записи
-        const checkResult = await DBManager.checkRecordExists(
-          'config',
-          { name: configName },
-          dID,
-          dbUser,
-          dbPass
-        );
-    console.log('handleGet - Проверка существования конфига name - ', configName, 'результат - ', checkResult);
-        if (!checkResult.exists) {
-          sendError(ws, 'configError', dID, {
-            requestId,
-            message: `Конфиг '${configName}' не найден в базе`,
-            code: 'CONFIG_NOT_FOUND'
-          });
-          return;
+        // Читаем конфиг
+        const configData = await readFileSafely(name);
+        
+        if (!configData) {
+          throw new Error('Failed to read configuration file');
         }
-    
-        // Получаем данные конфига
-        const result = await DBManager.query(
-          'SELECT file FROM config WHERE name = $1',
-          [configName],
-          dID,
-          dbUser,
-          dbPass
-        );
-    
-        if (result.rows.length === 0) {
-          sendError(ws, 'configError', dID, {
-            requestId,
-            message: `Ошибка при получении конфига '${configName}'`,
-            code: 'CONFIG_FETCH_FAILED'
-          });
-          return;
-        }
-    
-        // Отправляем ответ с данными конфига
-        sendSuccess(ws, 'response', dID, {
-          requestId,
-          [configName]: result.rows[0].file
-        });
-    
+       
+        console.log(`[CONFIG] Sending config to ${name}`);
+        sendSuccess(ws, 'config', name, configData.data);
+
         console.log(`Конфиг ${configName} успешно отправлен`);
     
       } catch (error) {
@@ -159,7 +172,7 @@ const handleGet = async (ws, data) => {
         sendError(ws, 'configError', dID, {
           requestId: data.payload?.requestId,
           message: error.message,
-          code: error.code || 'DB_ERROR'
+          code: error.code || 'config_read_error'
         });
       }
       break;
@@ -284,7 +297,8 @@ const handlePost = async (ws, data) => {
                       //console.log('JSON файл валиден:', fileData);
                     } else {
                       console.log('JSON файл существует, но пустой или содержит null');
-                    sendRequest(clientId, 'config', dID, {config});
+                    const client = nodeRedClients.get(clientId);
+                    sendRequest(client, 'config', dID, {config});
                     }
                 }
               } else {
@@ -334,7 +348,7 @@ const handlePost = async (ws, data) => {
 
 const handleResponse = async (clientId, data) => {
     console.log('Переходим к проверке сообщения типа response.');
-    const client = nodeRedClients.get(clientId)
+    const client = nodeRedClients.get(clientId);
     switch (data.request) {
         case 'config':
           try {
@@ -358,6 +372,7 @@ const handleResponse = async (clientId, data) => {
                 );
                   // 2. Если конфиг уже существует
                   if (checkResult.exists) {
+                    const client = nodeRedClients.get(clientId);
                     sendSuccess(client.output, 'configExists', dID, {
                         config: configName,
                         message: `Конфиг '${configName}' уже существует в базе`,
@@ -413,6 +428,7 @@ const handleError = async (clientId, data) => {
 };
 
 module.exports = {
+  handlePostNodeRED,
   handleAuth,
   handleGet,
   handlePost,

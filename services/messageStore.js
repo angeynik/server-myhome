@@ -1,4 +1,4 @@
-const { handlePost} = require('./messageHandlersNRED.js');
+const { handlePostNodeRED} = require('./messageHandlers.js');
 const messageQueue = new Map();
 const clientLocks = new Map(); // Блокировки для каждого клиента
 let isProcessing = false;
@@ -33,14 +33,14 @@ function addMessageToQueue(clientId, message) {
 
 function getAllQueueMessages() {
     messageQueue.forEach((queue, clientId) => {
-    //console.log('Выводим список всех сообщений в очереди:');
-      //console.groupCollapsed(`📂 Client: ${clientId}`);               // Группируем вывод по clientId
+    console.log('Выводим список всех сообщений в очереди:');
+      console.groupCollapsed(`📂 Client: ${clientId}`);               // Группируем вывод по clientId
       queue.forEach((entry, key) => {
-        // console.log(`🔑 ${key}`, {
-        //   message: entry.message,
-        //   timestamp: entry.timestamp,
-        //   retryCount: entry.retryCount
-        // });
+        console.log(`🔑 ${key}`, {
+          message: entry.message,
+          timestamp: entry.timestamp,
+          retryCount: entry.retryCount
+        });
       });
       console.groupEnd();
     });
@@ -66,7 +66,7 @@ async function processClientQueue(clientId) {
                 let result = 'error';
                 switch (entry.message.type) {
                     case 'post':
-                        result = await handlePost(clientId, entry.message);
+                        result = await handlePostNodeRED(clientId, entry.message);
                         break;
                     default:
                         console.warn(`⚠️ Неизвестный тип сообщения: ${entry.message.type}`);
