@@ -19,6 +19,7 @@ const configNames = JSON.parse(process.env.DB_CONFIG_NAMES || '[]');
 
 const handleAuth = async (ws, data) => {
     console.log('handleAuth - Переходим к проверке сообщения типа auth');
+    //console.log('handleAuth - Request - ', data);
   switch (data.request) {
     case 'login':
         console.log('handleAuth - Request - login');

@@ -190,7 +190,7 @@ ws.on('message', async (message) => {
      
       try {
         const checkInputMessage = checkMessage(message);
-        //console.log('-- 126 -- checkInputMessage - ', checkInputMessage.data);
+        console.log('-- 193 -- WSSNodeRED - checkInputMessage - ', checkInputMessage.data);
         if(checkInputMessage.status === 'ok') {
 
           const clientId = checkInputMessage.data.name;
@@ -205,9 +205,9 @@ ws.on('message', async (message) => {
                           return;
                       }
                       // Регистрация соединения
-                      console.log('--205 -- serverapp.js - Регистрация соединения', connectionType);
+                      //console.log('--205 -- serverapp.js - Регистрация соединения', connectionType);
                       registerClient(clientId, ws, connectionType);
-                      console.log('Список всех зарегистрированных клинтов:', getAllClients());
+                      //console.log('Список всех зарегистрированных клинтов:', getAllClients());
                   }
                   const wsClient = getClient(clientId, connectionType);
                   if (!wsClient) {
@@ -232,7 +232,8 @@ ws.on('message', async (message) => {
                   }
                   
                   //await triggerQueueProcessing(); // Немедленный запуск обработки
-              break
+              break;
+s
             default:
               break;
           }
@@ -265,22 +266,41 @@ WSSDash.on('connection', (ws) => {
   });
 
   ws.on('message', (message) => {
-      console.log (`WSSDash получено сообщение ${message}`);
-
-      sendToRed = true;
-      // Передача сообщения на WSSDash
-      WSSNodeRED.clients.forEach((client) => {
-        if (client.readyState === WebSocket.OPEN && sendToRed === true) {
-            client.send(message, (error) => {
-                if (error) {
-                    console.error('Ошибка пересылки сообщения c Dashboard на NodeRED :', error);
-                } else {
-                    console.info(`На порт ${wsRedPORT} от Server  к NodeRED  отправлено сообщение: ${message}`);
-                }
-
-            });
+      //console.log (`WSSDash получено сообщение ${message}`);
+      try {
+        const dashData = checkMessage(message);
+        console.log('-- 280 -- WSSDash - checkInputMessage - ', dashData.data);
+        if(dashData.status === 'ok') {
+          //console.log('-- 282 -- WSSDash - checkInputMessage - OK ');
+                    switch (dashData.data.type) {
+            case 'auth':
+                const auth = dashData.data.payload;
+                //console.log('-- auth --', auth);
+                handleAuth(ws, dashData.data);
+                break;
+            default:
+              break;
+          }
         }
-    });
+      } catch (error) {
+        console.error('-- 298 -- Error  -- checkInputMessage -', error);
+      }
+
+
+    //   sendToRed = true;
+    //   // Передача сообщения на WSSNodeRED
+    //   WSSNodeRED.clients.forEach((client) => {
+    //     if (client.readyState === WebSocket.OPEN && sendToRed === true) {
+    //         client.send(message, (error) => {
+    //             if (error) {
+    //                 console.error('Ошибка пересылки сообщения c Dashboard на NodeRED :', error);
+    //             } else {
+    //                 console.info(`На порт ${wsRedPORT} от Server  к NodeRED  отправлено сообщение: ${message}`);
+    //             }
+
+    //         });
+    //     }
+    // });
   });
 
   ws.on('error', (error) => {
@@ -329,7 +349,7 @@ function sendToClient(dID, data) {
         if (error) {
           console.error('Ошибка отправки сообщения на Dashboard:', error);
         } else {
-          console.log(`Сообщение отправлено на Dashboard: ${messageString}`);
+          //console.log(`Сообщение отправлено на Dashboard: ${messageString}`);
         }
       });
     }

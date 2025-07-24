@@ -25,7 +25,7 @@ function addMessageToQueue(clientId, message) {
       retryCount: 0,
       lastAttempt: 0
     });
-    console.log(`📬 Сообщение добавлено в очередь для ${clientId}. Ключ: ${key}`);
+    //console.log(`📬 Сообщение добавлено в очередь для ${clientId}. Ключ: ${key}`);
   } else {
     console.log(`⚠️ Сообщение уже в очереди. ${clientId} Ключ: ${key}`);
   }

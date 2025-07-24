@@ -19,6 +19,7 @@ const secret = process.env.JWT_SECRET || 'default-secret-key';
  * @returns {Object} - Данные пользователя и токен
  */
 const loginUser = async (username, password) => {
+  console.log('-- auth -- loginUser - проверяем пользователя --', username, 'с паролем --', password);
   try {
     const user = await DBManager.findUser(username);
     

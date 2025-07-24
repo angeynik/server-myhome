@@ -20,7 +20,7 @@ const { nodeRedClients } = require('./clientsStore');
   }
   function sendSuccess(clientId, requestType, name, payload) {
     const client = nodeRedClients.get(clientId);
-    //console.log('sendSuccess - Переходим к отправке ответа');
+    console.log('sendSuccess - Переходим к отправке ответа');
     if (client && client.output) {
       console.log('sendSuccess - clientID:', clientId, 'output:', client.output);
       const response = {

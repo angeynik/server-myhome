@@ -409,6 +409,7 @@ class DBManager {
       }
 
       async findUser(username) {
+        console.log(`Поиск пользователя ${username}...`);
         try {
           const queryText = `
             SELECT 
