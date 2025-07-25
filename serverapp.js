@@ -324,13 +324,10 @@ console.log(`WebSocket servers are running on nodeRed ws port:${wsRedPORT} and D
 function sendToClient(dID, data) {
   console.log('sendToClient: dID =', dID, 'data =', data);
   
-  // Создаем копию данных с добавлением dID
-  const dataWithDID = {
-    ...data,
-    dID: dID
-  };
+  data.time = new Date().toString();
+  //console.log(data.time);
   
-  const messageString = JSON.stringify(dataWithDID);
+  const messageString = JSON.stringify(data);
 
   // Проверка готовности клиентов
   let hasOpenClients = false;

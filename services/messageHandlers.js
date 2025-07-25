@@ -373,7 +373,7 @@ const handleResponse = async (clientId, data) => {
                     //continue;
                 };
                   // 3. Создание новой записи
-                  const currentDate = new Date().toString();
+                  const currentDate = new Date().toISOString();
                   const result = await DBManager.query(
                       `INSERT INTO config (name, file, update_date)
                        VALUES ($1, $2, $3)
