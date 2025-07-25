@@ -3,58 +3,68 @@
     "title": "",
     "dID": "angey_bmax"
   },
-  "room02": {
+  "room05": {
     "id": 0,
+    "title": "Гостинная",
+    "group": "",
+    "sensors": {
+      "dHum5": {
+        "value": "30.3",
+        "lastUpdate": "2025-07-25T09:47:21.062Z"
+      },
+      "dTemp5": {
+        "value": "24.8",
+        "lastUpdate": "2025-07-25T09:47:36.064Z"
+      },
+      "dTemp7": {
+        "value": "13.6",
+        "lastUpdate": "2025-07-25T09:48:38.689Z"
+      }
+    },
+    "actuators": {},
+    "setpoints": {}
+  },
+  "room02": {
+    "id": 1,
     "title": "Спальня",
     "group": "Родители",
     "sensors": {
-      "dHum2": "26.8",
-      "dTemp2": "24.6"
+      "dTemp2": {
+        "value": "24.7",
+        "lastUpdate": "2025-07-25T09:47:21.067Z"
+      },
+      "dHum2": {
+        "value": "27.1",
+        "lastUpdate": "2025-07-25T09:48:08.687Z"
+      }
     },
-    "time": {
-      "dHum2_time": 1753361385607,
-      "dTemp2_time": 1753361340595
-    },
-    "actuators": {}
-  },
-  "room05": {
-    "id": 1,
-    "title": "Спальня Леша",
-    "group": "",
-    "sensors": {
-      "dTemp7": "13.3",
-      "dTemp5": "24.8",
-      "dHum5": "30.2"
-    },
-    "time": {
-      "dTemp7_time": 1753361340596,
-      "dTemp5_time": 1753361385600,
-      "dHum5_time": 1753361340597
-    },
-    "actuators": {}
+    "actuators": {},
+    "setpoints": {}
   },
   "room06": {
     "id": 2,
     "title": "Кухня",
     "group": "",
     "sensors": {
-      "dTemp6": "23.3"
+      "dTemp6": {
+        "value": "22.9",
+        "lastUpdate": "2025-07-25T09:47:36.063Z"
+      }
     },
-    "time": {
-      "dTemp6_time": 1753361385606
-    },
-    "actuators": {}
+    "actuators": {},
+    "setpoints": {}
   },
   "room07": {
     "id": 3,
     "title": "Спальня Миша",
     "group": "",
     "sensors": {
-      "dTemp7": "20.4"
+      "dTemp7": {
+        "value": "20.3",
+        "lastUpdate": "2025-07-25T09:47:53.686Z"
+      }
     },
-    "time": {
-      "dTemp7_time": 1753361385604
-    },
-    "actuators": {}
+    "actuators": {},
+    "setpoints": {}
   }
 }

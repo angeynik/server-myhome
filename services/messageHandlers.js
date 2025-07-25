@@ -22,9 +22,6 @@ function getValue(value) {
 
 async function handlePostNodeRED(clientId, message) {
     const { name, payload = {} } = message;
-    // const dataDir = process.env.DATA_DIR || './configData';
-    // const filePath = path.join(dataDir, `${name}.json`);
-    // console.log('Проверяем переменные dataDir - ', dataDir, ' и filePath - ',filePath);
 
     // Извлекаем значения из payload
     const room = getValue(payload.room);
@@ -50,14 +47,18 @@ async function handlePostNodeRED(clientId, message) {
                 title: title || `Комната-${room}`,
                 group: group || '',
                 sensors: {},
-                time: {},
-                actuators: {}
+                actuators: {},
+                setpoints: {}
             };
         }
 
         // Обновляем сенсор и временную метку
-        data[room].sensors[item_name] = item_value;
-        data[room].time[`${item_name}_time`] = Date.now();
+        if (!data[room].sensors[item_name]) {
+            data[room].sensors[item_name] = {
+                value: item_value,
+                lastUpdate: new Date().toString()
+            };
+        }
 
         // Сохранение данных
         const dataString = JSON.stringify(data, null, 2);
@@ -323,15 +324,6 @@ const handlePost = async (ws, data) => {
         }
     break;
 
-
-    case 'config':
-        console.log('handlePost - Request - config');
-        try {
-          
-        } catch (error) {
-          
-        }
-    break;
     case 'sensors':
         console.log('handlePost - Request - sensor');
         try {
@@ -381,7 +373,7 @@ const handleResponse = async (clientId, data) => {
                     //continue;
                 };
                   // 3. Создание новой записи
-                  const currentDate = new Date().toISOString();
+                  const currentDate = new Date().toString();
                   const result = await DBManager.query(
                       `INSERT INTO config (name, file, update_date)
                        VALUES ($1, $2, $3)
