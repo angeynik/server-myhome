@@ -272,7 +272,7 @@ WSSDash.on('connection', (ws) => {
         console.log('-- 272 -- WSSDash - checkInputMessage - ', dashData.data);
         if(dashData.status === 'ok') {
           //console.log('-- 282 -- WSSDash - checkInputMessage - OK ');
-                    switch (dashData.data.type) {
+          switch (dashData.data.type) {
             case 'auth':
                 const auth = dashData.data.payload;
                 //console.log('-- auth --', auth);

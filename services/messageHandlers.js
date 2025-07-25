@@ -148,9 +148,9 @@ const handleGet = async (ws, data) => {
 
     case 'config':
       try {
-        const { configName, requestId } = data.payload;
+        //const { configName, requestId } = data.payload;
         const { name } = data;
-        console.log('handleGet - Request - config -- configName - ', configName, 'requestId - ', requestId, 'dID - ', name);
+        console.log('handleGet - Request - config -- dID - ', name);
         if (!name) {
           throw new Error('Не указано имя конфига в запросе');
         }
@@ -165,12 +165,11 @@ const handleGet = async (ws, data) => {
         console.log(`[CONFIG] Sending config to ${name}`);
         sendSuccess(ws, 'config', name, configData.data);
 
-        console.log(`Конфиг ${configName} успешно отправлен`);
+        console.log(`Конфиг ${name} успешно отправлен`);
     
       } catch (error) {
         console.error('Ошибка получения конфига:', error);
         sendError(ws, 'configError', dID, {
-          requestId: data.payload?.requestId,
           message: error.message,
           code: error.code || 'config_read_error'
         });
