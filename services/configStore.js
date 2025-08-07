@@ -17,7 +17,7 @@ async function ensureDataDir() {
     } catch (err) {
         if (err.code === 'ENOENT') {
             await fs.mkdir(dataDir, { recursive: true });
-            console.log(`📂 Создана директория: ${dataDir}`);
+            console.log(`[ConfigStore] - 📂 Создана директория: ${dataDir}`);
         } else {
             throw err;
         }
@@ -77,7 +77,7 @@ async function readFileSafely(dID) {
             fileCache.set(filePath, initData);
             return initData;
         } else if (error instanceof SyntaxError) {
-            console.error(`Ошибка парсинга файла ${filePath}:`, error);
+            console.error(`[ConfigStore] - Ошибка парсинга файла ${filePath}:`, error);
             const initData = { init: { title: "", dID } };
             fileCache.set(filePath, initData);
             return {initData, dataDir, filePath};

@@ -5,14 +5,14 @@ const WebSocket = require('ws');
 const nodeRedClients = new Map();
 
 function registerClient(clientId, ws, connectionType) {
-  console.log( '--9-- clientStore - registerClient - Начинаем регистрацию');
+  console.log( '[clientStore] - registerClient - Начинаем регистрацию');
   if (!['input', 'output'].includes(connectionType)) {
     throw new TypeError(`registerClient: invalid connectionType "${connectionType}"`);
   }
 
   // Получаем или создаём контейнер
   const client = nodeRedClients.get(clientId) || { input: null, output: null, meta: {} };
-  //console.log( '-- 16 -- clientStore - registerClient - Получили client'); 
+  //console.log( '[clientStore] - - registerClient - Получили client'); 
 
   // Метаданные для отладки
   client.meta = {
@@ -37,7 +37,7 @@ function registerClient(clientId, ws, connectionType) {
   client[connectionType] = ws;
   nodeRedClients.set(clientId, client);
 
-  console.log(`registerClient — ${connectionType} для ${clientId} зарегистрирован.`);
+  console.log(`[clientStore] - registerClient — ${connectionType} для ${clientId} зарегистрирован.`);
 }
 
 /**
@@ -63,10 +63,10 @@ function cleanupConnection(clientId, connectionType) {
   // Если оба канала закрыты — полностью удаляем клиента
   if (!client.input && !client.output) {
     nodeRedClients.delete(clientId);
-    console.log(`🗑 cleanup — client ${clientId} removed`);
+    console.log(`[clientStore] - 🗑 cleanup — client ${clientId} removed`);
   } else {
     nodeRedClients.set(clientId, client);
-    console.log(`🔄 cleanup — ${connectionType} of ${clientId} set to null`);
+    console.log(`[clientStore] - 🔄 cleanup — ${connectionType} of ${clientId} set to null`);
   }
 }
 
@@ -90,7 +90,7 @@ function startHeartbeat(interval, timeOut) {
 
           // Проверяем, не провалился ли предыдущий PONG
           if (!ws.isAlive || calcTimeOut > timeOut) {
-            console.warn(`💀 heartbeat — ${clientId}/${type} dead, cleaning up`);
+            console.warn(`[clientStore] - 💀 heartbeat — ${clientId}/${type} dead, cleaning up`);
             cleanupConnection(clientId, type);
             return;
           }
@@ -104,19 +104,19 @@ function startHeartbeat(interval, timeOut) {
           try {
             ws.ping(null, false, (err) => {
               if (err) {
-                console.error(`Ping error for ${clientId}/${type}:`, err);
+                console.error(`[clientStore] - Ping error for ${clientId}/${type}:`, err);
                 cleanupConnection(clientId, type);
               }
             });
           } catch (error) {
-            console.error(`Ping failed for ${clientId}/${type}:`, error);
+            console.error(`[clientStore] - Ping failed for ${clientId}/${type}:`, error);
             cleanupConnection(clientId, type);
           }
 
       });
     });
   } catch (err) {
-    console.error('🔥 Heartbeat error:', err);
+    console.error('[clientStore] - 🔥 Heartbeat error:', err);
   }
   }, interval).unref(); // .unref(), чтобы таймер не держал процесс
 }

@@ -9,7 +9,7 @@ const { nodeRedClients } = require('./clientsStore');
         payload: payload
       };
       client.output.send(JSON.stringify(response));
-      console.log('sendRequest - Запрос отправлен:', JSON.stringify(response));
+      console.log('[wsHelpers] - sendRequest - Запрос отправлен:', JSON.stringify(response));
   }
   function sendSuccess(client, requestType, name, payload) {
       const response = {
@@ -19,7 +19,7 @@ const { nodeRedClients } = require('./clientsStore');
       payload: payload
     };
     client.send(JSON.stringify(response));
-    console.log('Отправлен успешный ответ:', JSON.stringify(response.type));
+    console.log('[wsHelpers] - sendSuccess - Отправлен успешный ответ:', JSON.stringify(response.type));
 
   }
   function sendError(client, errorType, name, payload) {
@@ -30,7 +30,7 @@ const { nodeRedClients } = require('./clientsStore');
       payload: payload
     };
     client.send(JSON.stringify(errorResponse));
-    console.log('Отправлена ошибка:', JSON.stringify(errorResponse));
+    console.log('[wsHelpers] - sendError - Отправлена ошибка:', JSON.stringify(errorResponse));
   }
   module.exports = {
     sendSuccess,

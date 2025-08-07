@@ -66,18 +66,18 @@ async function handlePostNodeRED(clientId, message) {
         // Сохранение данных
         const dataString = JSON.stringify(data, null, 2);
         await writeFileSafely(filePath, dataString);
-        //console.log(`✅ Данные успешно обновлены в ${filePath}`);
-        //console.log('Содержимое файла:', dataString);
+        //console.log(`[messageHandlers] - ✅ Данные успешно обновлены в ${filePath}`);
+        //console.log('[messageHandlers] - Содержимое файла:', dataString);
         return 'ok';
     } catch (err) {
-        console.error(`Ошибка при работе с файлом ${filePath}:`, err);
+        console.error(`[messageHandlers] - Ошибка при работе с файлом ${filePath}:`, err);
         return 'error';
     }
 };
 
 
 const handleAuth = async (ws, data) => {
-    console.log('handleAuth - messageHandlers - Переходим к проверке сообщения типа auth');
+    console.log('[messageHandlers] - handleAuth Переходим к проверке сообщения типа auth');
     //console.log('handleAuth - Request - ', data);
   switch (data.request) {
     case 'login':
@@ -118,7 +118,7 @@ const handleAuth = async (ws, data) => {
 };
 
 const handleGet = async (ws, data) => {
-    console.log('handleGet - messageHandlers - Переходим к проверке сообщения типа get');
+    console.log('[messageHandlers] - handleGet - Переходим к проверке сообщения типа get');
     const dID = data.name;
   switch (data.request) {
     case 'fetchUsers':
@@ -154,25 +154,25 @@ const handleGet = async (ws, data) => {
       try {
         //const { configName, requestId } = data.payload;
         const { name } = data;
-        console.log('handleGet - Request - config -- dID - ', name);
+        console.log('[messageHandlers] - handleGet - Request - config -- dID - ', name);
         if (!name) {
-          throw new Error('Не указано имя конфига в запросе');
+          throw new Error('[messageHandlers] - Не указано имя конфига в запросе');
         }
     
         // Читаем конфиг
         const configData = await readFileSafely(name);
         
         if (!configData) {
-          throw new Error('Failed to read configuration file');
+          throw new Error('[messageHandlers] - Failed to read configuration file');
         }
        
-        console.log(`[CONFIG] Sending config to ${name}`);
+        console.log(`[messageHandlers] -  Sending config to ${name}`);
         sendSuccess(ws, 'config', name, configData.data);
 
-        console.log(`Конфиг ${name} успешно отправлен`);
+        console.log(`[messageHandlers] - Конфиг ${name} успешно отправлен`);
     
       } catch (error) {
-        console.error('Ошибка получения конфига:', error);
+        console.error('[messageHandlers] - Ошибка получения конфига:', error);
         sendError(ws, 'configError', dID, {
           message: error.message,
           code: error.code || 'config_read_error'
@@ -185,7 +185,7 @@ const handleGet = async (ws, data) => {
 };
 
 const handlePost = async (ws, data) => {
-    console.log('handlePost - Переходим к проверке сообщения типа post, request - ', data.request);
+    console.log('[messageHandlers] - handlePost - Переходим к проверке сообщения типа post, request - ', data.request);
   switch (data.request) {
     case 'createUser':
         console.log('handlePost - Request - createUser');
@@ -328,9 +328,9 @@ const handlePost = async (ws, data) => {
     break;
 
     case 'sensors':
-        console.log('handlePost - Request - sensor');
+        console.log('[messageHandlers] - handlePost - Request - sensor');
         try {
-          //console.log('Получены данные:', data);
+          //console.log('[messageHandlers] - Получены данные:', data);
         } catch (error) {
           
         }
@@ -341,20 +341,20 @@ const handlePost = async (ws, data) => {
 };
 
 const handleResponse = async (clientId, data) => {
-    console.log('Переходим к проверке сообщения типа response.');
+    console.log('[messageHandlers] - handleResponse - Переходим к проверке сообщения типа response.');
     const client = nodeRedClients.get(clientId);
     switch (data.request) {
         case 'config':
           try {
-            //console.log('handleResponse - Request - config', data);
+            //console.log('[messageHandlers] - handleResponse - Request - config', data);
             if (data.payload) {
               const dID = data.name;
               const configName = Object.keys(data.payload)[0];
               const configData = data.payload[configName];
 
-              console.log('Config ID:', dID);
-              console.log('Config Name:', configName);
-              //console.log('Config Data:', configData);
+              console.log('[messageHandlers] - Config ID:', dID);
+              console.log('[messageHandlers] - Config Name:', configName);
+              //console.log('[messageHandlers] - Config Data:', configData);
 
                   // 1. Проверка существования конфига
                   const checkResult = await DBManager.checkRecordExists(
@@ -396,14 +396,14 @@ const handleResponse = async (clientId, data) => {
                     }
                 });
 
-                console.log(`Конфиг ${configName} сохранен в БД ${dID}`);
+                console.log(`[messageHandlers] - Конфиг ${configName} сохранен в БД ${dID}`);
 
           } else {
-              console.error('Invalid data structure');
+              console.error('[messageHandlers] - Invalid data structure');
           }
 
           } catch (error) {
-            console.error('Ошибка обработки конфига:', error);
+            console.error('[messageHandlers] - Ошибка обработки конфига:', error);
             sendError(client.output, 'configError', data.name, {
                 message: error.message,
                 code: error.code || 'DB_ERROR'
@@ -415,10 +415,10 @@ const handleResponse = async (clientId, data) => {
     }
 };
 const handleSet = async (clientId, data) => {
-    console.log('Переходим к проверке сообщения типа set.');
+    console.log('[messageHandlers] - Переходим к проверке сообщения типа set.');
 };
 const handleError = async (clientId, data) => {
-    console.log('Переходим к проверке сообщения типа Error');
+    console.log('[messageHandlers] - Переходим к проверке сообщения типа Error');
 };
 
 module.exports = {

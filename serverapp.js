@@ -42,20 +42,20 @@ app.use(bodyParser.json());
 // Инициализация сервера
 const initialize = async () => {
   const envInit = process.env.INIT_DB;
-  console.log('envInit - ', envInit);
+  console.log('[Serverapp] - envInit - ', envInit);
   if (envInit === 'TRUE') {
-    console.log('Переходим к инициализация сервера разрешена', envInit);
+    console.log('[Serverapp] - Переходим к инициализация сервера разрешена', envInit);
     try {
       await initServer(); // Выполняем инициализацию
       await initUsers(); // Проверяем существование таблицы Users
       await initDefaulUser();  // Проверяем наличие пользователя по умолчанию
       await initDB_dID(); // Проверяем есть ли база для пользователя по умолчанию Имя для базы - DEFAULT_USER_DID 
-      console.log('Инициализация сервера завершена успешно.');
+      console.log('[Serverapp] - Инициализация сервера завершена успешно.');
     } catch (error) {
-      console.error('Ошибка при инициализации сервера:', error);
+      console.error('[Serverapp] - Ошибка при инициализации сервера:', error);
     }
   } else {
-    console.log('Инициализация сервера запрещена INIT_DB - ', envInit);
+    console.log('[Serverapp] - Инициализация сервера запрещена INIT_DB - ', envInit);
   }
 
 
@@ -64,7 +64,7 @@ initialize(); // Выполняем инициализацию сервера
 
   // Запуск сервера
   server.listen(servPORT, () => {
-    console.log(`MyHome Server is running on port ${servPORT}`);
+    console.log(`[Serverapp] - MyHome Server is running on port ${servPORT}`);
   });
 
   // Корректное завершение работы сервера и закрытие соединения с базой данных //////////////////////////////////////////////////////
@@ -168,11 +168,11 @@ const WSSDash = new WebSocket.Server ({port:wsDashPORT});
 const QUEUE_PROCESS_INTERVAL = 15000;
 setInterval(async () => {
   try {
-    //console.log('Выводим список всех сообщений в очереди:');
+    //console.log('[Serverapp] - Выводим список всех сообщений в очереди:');
     //getAllQueueMessages();
     await processAllQueues();
   } catch (error) {
-    console.error('Ошибка обработки очереди:', error);
+    console.error('[Serverapp] - Ошибка обработки очереди:', error);
   }
 }, QUEUE_PROCESS_INTERVAL).unref();
 
@@ -217,18 +217,18 @@ ws.on('message', async (message) => {
 
               break;
             case 'post':
-                  //console.log('-- Post -- Добавляем сообщение в очередь');
+                  //console.log('[Serverapp] - -- Post -- Добавляем сообщение в очередь');
                   const key = `${checkInputMessage.data.type}|
                   ${checkInputMessage.data.name}|
                   ${checkInputMessage.data.request}|
                   ${checkInputMessage.data.payload.room}|
                   ${checkInputMessage.data.payload.item_name}`;
-                  //console.log('Ключ:', key);
+                  //console.log('[Serverapp] - Ключ:', key);
                   addMessageToQueue(clientId, checkInputMessage.data);
                   try {
                     sendToClient(clientId, checkInputMessage.data);
                   } catch (error) {
-                    console.log('--233-- Ошибка отправки полученного сообщения от NodeRED  клиенту WSSDash:', error);
+                    console.log('[Serverapp] -  Ошибка отправки полученного сообщения от NodeRED  клиенту WSSDash:', error);
                   }
                   
                   //await triggerQueueProcessing(); // Немедленный запуск обработки
@@ -240,16 +240,16 @@ s
 
         }
       } catch (error) {
-        console.error('-- 239 -- Error  -- checkInputMessage -', error);
+        console.error('[Serverapp] - Error  -- checkInputMessage -', error);
       }
 });
 
 ws.on('close', () => {
-  console.log('WebSocket connection closed');
+  console.log('[Serverapp] - WebSocket connection closed');
 });
 
 ws.on('error', (error) => {
-  console.error(`WebSocket error: ${error.message}`);
+  console.error(`[Serverapp] - WebSocket error: ${error.message}`);
 });
 });
 
@@ -266,20 +266,20 @@ WSSDash.on('connection', (ws) => {
   });
 
   ws.on('message', (message) => {
-      //console.log (`WSSDash получено сообщение ${message}`);
+      //console.log (`[Serverapp] - WSSDash получено сообщение ${message}`);
       try {
         const dashData = checkMessage(message);
-        console.log('-- 272 -- WSSDash - checkInputMessage - ', dashData.data);
+        console.log('[Serverapp] - WSSDash - checkInputMessage - ', dashData.data);
         if(dashData.status === 'ok') {
-          //console.log('-- 282 -- WSSDash - checkInputMessage - OK ');
+          //console.log('[Serverapp] -  WSSDash - checkInputMessage - OK ');
           switch (dashData.data.type) {
             case 'auth':
                 const auth = dashData.data.payload;
-                //console.log('-- auth --', auth);
+                //console.log('[Serverapp] - -- auth --', auth);
                 handleAuth(ws, dashData.data);
                 break;
                 case 'get': // Используем строку 'get' для сравнения
-                //console.log('WSSDash - Переходим к проверке сообщения типа get.');
+                //console.log('[Serverapp] - WSSDash - Переходим к проверке сообщения типа get.');
                 handleGet(ws, dashData.data);
                 break;
             default:
@@ -287,7 +287,7 @@ WSSDash.on('connection', (ws) => {
           }
         }
       } catch (error) {
-        console.error('-- 298 -- Error  -- checkInputMessage -', error);
+        console.error('-[Serverapp] -  Error  -- checkInputMessage -', error);
       }
 
 
@@ -308,11 +308,11 @@ WSSDash.on('connection', (ws) => {
   });
 
   ws.on('error', (error) => {
-      console.error('WebSocket error on Dashboard:', error);
+      console.error('[Serverapp] - WebSocket error on Dashboard:', error);
   });
 
   ws.on('close', () => {
-      console.info('Dash WebSocket connection closed');
+      console.info('[Serverapp] - Dash WebSocket connection closed');
   });
 });
 
@@ -322,24 +322,24 @@ console.log(`WebSocket servers are running on nodeRed ws port:${wsRedPORT} and D
 
 
 function sendToClient(dID, data) {
-  console.log('sendToClient: dID =', dID, 'data =', data);
+  console.log('[Serverapp] - sendToClient: dID =', dID, 'data =', data);
   
   data.time = new Date().toString();
-  //console.log(data.time);
+  //console.log('[Serverapp] - sendToClient: data.time =', data.time);
   
   const messageString = JSON.stringify(data);
 
   // Проверка готовности клиентов
   let hasOpenClients = false;
   WSSDash.clients.forEach((client) => {
-    console.log(`Состояние клиента Dashboard: ${client.readyState} (${client.readyState === WebSocket.OPEN ? 'открыт' : 'не открыт'})`);
+    console.log(`[Serverapp] - Состояние клиента Dashboard: ${client.readyState} (${client.readyState === WebSocket.OPEN ? 'открыт' : 'не открыт'})`);
     if (client.readyState === WebSocket.OPEN) {
       hasOpenClients = true;
     }
   });
 
   if (!hasOpenClients) {
-    console.log('Нет подключенных клиентов Dashboard в состоянии OPEN.');
+    console.log('[Serverapp] - Нет подключенных клиентов Dashboard в состоянии OPEN.');
     return;
   }
 
@@ -348,9 +348,9 @@ function sendToClient(dID, data) {
     if (client.readyState === WebSocket.OPEN) {
       client.send(messageString, (error) => {
         if (error) {
-          console.error('Ошибка отправки сообщения на Dashboard:', error);
+          console.error('[Serverapp] - Ошибка отправки сообщения на Dashboard:', error);
         } else {
-          //console.log(`Сообщение отправлено на Dashboard: ${messageString}`);
+          //console.log(`[Serverapp] - Сообщение отправлено на Dashboard: ${messageString}`);
         }
       });
     }
@@ -378,8 +378,8 @@ function checkMessage(message) {
 // Работа с GPIO
 const deviceName = process.env.DEVICE_NAME;
 const manageDoor = process.env.MANAGE_DOOR === 'true'; // Преобразуем значение в boolean
-// console.log('deviceName:', deviceName);
-// console.log('MANAGE_DOOR:', manageDoor);
+// console.log('[Serverapp] - deviceName:', deviceName);
+// console.log('[Serverapp] - MANAGE_DOOR:', manageDoor);
 
 const GpioManager = require('./gpio.js');
 
