@@ -168,7 +168,7 @@ const WSSDash = new WebSocket.Server ({port:wsDashPORT});
 const QUEUE_PROCESS_INTERVAL = 15000;
 setInterval(async () => {
   try {
-    console.log('Выводим список всех сообщений в очереди:');
+    //console.log('Выводим список всех сообщений в очереди:');
     //getAllQueueMessages();
     await processAllQueues();
   } catch (error) {
@@ -228,7 +228,7 @@ ws.on('message', async (message) => {
                   try {
                     sendToClient(clientId, checkInputMessage.data);
                   } catch (error) {
-                    console.log('--233-- Ошибка добавления отправки полученного сообщения от NodeRED  клиенту WSSDash:', error);
+                    console.log('--233-- Ошибка отправки полученного сообщения от NodeRED  клиенту WSSDash:', error);
                   }
                   
                   //await triggerQueueProcessing(); // Немедленный запуск обработки

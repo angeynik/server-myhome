@@ -52,7 +52,7 @@ async function processClientQueue(clientId) {
     clientLocks.set(clientId, true); // Блокируем клиента
     const clientQueue = messageQueue.get(clientId);
     const processedKeys = [];
-    const now = Date.now();
+    const now = Date().toString();
     
     try {
         for (const [key, entry] of clientQueue.entries()) {

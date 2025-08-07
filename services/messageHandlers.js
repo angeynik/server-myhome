@@ -13,6 +13,7 @@ const { loginUser, verifyToken } = require('../auth'); // Импортируем
 const { writeFileSafely, readFileSafely  } = require('./configStore');
 const { nodeRedClients  } = require('./clientsStore');
 const { sendSuccess, sendError, sendRequest} = require('./wsHelpers');
+const { type } = require('os');
 // Получаем список имен конфигов из переменной окружения
 const configNames = JSON.parse(process.env.DB_CONFIG_NAMES || '[]');
 
@@ -24,11 +25,12 @@ async function handlePostNodeRED(clientId, message) {
     const { name, payload = {} } = message;
 
     // Извлекаем значения из payload
-    const room = getValue(payload.room);
-    const item_name = getValue(payload.item_name);
-    const item_value = getValue(payload.item_value);
-    const title = getValue(payload.title);
-    const group = getValue(payload.group);
+    const room = getValue(payload?.room);
+    const item_name = getValue(payload?.item_name);
+    const item_value = getValue(payload?.item_value);
+    const item_type = getValue(payload?.item_type);
+    const title = getValue(payload?.title);
+    const group = getValue(payload?.group);
 
     // Проверка обязательных полей (раскомментировать)
     if (!room || !item_name || item_value === undefined) {
@@ -56,6 +58,7 @@ async function handlePostNodeRED(clientId, message) {
         if (!data[room].sensors[item_name]) {
             data[room].sensors[item_name] = {
                 value: item_value,
+                type: item_type,
                 lastUpdate: new Date().toString()
             };
         }
