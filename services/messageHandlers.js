@@ -79,24 +79,21 @@ async function handlePostNodeRED(clientId, message) {
 const handleAuth = async (ws, data) => {
     console.log('[messageHandlers] - handleAuth Переходим к проверке сообщения типа auth');
     //console.log('handleAuth - Request - ', data);
-  switch (data.request) {
+  switch (data?.request) {
     case 'login':
         //console.log('handleAuth - Request - login');
       try {
-        const { username, password } = data.payload;
-        const requestId = data.payload.requestId;
+        const { username, password } = data?.payload;
         const result = await loginUser(username, password);
         //console.log('auth-login Результат проверки:', result);
         if (result.error) {
           sendError(ws, 'loginError', data.name, {
-            requestId,
             code: result.code,
             message: result.error
           });
         } else {
           //console.log('auth-login Успешная проверка отправляем ответ Vue');
           sendSuccess(ws, 'loginSuccess', result.dID, {
-            requestId,
             token: result.token,
             username: result.username,
             userlevel: result.userlevel
@@ -106,7 +103,6 @@ const handleAuth = async (ws, data) => {
         console.error('Необработанная ошибка:', error);
         sendError(ws, 'loginError', data.name, {
           username: data.payload.username,
-          requestId: data.payload?.requestId,
           code: 'UNHANDLED_ERROR',
           message: 'Произошла непредвиденная ошибка'
         });
@@ -120,17 +116,15 @@ const handleAuth = async (ws, data) => {
 const handleGet = async (ws, data) => {
     console.log('[messageHandlers] - handleGet - Переходим к проверке сообщения типа get');
     const dID = data.name;
-  switch (data.request) {
+  switch (data?.request) {
     case 'fetchUsers':
       try {
         const users = await DBManager.fetchUsers();
         sendSuccess(ws, 'fetchUsersSuccess', data.name, {
-          requestId: data.payload.requestId,
           users: users
         });
       } catch (error) {
         sendError(ws, 'fetchUsersError', data.name, {
-          requestId: data.payload.requestId,
           message: error.message
         });
       }
@@ -139,12 +133,10 @@ const handleGet = async (ws, data) => {
       try {
         const dataSources = await DBManager.fetchDataSources();
         sendSuccess(ws, 'fetchDataSourcesSuccess', data.name, {
-          requestId: data.payload.requestId,
           sources: dataSources
         });
       } catch (error) {
         sendError(ws, 'fetchDataSourcesError', data.name, {
-          requestId: data.payload.requestId,
           message: error.message
         });
       }
@@ -152,7 +144,6 @@ const handleGet = async (ws, data) => {
 
     case 'config':
       try {
-        //const { configName, requestId } = data.payload;
         const { name } = data;
         console.log('[messageHandlers] - handleGet - Request - config -- dID - ', name);
         if (!name) {
@@ -161,6 +152,7 @@ const handleGet = async (ws, data) => {
     
         // Читаем конфиг
         const configData = await readFileSafely(name);
+        //console.log('[messageHandlers] - handleGet - configData - ', configData);
         
         if (!configData) {
           throw new Error('[messageHandlers] - Failed to read configuration file');
@@ -186,7 +178,7 @@ const handleGet = async (ws, data) => {
 
 const handlePost = async (ws, data) => {
     console.log('[messageHandlers] - handlePost - Переходим к проверке сообщения типа post, request - ', data.request);
-  switch (data.request) {
+  switch (data?.request) {
     case 'createUser':
         console.log('handlePost - Request - createUser');
       try {
@@ -204,13 +196,11 @@ const handlePost = async (ws, data) => {
           console.log(`Таблицы успешно созданы в базе "${dataSource}".`);
         }
         sendSuccess(ws, 'createUserSuccess', data.name, {
-          requestId: data.payload.requestId,
           user: newUser.user
         });
         return 'ok';
       } catch (error) {
         sendError(ws, 'createUserError', data.name, {
-          requestId: data.payload.requestId,
           message: error.message
         });
       }
@@ -218,26 +208,23 @@ const handlePost = async (ws, data) => {
     case 'linkUserToDataSource':
         console.log('handlePost - Request - linkUserToDataSource');
       try {
-        const { userId, dataSourceId, requestId } = data.payload;
+        const { userId, dataSourceId } = data.payload;
         const linkUser = await tableDB.linkDataSourceToUser(
           userId, dataSourceId, process.env.DB_DATABASE
         );
         
         if (linkUser.error) {
           sendError(ws, 'linkUserToDataSourceError', data.name, {
-            requestId,
             message: linkUser.error
           });
         } else {
           sendSuccess(ws, 'linkUserToDataSourceSuccess', data.name, {
-            requestId,
             message: 'Связь успешно создана',
             linkId: linkUser.id
           });
         }
       } catch (error) {
         sendError(ws, 'linkUserToDataSourceError', data.name, {
-          requestId: data.payload.requestId,
           message: error.message
         });
       }
@@ -343,7 +330,7 @@ const handlePost = async (ws, data) => {
 const handleResponse = async (clientId, data) => {
     console.log('[messageHandlers] - handleResponse - Переходим к проверке сообщения типа response.');
     const client = nodeRedClients.get(clientId);
-    switch (data.request) {
+    switch (data?.request) {
         case 'config':
           try {
             //console.log('[messageHandlers] - handleResponse - Request - config', data);

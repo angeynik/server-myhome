@@ -64,7 +64,7 @@ async function processClientQueue(clientId) {
             
             try {
                 let result = 'error';
-                switch (entry.message.type) {
+                switch (entry?.message?.type) {
                     case 'post':
                         result = await handlePostNodeRED(clientId, entry.message);
                         break;

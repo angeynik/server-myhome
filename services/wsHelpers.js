@@ -19,8 +19,8 @@ const { nodeRedClients } = require('./clientsStore');
       payload: payload
     };
     client.send(JSON.stringify(response));
-    console.log('[wsHelpers] - sendSuccess - Отправлен успешный ответ:', JSON.stringify(response.type));
-
+    console.log('[wsHelpers] - sendSuccess - Отправлен успешный ответ:', JSON.stringify({type:response.type, request:response.request, dID:response.name}));
+    //console.log('[wsHelpers] - sendSuccess - Payload:', JSON.stringify({ payload:response.payload}));
   }
   function sendError(client, errorType, name, payload) {
       const errorResponse = {

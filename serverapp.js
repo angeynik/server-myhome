@@ -194,7 +194,7 @@ ws.on('message', async (message) => {
         if(checkInputMessage.status === 'ok') {
 
           const clientId = checkInputMessage.data.name;
-          switch (checkInputMessage.data.type) {
+          switch (checkInputMessage?.data?.type) {
             case 'init':
                     const connectionType = checkInputMessage.data.payload.typeConnect;
                   if (checkInputMessage.data.request === 'init_ws') {
@@ -269,10 +269,10 @@ WSSDash.on('connection', (ws) => {
       //console.log (`[Serverapp] - WSSDash получено сообщение ${message}`);
       try {
         const dashData = checkMessage(message);
-        console.log('[Serverapp] - WSSDash - checkInputMessage - ', dashData.data);
+        //console.log('[Serverapp] - WSSDash - checkInputMessage - ', dashData.data);
         if(dashData.status === 'ok') {
           //console.log('[Serverapp] -  WSSDash - checkInputMessage - OK ');
-          switch (dashData.data.type) {
+          switch (dashData?.data?.type) {
             case 'auth':
                 const auth = dashData.data.payload;
                 //console.log('[Serverapp] - -- auth --', auth);
@@ -366,7 +366,7 @@ function stringToJSON(message) {
 function checkMessage(message) {
   const data = stringToJSON(message); // Преобразуем строку в объект JSON
 
-  //console.log(`-- 360 -- checkMessage получило сообщение: ${message}`);
+  console.log(`[serverApp] - checkMessage получило сообщение: ${message}`);
   const { error } = validType(data);
   if (error) {
     console.log(`Некорректный формат полученного сообщения. ${message} Ошибка: Error validType: ${error.message}`);

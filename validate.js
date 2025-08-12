@@ -2,14 +2,14 @@ const Joi = require('joi');
 
 // Валидация типа сообщения - type
 const schemaType = Joi.object({
-    type: Joi.string().valid('response', 'config', 'post', 'get', 'req', 'set', 'init', 'auth').required(),
+    type: Joi.string().valid('response', 'config', 'post', 'get', 'req', 'set', 'init', 'auth', 'log').required(),
     // Добавьте другие поля, которые должны быть в сообщении
 }).unknown(true); // Позволяет дополнительные поля
   
   function validType(message) {
     const { error, value } = schemaType.validate(message); // Передаем весь объект message
     if (error) {
-      console.log(`Ошибка валидации Type: ${error.message}`);
+      console.log(`Ошибка валидации Type: ${value.type} - ${error.message}`);
       return { error };
     } else {
       console.log('Формат данных корректный - Type:', value.type);
