@@ -11,35 +11,35 @@
       "dLeak1": {
         "value": false,
         "type": "bool",
-        "lastUpdate": "Wed Aug 20 2025 15:16:14 GMT+0300 (Москва, стандартное время)"
+        "lastUpdate": "Wed Aug 20 2025 18:46:41 GMT+0300 (Москва, стандартное время)"
       },
       "dTemp5": {
-        "value": 24.8,
+        "value": 24.9,
         "type": "num",
-        "lastUpdate": "Wed Aug 20 2025 15:16:29 GMT+0300 (Москва, стандартное время)"
+        "lastUpdate": "Wed Aug 20 2025 18:46:26 GMT+0300 (Москва, стандартное время)"
       },
       "dMove4": {
         "value": false,
         "type": "bool",
-        "lastUpdate": "Wed Aug 20 2025 15:15:44 GMT+0300 (Москва, стандартное время)"
+        "lastUpdate": "Wed Aug 20 2025 18:46:56 GMT+0300 (Москва, стандартное время)"
       },
       "dTemp7": {
-        "value": 13.5,
+        "value": 13.6,
         "type": "num",
-        "lastUpdate": "Wed Aug 20 2025 15:15:29 GMT+0300 (Москва, стандартное время)"
+        "lastUpdate": "Wed Aug 20 2025 18:45:56 GMT+0300 (Москва, стандартное время)"
       },
       "dHum5": {
-        "value": 30.1,
+        "value": 30.2,
         "type": "num",
-        "lastUpdate": "Wed Aug 20 2025 15:16:29 GMT+0300 (Москва, стандартное время)"
+        "lastUpdate": "Wed Aug 20 2025 18:46:41 GMT+0300 (Москва, стандартное время)"
       }
     },
     "actuators": {},
     "setpoints": {
       "Temp": {
-        "value": 22,
+        "value": 23,
         "type": "num",
-        "lastUpdate": "Wed Aug 20 2025 15:14:44 GMT+0300 (Москва, стандартное время)"
+        "lastUpdate": "Wed Aug 20 2025 18:46:26 GMT+0300 (Москва, стандартное время)"
       }
     }
   },
@@ -49,23 +49,29 @@
     "group": "Родители",
     "sensors": {
       "dTemp2": {
-        "value": 24.4,
+        "value": 24.6,
         "type": "num",
-        "lastUpdate": "Wed Aug 20 2025 15:16:29 GMT+0300 (Москва, стандартное время)"
+        "lastUpdate": "Wed Aug 20 2025 18:46:26 GMT+0300 (Москва, стандартное время)"
       },
       "dHum2": {
-        "value": 26.8,
+        "value": 27.1,
         "type": "num",
-        "lastUpdate": "Wed Aug 20 2025 15:15:59 GMT+0300 (Москва, стандартное время)"
+        "lastUpdate": "Wed Aug 20 2025 18:46:11 GMT+0300 (Москва, стандартное время)"
       },
       "dMove2": {
         "value": false,
         "type": "bool",
-        "lastUpdate": "Wed Aug 20 2025 15:16:29 GMT+0300 (Москва, стандартное время)"
+        "lastUpdate": "Wed Aug 20 2025 18:46:41 GMT+0300 (Москва, стандартное время)"
       }
     },
     "actuators": {},
-    "setpoints": {}
+    "setpoints": {
+      "Hum": {
+        "value": 39,
+        "type": "num",
+        "lastUpdate": "Wed Aug 20 2025 18:42:41 GMT+0300 (Москва, стандартное время)"
+      }
+    }
   },
   "room03": {
     "id": 2,
@@ -75,7 +81,7 @@
       "dMove1": {
         "value": false,
         "type": "bool",
-        "lastUpdate": "Wed Aug 20 2025 15:15:44 GMT+0300 (Москва, стандартное время)"
+        "lastUpdate": "Wed Aug 20 2025 18:46:41 GMT+0300 (Москва, стандартное время)"
       }
     },
     "actuators": {},
@@ -89,12 +95,12 @@
       "dMove3": {
         "value": false,
         "type": "bool",
-        "lastUpdate": "Wed Aug 20 2025 15:16:29 GMT+0300 (Москва, стандартное время)"
+        "lastUpdate": "Wed Aug 20 2025 18:46:56 GMT+0300 (Москва, стандартное время)"
       },
       "dTemp7": {
         "value": 20.5,
         "type": "num",
-        "lastUpdate": "Wed Aug 20 2025 15:16:29 GMT+0300 (Москва, стандартное время)"
+        "lastUpdate": "Wed Aug 20 2025 18:46:41 GMT+0300 (Москва, стандартное время)"
       }
     },
     "actuators": {},
@@ -108,7 +114,7 @@
       "dHum6": {
         "value": 12.5,
         "type": "num",
-        "lastUpdate": "Wed Aug 20 2025 15:15:14 GMT+0300 (Москва, стандартное время)"
+        "lastUpdate": "Wed Aug 20 2025 18:46:41 GMT+0300 (Москва, стандартное время)"
       }
     },
     "actuators": {},
@@ -116,12 +122,12 @@
       "Temp": {
         "value": 26,
         "type": "num",
-        "lastUpdate": "Wed Aug 20 2025 15:15:14 GMT+0300 (Москва, стандартное время)"
+        "lastUpdate": "Wed Aug 20 2025 18:46:26 GMT+0300 (Москва, стандартное время)"
       },
       "Move": {
         "value": true,
         "type": "bool",
-        "lastUpdate": "Wed Aug 20 2025 15:14:44 GMT+0300 (Москва, стандартное время)"
+        "lastUpdate": "Wed Aug 20 2025 18:41:11 GMT+0300 (Москва, стандартное время)"
       }
     }
   },
@@ -131,9 +137,9 @@
     "group": "",
     "sensors": {
       "dTemp6": {
-        "value": 23.2,
+        "value": 23.1,
         "type": "num",
-        "lastUpdate": "Wed Aug 20 2025 15:16:14 GMT+0300 (Москва, стандартное время)"
+        "lastUpdate": "Wed Aug 20 2025 18:46:26 GMT+0300 (Москва, стандартное время)"
       }
     },
     "actuators": {},
@@ -141,7 +147,7 @@
       "Move": {
         "value": true,
         "type": "bool",
-        "lastUpdate": "Wed Aug 20 2025 15:14:44 GMT+0300 (Москва, стандартное время)"
+        "lastUpdate": "Wed Aug 20 2025 18:41:11 GMT+0300 (Москва, стандартное время)"
       }
     }
   }
