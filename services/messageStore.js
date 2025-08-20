@@ -66,6 +66,7 @@ async function processClientQueue(clientId) {
                 let result = 'error';
                 switch (entry?.message?.type) {
                     case 'post':
+                      //console.log(`--69-- [messageStore] - 📤 Обработка сообщения: ${key}`);
                         result = await handlePostNodeRED(clientId, entry.message);
                         break;
                     default:

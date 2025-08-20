@@ -32,31 +32,6 @@ async function writeFileSafely(filePath, content) {
     fileCache.set(filePath, JSON.parse(content));
 }
 
-// async function readFileSafely(dID) {
-//     await ensureDataDir(); 
-
-//     const filePath = path.join(dataDir, `${dID}.json`);
-//     let data;
-
-//         // Используем кэш или читаем файл
-//         if (fileCache.has(filePath)) {
-//             return fileCache.get(filePath);
-//         } else {
-//             try {
-//                 const fileData = await fs.readFile(filePath, 'utf8');
-//                 data = JSON.parse(fileData);
-//                 fileCache.set(filePath, data);
-//             } catch (error) {
-//                 if (error.code === 'ENOENT') {
-//                     data = { init: { title: "", dID: dID } };
-//                     fileCache.set(filePath, data);
-//                 } else {
-//                     throw (`Ошибка создания файла конфигурации:  ${error}`);
-//                 }
-//             }
-//         }
-//     return data;
-// };
 
 async function readFileSafely(dID) {
     await ensureDataDir(); // Добавлено!

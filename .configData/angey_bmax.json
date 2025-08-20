@@ -3,105 +3,146 @@
     "title": "",
     "dID": "angey_bmax"
   },
-  "room02": {
+  "room05": {
     "id": 0,
+    "title": "Гостинная",
+    "group": "Родители",
+    "sensors": {
+      "dLeak1": {
+        "value": false,
+        "type": "bool",
+        "lastUpdate": "Wed Aug 20 2025 15:16:14 GMT+0300 (Москва, стандартное время)"
+      },
+      "dTemp5": {
+        "value": 24.8,
+        "type": "num",
+        "lastUpdate": "Wed Aug 20 2025 15:16:29 GMT+0300 (Москва, стандартное время)"
+      },
+      "dMove4": {
+        "value": false,
+        "type": "bool",
+        "lastUpdate": "Wed Aug 20 2025 15:15:44 GMT+0300 (Москва, стандартное время)"
+      },
+      "dTemp7": {
+        "value": 13.5,
+        "type": "num",
+        "lastUpdate": "Wed Aug 20 2025 15:15:29 GMT+0300 (Москва, стандартное время)"
+      },
+      "dHum5": {
+        "value": 30.1,
+        "type": "num",
+        "lastUpdate": "Wed Aug 20 2025 15:16:29 GMT+0300 (Москва, стандартное время)"
+      }
+    },
+    "actuators": {},
+    "setpoints": {
+      "Temp": {
+        "value": 22,
+        "type": "num",
+        "lastUpdate": "Wed Aug 20 2025 15:14:44 GMT+0300 (Москва, стандартное время)"
+      }
+    }
+  },
+  "room02": {
+    "id": 1,
     "title": "Спальня",
     "group": "Родители",
     "sensors": {
       "dTemp2": {
-        "value": "24.7",
+        "value": 24.4,
         "type": "num",
-        "lastUpdate": "Thu Aug 07 2025 12:25:02 GMT+0300 (Москва, стандартное время)"
+        "lastUpdate": "Wed Aug 20 2025 15:16:29 GMT+0300 (Москва, стандартное время)"
       },
       "dHum2": {
-        "value": "27.1",
+        "value": 26.8,
         "type": "num",
-        "lastUpdate": "Thu Aug 07 2025 12:25:47 GMT+0300 (Москва, стандартное время)"
+        "lastUpdate": "Wed Aug 20 2025 15:15:59 GMT+0300 (Москва, стандартное время)"
       },
       "dMove2": {
         "value": false,
         "type": "bool",
-        "lastUpdate": "Thu Aug 07 2025 12:26:02 GMT+0300 (Москва, стандартное время)"
+        "lastUpdate": "Wed Aug 20 2025 15:16:29 GMT+0300 (Москва, стандартное время)"
+      }
+    },
+    "actuators": {},
+    "setpoints": {}
+  },
+  "room03": {
+    "id": 2,
+    "title": "Комната-room03",
+    "group": "",
+    "sensors": {
+      "dMove1": {
+        "value": false,
+        "type": "bool",
+        "lastUpdate": "Wed Aug 20 2025 15:15:44 GMT+0300 (Москва, стандартное время)"
       }
     },
     "actuators": {},
     "setpoints": {}
   },
   "room07": {
-    "id": 1,
+    "id": 3,
     "title": "Спальня Миша",
     "group": "Дети",
     "sensors": {
       "dMove3": {
         "value": false,
         "type": "bool",
-        "lastUpdate": "Thu Aug 07 2025 12:25:02 GMT+0300 (Москва, стандартное время)"
+        "lastUpdate": "Wed Aug 20 2025 15:16:29 GMT+0300 (Москва, стандартное время)"
       },
       "dTemp7": {
-        "value": "20.2",
+        "value": 20.5,
         "type": "num",
-        "lastUpdate": "Thu Aug 07 2025 12:26:02 GMT+0300 (Москва, стандартное время)"
+        "lastUpdate": "Wed Aug 20 2025 15:16:29 GMT+0300 (Москва, стандартное время)"
       }
     },
     "actuators": {},
     "setpoints": {}
   },
-  "room05": {
-    "id": 2,
-    "title": "Гостинная",
-    "group": "Родители",
+  "room01": {
+    "id": 4,
+    "title": "Комната-room01",
+    "group": "",
     "sensors": {
-      "dMove4": {
-        "value": false,
-        "type": "bool",
-        "lastUpdate": "Thu Aug 07 2025 12:25:17 GMT+0300 (Москва, стандартное время)"
-      },
-      "dTemp5": {
-        "value": "24.8",
-        "type": "num",
-        "lastUpdate": "Thu Aug 07 2025 12:25:17 GMT+0300 (Москва, стандартное время)"
-      },
-      "dLeak1": {
-        "value": false,
-        "type": "bool",
-        "lastUpdate": "Thu Aug 07 2025 12:25:17 GMT+0300 (Москва, стандартное время)"
-      },
-      "dMove1": {
-        "value": false,
-        "type": "bool",
-        "lastUpdate": "Thu Aug 07 2025 12:25:32 GMT+0300 (Москва, стандартное время)"
-      },
-      "dHum5": {
-        "value": "30.4",
-        "type": "num",
-        "lastUpdate": "Thu Aug 07 2025 12:25:47 GMT+0300 (Москва, стандартное время)"
-      },
       "dHum6": {
-        "value": "12.7",
+        "value": 12.5,
         "type": "num",
-        "lastUpdate": "Thu Aug 07 2025 12:26:47 GMT+0300 (Москва, стандартное время)"
-      },
-      "dTemp7": {
-        "value": "13.4",
-        "type": "num",
-        "lastUpdate": "Thu Aug 07 2025 12:27:32 GMT+0300 (Москва, стандартное время)"
+        "lastUpdate": "Wed Aug 20 2025 15:15:14 GMT+0300 (Москва, стандартное время)"
       }
     },
     "actuators": {},
-    "setpoints": {}
+    "setpoints": {
+      "Temp": {
+        "value": 26,
+        "type": "num",
+        "lastUpdate": "Wed Aug 20 2025 15:15:14 GMT+0300 (Москва, стандартное время)"
+      },
+      "Move": {
+        "value": true,
+        "type": "bool",
+        "lastUpdate": "Wed Aug 20 2025 15:14:44 GMT+0300 (Москва, стандартное время)"
+      }
+    }
   },
   "room06": {
-    "id": 3,
-    "title": "Кухня",
-    "group": "Родители",
+    "id": 5,
+    "title": "Комната-room06",
+    "group": "",
     "sensors": {
       "dTemp6": {
-        "value": "23.0",
+        "value": 23.2,
         "type": "num",
-        "lastUpdate": "Thu Aug 07 2025 12:26:02 GMT+0300 (Москва, стандартное время)"
+        "lastUpdate": "Wed Aug 20 2025 15:16:14 GMT+0300 (Москва, стандартное время)"
       }
     },
     "actuators": {},
-    "setpoints": {}
+    "setpoints": {
+      "Move": {
+        "value": true,
+        "type": "bool",
+        "lastUpdate": "Wed Aug 20 2025 15:14:44 GMT+0300 (Москва, стандартное время)"
+      }
+    }
   }
 }

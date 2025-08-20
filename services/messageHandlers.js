@@ -22,7 +22,7 @@ function getValue(value) {
 };
 
 async function handlePostNodeRED(clientId, message) {
-    const { name, payload = {} } = message;
+    const { name, request, payload = {} } = message;
 
     // Извлекаем значения из payload
     const room = getValue(payload?.room);
@@ -31,6 +31,8 @@ async function handlePostNodeRED(clientId, message) {
     const item_type = getValue(payload?.item_type);
     const title = getValue(payload?.title);
     const group = getValue(payload?.group);
+
+    console.log('--35-- [messageHandlers] - handlePostNodeRED - request:', request );
 
     // Проверка обязательных полей (раскомментировать)
     if (!room || !item_name || item_value === undefined) {
@@ -55,8 +57,31 @@ async function handlePostNodeRED(clientId, message) {
         }
 
         // Обновляем сенсор и временную метку
-        if (!data[room].sensors[item_name]) {
-            data[room].sensors[item_name] = {
+        // if (!data[room].sensors[item_name]) {
+        //     data[room].sensors[item_name] = {
+        //         value: item_value,
+        //         type: item_type,
+        //         lastUpdate: new Date().toString()
+        //     };
+        // }
+        if(request === 'sensor') {
+          console.log('--68--[messageHandlers] -handlePostNodeRED - Добавляем сенсор:', item_name);
+              data[room].sensors[item_name] = {
+                value: item_value,
+                type: item_type,
+                lastUpdate: new Date().toString()
+            };
+        }
+        if(request === 'actuators') {
+            data[room].actuators[item_name] = {
+                value: item_value,
+                type: item_type,
+                lastUpdate: new Date().toString()
+            };
+        }
+        if(request === 'setpoints') {
+          console.log('--83-- [messageHandlers] -handlePostNodeRED - Добавляем setpoint:', item_name);
+            data[room].setpoints[item_name] = {
                 value: item_value,
                 type: item_type,
                 lastUpdate: new Date().toString()
@@ -66,11 +91,11 @@ async function handlePostNodeRED(clientId, message) {
         // Сохранение данных
         const dataString = JSON.stringify(data, null, 2);
         await writeFileSafely(filePath, dataString);
-        //console.log(`[messageHandlers] - ✅ Данные успешно обновлены в ${filePath}`);
-        //console.log('[messageHandlers] - Содержимое файла:', dataString);
+        //console.log(`[messageHandlers] -handlePostNodeRED - ✅ Данные успешно обновлены в ${filePath}`);
+        console.log('[messageHandlers] -handlePostNodeRED - Содержимое файла:', dataString);
         return 'ok';
     } catch (err) {
-        console.error(`[messageHandlers] - Ошибка при работе с файлом ${filePath}:`, err);
+        console.error(`[messageHandlers] -handlePostNodeRED - Ошибка при работе с файлом ${filePath}:`, err);
         return 'error';
     }
 };
