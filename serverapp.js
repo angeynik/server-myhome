@@ -190,7 +190,7 @@ ws.on('message', async (message) => {
      
       try {
         const checkInputMessage = checkMessage(message);
-        console.log('-- 193 -- WSSNodeRED - checkInputMessage - ', checkInputMessage.data);
+        //console.log('-- 193 -- WSSNodeRED - checkInputMessage - ', checkInputMessage.data);
         if(checkInputMessage.status === 'ok') {
 
           const clientId = checkInputMessage.data.name;
@@ -278,10 +278,20 @@ WSSDash.on('connection', (ws) => {
                 //console.log('[Serverapp] - -- auth --', auth);
                 handleAuth(ws, dashData.data);
                 break;
-                case 'get': // Используем строку 'get' для сравнения
+            case 'get': // Используем строку 'get' для сравнения
                 //console.log('[Serverapp] - WSSDash - Переходим к проверке сообщения типа get.');
                 handleGet(ws, dashData.data);
                 break;
+            case 'post': // Используем строку 'post' для сравнения
+                //console.log('[Serverapp] - WSSDash - Переходим к проверке сообщения типа post. ', dashData.data, dashData.data.name);
+                handlePost(ws, dashData.data);
+                const dID = dashData.data.name;
+                try {
+                    sendToNodeRED(dID, dashData.data);
+                } catch (error) {
+                    console.log('[Serverapp] -  Ошибка отправки полученного сообщения от NodeRED  клиенту WSSDash:', error);
+                }
+            break;
             default:
               break;
           }
@@ -289,22 +299,6 @@ WSSDash.on('connection', (ws) => {
       } catch (error) {
         console.error('-[Serverapp] -  Error  -- checkInputMessage -', error);
       }
-
-
-    //   sendToRed = true;
-    //   // Передача сообщения на WSSNodeRED
-    //   WSSNodeRED.clients.forEach((client) => {
-    //     if (client.readyState === WebSocket.OPEN && sendToRed === true) {
-    //         client.send(message, (error) => {
-    //             if (error) {
-    //                 console.error('Ошибка пересылки сообщения c Dashboard на NodeRED :', error);
-    //             } else {
-    //                 console.info(`На порт ${wsRedPORT} от Server  к NodeRED  отправлено сообщение: ${message}`);
-    //             }
-
-    //         });
-    //     }
-    // });
   });
 
   ws.on('error', (error) => {
@@ -322,7 +316,7 @@ console.log(`WebSocket servers are running on nodeRed ws port:${wsRedPORT} and D
 
 
 function sendToClient(dID, data) {
-  console.log('[Serverapp] - sendToClient: dID =', dID, 'data =', data);
+  //console.log('[Serverapp] - sendToClient: dID =', dID, 'data =', data);
   
   data.time = new Date().toString();
   //console.log('[Serverapp] - sendToClient: data.time =', data.time);
@@ -356,7 +350,29 @@ function sendToClient(dID, data) {
     }
   });
 };
+function sendToNodeRED(dID, data) {
+ //console.log('[Serverapp] - sendToNodeRED: dID =', dID, 'data =', data);
+ //data.time = new Date().toString();
+  const messageString = JSON.stringify(data);
+  // Отправка сообщения всем открытым клиентам
+  WSSNodeRED.clients.forEach((client) => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(messageString, (error) => {
+        if (error) {
+          console.error('[Serverapp] - sendToNodeRED - Ошибка отправки сообщения на nodeRED:', error);
+        } else {
+          console.log(`[Serverapp] - sendToNodeRED - Сообщение отправлено на nodeRED: ${messageString}`);
+        }
+      });
+    }
+  });
 
+
+
+
+
+
+};
 function stringToJSON(message) {
   const data = message.toString('utf8');
     return JSON.parse(data);

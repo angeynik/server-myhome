@@ -48,7 +48,15 @@ async function readFileSafely(dID) {
         return {data, dataDir, filePath};
     } catch (error) {
         if (error.code === 'ENOENT') {
-            const initData = { init: { title: "", dID } };
+            const initData = { init: {
+                 title: "", 
+                 dID, 
+                 limits: { 
+                    Default:{low: 14, high: 30, step: 1}, 
+                    Temp:{low: 8, high: 36, step: 0.5}, 
+                    Hum:{low: 14, high: 60, step: 1}
+                }
+        } };
             fileCache.set(filePath, initData);
             return initData;
         } else if (error instanceof SyntaxError) {

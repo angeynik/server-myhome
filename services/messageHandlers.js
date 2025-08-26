@@ -91,8 +91,8 @@ async function handlePostNodeRED(clientId, message) {
         // Сохранение данных
         const dataString = JSON.stringify(data, null, 2);
         await writeFileSafely(filePath, dataString);
-        //console.log(`[messageHandlers] -handlePostNodeRED - ✅ Данные успешно обновлены в ${filePath}`);
-        console.log('[messageHandlers] -handlePostNodeRED - Содержимое файла:', dataString);
+        console.log(`[messageHandlers] -handlePostNodeRED - ✅ Данные успешно обновлены в ${filePath}`);
+        //console.log('[messageHandlers] -handlePostNodeRED - Содержимое файла:', dataString);
         return 'ok';
     } catch (err) {
         console.error(`[messageHandlers] -handlePostNodeRED - Ошибка при работе с файлом ${filePath}:`, err);
@@ -338,6 +338,84 @@ const handlePost = async (ws, data) => {
           
         }
     break;
+    case 'setpoint':
+      //console.log('[messageHandlers] - handlePost - Request - setpoint');
+      try {
+        const dID = data.name;
+        const { room, param, value } = data.payload;
+        //console.log('[messageHandlers] - Получены данные:', data, 'dID -', dID);
+        
+        // Читаем данные из конфигурационного файла на диске
+        const { data: configData, filePath } = await readFileSafely(dID);
+
+        // Обновляем значение setpoint
+        if (configData[room] && configData[room].setpoints) {
+          configData[room].setpoints[param] = {
+            value: value,
+            type: configData[room].setpoints[param]?.type || 'number',
+            lastUpdate: new Date().toString()
+          };
+        }
+          // Сохраняем обновленный конфиг
+          const dataString = JSON.stringify(configData, null, 2);
+          await writeFileSafely(filePath, dataString);
+          
+        //   // Отправляем сообщение в NodeRED
+        //   const nodeRedClient = getClient(dID, 'input');
+          
+        // if (nodeRedClient && nodeRedClient.readyState === WebSocket.OPEN) {
+        //         const messageForNodeRED = {
+        //             type: 'post',
+        //             request: 'setpoint',
+        //             name: dID,
+        //             payload: {
+        //                 room,
+        //                 item_name: param,
+        //                 item_value: value,
+        //                 item_type: configData[room].setpoints[param]?.type || 'number'
+        //             }
+        //         };
+                
+        //         nodeRedClient.send(JSON.stringify(messageForNodeRED));
+        //         //nodeRedClient.send(messageForNodeRED);
+        //         console.log(`[messageHandlers] - handlePost - setpoint -  Сообщение setpoint отправлено в NodeRED для ${dID}`);
+                
+        //         sendSuccess(ws, 'setpointSuccess', dID, {
+        //             room,
+        //             param,
+        //             value
+        //         });
+        //     } else {
+        //         console.error(`[messageHandlers] - handlePost - setpoint - NodeRED client для ${dID} не подключен`);
+        //         // Добавляем в очередь для последующей отправки
+        //         addMessageToQueue(dID, {
+        //             type: 'post',
+        //             request: 'setpoint',
+        //             name: dID,
+        //             payload: {
+        //                 room,
+        //                 item_name: param,
+        //                 item_value: value
+        //             }
+        //         });
+                
+        //         sendSuccess(ws, 'setpointQueued', dID, {
+        //             room,
+        //             param,
+        //             value,
+        //             message: 'Сообщение добавлено в очередь'
+        //         });
+        //     }
+
+
+        } catch (error) {
+            console.error('[messageHandlers] - Ошибка обработки setpoint:', error);
+            sendError(ws, 'setpointError', data.name, {
+                message: error.message
+            });
+        }
+    break;
+
 
     case 'sensors':
         console.log('[messageHandlers] - handlePost - Request - sensor');
