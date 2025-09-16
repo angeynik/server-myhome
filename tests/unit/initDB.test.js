@@ -1,8 +1,8 @@
-const InitDB = require('../services/initDB'); // Импортируем класс InitDB
-const { query, setDatabase } = require('../db'); // Импортируем необходимые функции из db.js
+const InitDB = require('../../services/initDB');
+const { query, setDatabase } = require('../../services/db');
 
 // Мокируем модуль db.js
-jest.mock('../db', () => ({
+jest.mock('../../services/db', () => ({
   query: jest.fn(),
   setDatabase: jest.fn(),
 }));
@@ -17,14 +17,21 @@ describe('InitDB.checkDB', () => {
   });
 
   // Тест 1: Успешная проверка существующей базы данных
-  it('должен вернуть { result: true }, если база данных существует', async () => {
-    // Мокируем успешный ответ от базы данных
+  it('должен вернуть { result: false }, если база данных существует', async () => {
+    // Мокируем успешный ответ от базы данных (база существует)
     query.mockResolvedValue({ rows: [{ exists: true }] });
 
     const result = await initDB.checkDB('existing_db', 'valid_db', 'valid_user', 'valid_password');
 
     expect(result).toEqual({ result: false, message: 'База данных уже существует.' });
-    expect(query).toHaveBeenCalledWith('SELECT 1 FROM pg_database WHERE datname = $1', ['existing_db']);
+    // Исправленное ожидание с 5 параметрами
+    expect(query).toHaveBeenCalledWith(
+      'SELECT 1 FROM pg_database WHERE datname = $1', 
+      ['existing_db'],
+      'postgres',      // database name для подключения
+      'valid_user',    // пользователь
+      'valid_password' // пароль
+    );
   });
 
   // Тест 2: Проверка отсутствия базы данных
@@ -35,7 +42,14 @@ describe('InitDB.checkDB', () => {
     const result = await initDB.checkDB('non_existing_db', 'valid_db', 'valid_user', 'valid_password');
 
     expect(result).toEqual({ result: true, message: 'База данных НЕ существует'});
-    expect(query).toHaveBeenCalledWith('SELECT 1 FROM pg_database WHERE datname = $1', ['non_existing_db']);
+    // Исправленное ожидание с 5 параметрами
+    expect(query).toHaveBeenCalledWith(
+      'SELECT 1 FROM pg_database WHERE datname = $1', 
+      ['non_existing_db'],
+      'postgres',      // database name для подключения
+      'valid_user',    // пользователь
+      'valid_password' // пароль
+    );
   });
 
   // Тест 3: Проверка отсутствия пользователя
@@ -49,6 +63,14 @@ describe('InitDB.checkDB', () => {
       result: false,
       message: 'Пользователь invalid_user отсутствует в базе Postgres. Создайте пользователя!',
     });
+    
+    expect(query).toHaveBeenCalledWith(
+      'SELECT 1 FROM pg_database WHERE datname = $1', 
+      ['existing_db'],
+      'postgres',
+      'invalid_user',
+      'valid_password'
+    );
   });
 
   // Тест 4: Проверка ошибки подключения (неправильный пароль)
@@ -62,6 +84,14 @@ describe('InitDB.checkDB', () => {
       result: false,
       message: 'Ошибка при проверке базы данных: password authentication failed for user "valid_user"',
     });
+    
+    expect(query).toHaveBeenCalledWith(
+      'SELECT 1 FROM pg_database WHERE datname = $1', 
+      ['existing_db'],
+      'postgres',
+      'valid_user',
+      'wrong_password'
+    );
   });
 
   // Тест 5: Проверка общей ошибки
@@ -69,11 +99,19 @@ describe('InitDB.checkDB', () => {
     // Мокируем общую ошибку
     query.mockRejectedValue(new Error('Неизвестная ошибка'));
 
-    const result = await initDB.checkDB('existing_db', 'valid_db', 'valid_user', 'wrong_password');
+    const result = await initDB.checkDB('existing_db', 'valid_db', 'valid_user', 'valid_password');
 
     expect(result).toEqual({
       result: false,
       message: 'Ошибка при проверке базы данных: Неизвестная ошибка',
     });
+    
+    expect(query).toHaveBeenCalledWith(
+      'SELECT 1 FROM pg_database WHERE datname = $1', 
+      ['existing_db'],
+      'postgres',
+      'valid_user',
+      'valid_password'
+    );
   });
 });
