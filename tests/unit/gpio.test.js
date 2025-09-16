@@ -1,7 +1,8 @@
+// gpio.test.js - исправленная версия
 const fs = require('fs');
 const GpioManager = require('../../gpio.js');
 
-jest.mock('fs');
+// jest.mock('fs'); - УДАЛИТЬ эту строку, так как fs уже замокан в setup.js
 
 describe('GpioManager', () => {
   let gpioManager;
@@ -15,8 +16,15 @@ describe('GpioManager', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    fs.readFileSync.mockReturnValue(JSON.stringify(mockConfig));
+    // Используем jest.spyOn для мокирования методов fs
+    jest.spyOn(fs, 'readFileSync').mockReturnValue(JSON.stringify(mockConfig));
+    // Мокируем existsSync для успешного выполнения по умолчанию
+    jest.spyOn(fs, 'existsSync').mockReturnValue(true);
     gpioManager = new GpioManager('device1', '../gpioConf.json');
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
   });
 
   describe('loadConfig', () => {
@@ -56,7 +64,6 @@ describe('GpioManager', () => {
     });
   });
 
-  // Остальные тесты остаются без изменений
   describe('gpioExport', () => {
     it('должен экспортировать пин', () => {
       gpioManager.gpioExport(1);
@@ -144,6 +151,8 @@ describe('GpioManager', () => {
 
       expect(stopWatching).toBeDefined();
       stopWatching();
+      
+      jest.useRealTimers();
     });
   });
 

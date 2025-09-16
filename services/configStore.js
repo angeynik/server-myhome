@@ -34,36 +34,39 @@ async function writeFileSafely(filePath, content) {
 
 
 async function readFileSafely(dID) {
-    await ensureDataDir(); // Добавлено!
+    await ensureDataDir();
     const filePath = path.join(dataDir, `${dID}.json`);
     
     if (fileCache.has(filePath)) {
-        return {data: fileCache.get(filePath), dataDir, filePath}; // Добавлено: возвращаем dataDir и filePath вместе с fileCache.get(filePath);
+        const data = fileCache.get(filePath);
+        return { data, dataDir, filePath };
     }
 
     try {
         const fileData = await fs.readFile(filePath, 'utf8');
         const data = JSON.parse(fileData);
         fileCache.set(filePath, data);
-        return {data, dataDir, filePath};
+        return { data, dataDir, filePath };
     } catch (error) {
         if (error.code === 'ENOENT') {
-            const initData = { init: {
-                 title: "", 
-                 dID, 
-                 limits: { 
-                    Default:{low: 14, high: 30, step: 1}, 
-                    Temp:{low: 8, high: 36, step: 0.5}, 
-                    Hum:{low: 14, high: 60, step: 1}
-                }
-        } };
+            const initData = { 
+                init: { 
+                    title: "", 
+                    dID, 
+                    limits: { 
+                        Default: { low: 14, high: 30, step: 1 }, 
+                        Temp: { low: 8, high: 36, step: 0.5 }, 
+                        Hum: { low: 14, high: 60, step: 1 }
+                    }
+                } 
+            };
             fileCache.set(filePath, initData);
-            return initData;
+            return { data: initData, dataDir, filePath }; // Всегда возвращаем одинаковую структуру
         } else if (error instanceof SyntaxError) {
             console.error(`[ConfigStore] - Ошибка парсинга файла ${filePath}:`, error);
             const initData = { init: { title: "", dID } };
             fileCache.set(filePath, initData);
-            return {initData, dataDir, filePath};
+            return { data: initData, dataDir, filePath }; // Всегда возвращаем одинаковую структуру
         } else {
             throw error;
         }
@@ -72,5 +75,6 @@ async function readFileSafely(dID) {
 
 module.exports = {
   writeFileSafely,
-  readFileSafely
+  readFileSafely,
+  fileCache
 };
