@@ -1,4 +1,4 @@
-// Метод обработки получаемых Сервером по Web Socket сообщений
+// Метод обработки получаемых Сервером WebSocket сообщений
 
 const path = require('path');
 const DBManager = require('./db');
@@ -476,6 +476,9 @@ const handleResponse = async (clientId, data) => {
                       dbUser,
                       dbPass
                   );
+                  if (!result || !result.rows || result.rows.length === 0) {
+                    throw new Error('Failed to insert config record');
+                  }
                   // 4. Отправка подтверждения
                   sendSuccess(client.output, 'configSaved', dID, {
                     config: configName,
