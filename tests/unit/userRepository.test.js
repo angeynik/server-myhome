@@ -1,5 +1,5 @@
-const { register } = require('../userRepository');
-const { query } = require('../db'); // Исправленный путь
+const { register } = require('../../userRepository');
+const { query } = require('../../services/db');
 const bcrypt = require('bcryptjs');
 
 // Мокаем модуль 'bcryptjs'
@@ -8,7 +8,7 @@ jest.mock('bcryptjs', () => ({
 }));
 
 // Мокаем модуль '../db'
-jest.mock('../db', () => ({
+jest.mock('../../services/db', () => ({
   query: jest.fn(),
 }));
 

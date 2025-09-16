@@ -7,6 +7,7 @@ process.env.NODE_ENV = 'test';
 process.env.DB_DATABASE = 'test_database';
 process.env.DB_USER = 'test_user';
 process.env.DB_PASSWORD = 'test_password';
+process.env.DB_PORT = 5432;
 
 // Глобальные моки
 jest.mock('../services/db', () => ({

@@ -1,9 +1,9 @@
 // tests/userRepositoryInsert.test.js
-const { insertIntoTable } = require('../userRepository');
-const { query } = require('../db');
+const { insertIntoTable } = require('../../userRepository');
+const { query } = require('../../services/db');
 
 // Мокаем модуль '../db'
-jest.mock('../db', () => ({
+jest.mock('../../services/db', () => ({
   query: jest.fn(),
 }));
 

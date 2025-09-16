@@ -1,5 +1,5 @@
 const fs = require('fs');
-const GpioManager = require('../gpio.js');
+const GpioManager = require('../../gpio.js');
 
 jest.mock('fs');
 
