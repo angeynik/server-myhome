@@ -115,5 +115,66 @@ jest.mock('jsonwebtoken', () => ({
   })
 }));
 
+// Глобальные тестовые данные для WebSocket
+global.mockWebSocketData = {
+  clientId: 'test-client-123',
+  anotherClientId: 'another-client-456', 
+  adminClientId: 'admin-client-789',
+  invalidClientId: 'invalid-client-000',
+  testIpAddress: '192.168.1.1',
+  anotherIpAddress: '192.168.1.2'
+};
+
+// Глобальные тестовые WebSocket сообщения
+global.mockWebSocketMessages = {
+  inputMessage: { type: 'input', data: 'test input data' },
+  outputMessage: { type: 'output', data: 'test output data' },
+  errorMessage: { type: 'error', message: 'test error' }
+};
+
+// Глобальные тестовые данные для WebSocket helpers
+global.mockWsHelpersData = {
+  successResponse: {
+    type: 'response',
+    request: 'get',
+    name: 'test-device',
+    payload: { status: 'success', value: 42 }
+  },
+  errorResponse: {
+    type: 'error', 
+    request: 'validation',
+    name: 'test-device',
+    payload: { message: 'Invalid input', code: 400 }
+  },
+  requestMessage: {
+    type: 'get',
+    request: 'set',
+    name: 'test-device', 
+    payload: { command: 'turn_on' }
+  }
+};
+
+// Глобальные тестовые устройства
+global.mockDevices = {
+  thermostat: {
+    id: 'thermostat-1',
+    name: 'Living Room Thermostat',
+    type: 'climate',
+    status: { temperature: 22, mode: 'cooling' }
+  },
+  light: {
+    id: 'light-1',
+    name: 'Kitchen Light',
+    type: 'light',
+    status: { on: false, brightness: 0 }
+  },
+  sensor: {
+    id: 'sensor-1',
+    name: 'Motion Sensor',
+    type: 'sensor',
+    status: { motion: false, battery: 85 }
+  }
+};
+
 // Глобальные таймауты
 jest.setTimeout(20000); // 20 секунд для тестов

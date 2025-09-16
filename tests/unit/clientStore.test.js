@@ -9,16 +9,26 @@ const {
   startHeartbeat
 } = require('../../services/clientsStore');
 
-// Мокируем console.log и console.error для чистоты вывода тестов
+// Используем моки из setup.js
+jest.mock('bcryptjs');
+jest.mock('jsonwebtoken');
+
+// Мокируем console для чистоты вывода тестов
 jest.spyOn(console, 'log').mockImplementation(() => {});
 jest.spyOn(console, 'error').mockImplementation(() => {});
 jest.spyOn(console, 'warn').mockImplementation(() => {});
 
+// Дополняем глобальные тестовые данные для WebSocket
+global.mockWebSocketData = {
+  clientId: 'test-client-123',
+  anotherClientId: 'another-client-456',
+  adminClientId: 'admin-client-789',
+  invalidClientId: 'invalid-client-000'
+};
+
 describe('clientsStore', () => {
   let mockWsInput;
   let mockWsOutput;
-  const clientId = 'test-client-123';
-  const anotherClientId = 'another-client-456';
 
   beforeEach(() => {
     // Создаем моки WebSocket перед каждым тестом
@@ -28,7 +38,7 @@ describe('clientsStore', () => {
       on: jest.fn(),
       removeAllListeners: jest.fn(),
       terminate: jest.fn(),
-      ping: jest.fn() // Добавляем mock ping
+      ping: jest.fn()
     };
 
     mockWsOutput = {
@@ -37,7 +47,7 @@ describe('clientsStore', () => {
       on: jest.fn(),
       removeAllListeners: jest.fn(),
       terminate: jest.fn(),
-      ping: jest.fn() // Добавляем mock ping
+      ping: jest.fn()
     };
 
     // Очищаем хранилище перед каждым тестом
@@ -50,51 +60,51 @@ describe('clientsStore', () => {
 
   describe('registerClient', () => {
     test('должен успешно зарегистрировать input соединение', () => {
-      registerClient(clientId, mockWsInput, 'input');
+      registerClient(global.mockWebSocketData.clientId, mockWsInput, 'input');
 
-      expect(nodeRedClients.has(clientId)).toBe(true);
-      expect(nodeRedClients.get(clientId).input).toBe(mockWsInput);
-      expect(nodeRedClients.get(clientId).output).toBeNull();
+      expect(nodeRedClients.has(global.mockWebSocketData.clientId)).toBe(true);
+      expect(nodeRedClients.get(global.mockWebSocketData.clientId).input).toBe(mockWsInput);
+      expect(nodeRedClients.get(global.mockWebSocketData.clientId).output).toBeNull();
       expect(mockWsInput.on).toHaveBeenCalledWith('close', expect.any(Function));
       expect(mockWsInput.on).toHaveBeenCalledWith('error', expect.any(Function));
     });
 
     test('должен успешно зарегистрировать output соединение', () => {
-      registerClient(clientId, mockWsOutput, 'output');
+      registerClient(global.mockWebSocketData.clientId, mockWsOutput, 'output');
 
-      expect(nodeRedClients.has(clientId)).toBe(true);
-      expect(nodeRedClients.get(clientId).output).toBe(mockWsOutput);
-      expect(nodeRedClients.get(clientId).input).toBeNull();
+      expect(nodeRedClients.has(global.mockWebSocketData.clientId)).toBe(true);
+      expect(nodeRedClients.get(global.mockWebSocketData.clientId).output).toBe(mockWsOutput);
+      expect(nodeRedClients.get(global.mockWebSocketData.clientId).input).toBeNull();
     });
 
     test('должен выбросить ошибку при неверном connectionType', () => {
       expect(() => {
-        registerClient(clientId, mockWsInput, 'invalid-type');
+        registerClient(global.mockWebSocketData.clientId, mockWsInput, 'invalid-type');
       }).toThrow('registerClient: invalid connectionType "invalid-type"');
     });
 
     test('должен обновить существующего клиента при регистрации второго соединения', () => {
       // Регистрируем input
-      registerClient(clientId, mockWsInput, 'input');
+      registerClient(global.mockWebSocketData.clientId, mockWsInput, 'input');
       
       // Регистрируем output для того же клиента
-      registerClient(clientId, mockWsOutput, 'output');
+      registerClient(global.mockWebSocketData.clientId, mockWsOutput, 'output');
 
-      const client = nodeRedClients.get(clientId);
+      const client = nodeRedClients.get(global.mockWebSocketData.clientId);
       expect(client.input).toBe(mockWsInput);
       expect(client.output).toBe(mockWsOutput);
     });
 
     test('должен установить метаданные при регистрации', () => {
-      registerClient(clientId, mockWsInput, 'input');
+      registerClient(global.mockWebSocketData.clientId, mockWsInput, 'input');
 
-      const client = nodeRedClients.get(clientId);
+      const client = nodeRedClients.get(global.mockWebSocketData.clientId);
       expect(client.meta.registeredAt).toBeDefined();
       expect(client.meta.remoteAddress).toBe('192.168.1.1');
     });
 
     test('должен установить heartbeat свойства', () => {
-      registerClient(clientId, mockWsInput, 'input');
+      registerClient(global.mockWebSocketData.clientId, mockWsInput, 'input');
 
       expect(mockWsInput.isAlive).toBe(true);
       expect(mockWsInput.lastActivity).toBeDefined();
@@ -105,68 +115,68 @@ describe('clientsStore', () => {
   describe('cleanupConnection', () => {
     test('должен удалить input соединение и оставить клиента если есть output', () => {
       // Регистрируем оба соединения
-      registerClient(clientId, mockWsInput, 'input');
-      registerClient(clientId, mockWsOutput, 'output');
+      registerClient(global.mockWebSocketData.clientId, mockWsInput, 'input');
+      registerClient(global.mockWebSocketData.clientId, mockWsOutput, 'output');
 
       // Очищаем только input
-      cleanupConnection(clientId, 'input');
+      cleanupConnection(global.mockWebSocketData.clientId, 'input');
 
-      const client = nodeRedClients.get(clientId);
+      const client = nodeRedClients.get(global.mockWebSocketData.clientId);
       expect(client.input).toBeNull();
       expect(client.output).toBe(mockWsOutput);
-      expect(nodeRedClients.has(clientId)).toBe(true);
+      expect(nodeRedClients.has(global.mockWebSocketData.clientId)).toBe(true);
       expect(mockWsInput.removeAllListeners).toHaveBeenCalled();
       expect(mockWsInput.terminate).toHaveBeenCalled();
     });
 
     test('должен полностью удалить клиента при очистке последнего соединения', () => {
       // Регистрируем только input
-      registerClient(clientId, mockWsInput, 'input');
+      registerClient(global.mockWebSocketData.clientId, mockWsInput, 'input');
 
       // Очищаем input
-      cleanupConnection(clientId, 'input');
+      cleanupConnection(global.mockWebSocketData.clientId, 'input');
 
-      expect(nodeRedClients.has(clientId)).toBe(false);
+      expect(nodeRedClients.has(global.mockWebSocketData.clientId)).toBe(false);
     });
 
     test('не должен делать ничего при несуществующем клиенте', () => {
       expect(() => {
-        cleanupConnection('non-existent-client', 'input');
+        cleanupConnection(global.mockWebSocketData.invalidClientId, 'input');
       }).not.toThrow();
     });
 
     test('не должен делать ничего при несуществующем соединении', () => {
-      registerClient(clientId, mockWsInput, 'input');
+      registerClient(global.mockWebSocketData.clientId, mockWsInput, 'input');
       
       // Пытаемся очистить несуществующее output соединение
       expect(() => {
-        cleanupConnection(clientId, 'output');
+        cleanupConnection(global.mockWebSocketData.clientId, 'output');
       }).not.toThrow();
 
       // Клиент должен остаться с input соединением
-      expect(nodeRedClients.has(clientId)).toBe(true);
+      expect(nodeRedClients.has(global.mockWebSocketData.clientId)).toBe(true);
     });
   });
 
   describe('getClient', () => {
     test('должен вернуть правильное соединение', () => {
-      registerClient(clientId, mockWsInput, 'input');
-      registerClient(clientId, mockWsOutput, 'output');
+      registerClient(global.mockWebSocketData.clientId, mockWsInput, 'input');
+      registerClient(global.mockWebSocketData.clientId, mockWsOutput, 'output');
 
-      expect(getClient(clientId, 'input')).toBe(mockWsInput);
-      expect(getClient(clientId, 'output')).toBe(mockWsOutput);
+      expect(getClient(global.mockWebSocketData.clientId, 'input')).toBe(mockWsInput);
+      expect(getClient(global.mockWebSocketData.clientId, 'output')).toBe(mockWsOutput);
     });
 
     test('должен вернуть undefined для несуществующего клиента', () => {
-      expect(getClient('non-existent-client', 'input')).toBeUndefined();
+      expect(getClient(global.mockWebSocketData.invalidClientId, 'input')).toBeUndefined();
     });
 
     test('должен вернуть null для несуществующего соединения', () => {
-      registerClient(clientId, mockWsInput, 'input');
+      registerClient(global.mockWebSocketData.clientId, mockWsInput, 'input');
       
-      // Функция возвращает null для несуществующего соединения
-      const result = getClient(clientId, 'output');
-      expect(result).toBeNull(); // Изменено с toBeUndefined() на toBeNull()
+      const result = getClient(global.mockWebSocketData.clientId, 'output');
+      expect(result).not.toBeUndefined();
+      expect(result).toBeNull();
     });
   });
 
@@ -176,20 +186,20 @@ describe('clientsStore', () => {
     });
 
     test('должен вернуть информацию о всех клиентах', () => {
-      registerClient(clientId, mockWsInput, 'input');
-      registerClient(anotherClientId, mockWsOutput, 'output');
+      registerClient(global.mockWebSocketData.clientId, mockWsInput, 'input');
+      registerClient(global.mockWebSocketData.anotherClientId, mockWsOutput, 'output');
 
       const clients = getAllClients();
       
       expect(clients).toHaveLength(2);
-      expect(clients[0].clientId).toBe(clientId);
+      expect(clients[0].clientId).toBe(global.mockWebSocketData.clientId);
       expect(clients[0].inputReadyState).toBe(WebSocket.OPEN);
-      expect(clients[1].clientId).toBe(anotherClientId);
+      expect(clients[1].clientId).toBe(global.mockWebSocketData.anotherClientId);
       expect(clients[1].outputReadyState).toBe(WebSocket.OPEN);
     });
 
     test('должен корректно обрабатывать null соединения', () => {
-      registerClient(clientId, mockWsInput, 'input');
+      registerClient(global.mockWebSocketData.clientId, mockWsInput, 'input');
       
       const clients = getAllClients();
       expect(clients[0].outputReadyState).toBeNull();
@@ -217,7 +227,7 @@ describe('clientsStore', () => {
 
     test('должен очищать мертвые соединения по таймауту', () => {
       // Регистрируем клиента с устаревшей активностью
-      registerClient(clientId, mockWsInput, 'input');
+      registerClient(global.mockWebSocketData.clientId, mockWsInput, 'input');
       mockWsInput.lastActivity = Date.now() - 70000; // 70 секунд назад
       mockWsInput.isAlive = false;
 
@@ -233,7 +243,7 @@ describe('clientsStore', () => {
     });
 
     test('должен отправлять ping активным соединениям', () => {
-      registerClient(clientId, mockWsInput, 'input');
+      registerClient(global.mockWebSocketData.clientId, mockWsInput, 'input');
       mockWsInput.ping.mockImplementation((data, mask, callback) => callback(null));
       mockWsInput.lastActivity = Date.now() - 10000; // 10 секунд назад
       mockWsInput.isAlive = true;
@@ -242,11 +252,11 @@ describe('clientsStore', () => {
       jest.advanceTimersByTime(30000);
 
       expect(mockWsInput.ping).toHaveBeenCalled();
-      expect(mockWsInput.isAlive).toBe(false); // Должен быть сброшен перед ping
+      expect(mockWsInput.isAlive).toBe(false);
     });
 
     test('должен обрабатывать ошибки при ping', () => {
-      registerClient(clientId, mockWsInput, 'input');
+      registerClient(global.mockWebSocketData.clientId, mockWsInput, 'input');
       const pingError = new Error('Ping failed');
       mockWsInput.ping.mockImplementation((data, mask, callback) => callback(pingError));
       mockWsInput.isAlive = true;
@@ -262,60 +272,43 @@ describe('clientsStore', () => {
     });
 
     test('должен пропускать закрытые соединения', () => {
-      registerClient(clientId, mockWsInput, 'input');
-      mockWsInput.readyState = WebSocket.CLOSED; // Закрытое соединение
-      mockWsInput.ping = jest.fn(); // Убедимся, что ping - это mock функция
-
-      startHeartbeat(30000, 60000);
-      jest.advanceTimersByTime(30000);
-
-      // Закрытые соединения не должны получать ping
-      expect(mockWsInput.ping).not.toHaveBeenCalled();
-    });
-
-    test('должен пропускать несуществующие соединения', () => {
-      // Регистрируем клиента только с input
-      registerClient(clientId, mockWsInput, 'input');
+      registerClient(global.mockWebSocketData.clientId, mockWsInput, 'input');
+      mockWsInput.readyState = WebSocket.CLOSED;
       mockWsInput.ping = jest.fn();
 
       startHeartbeat(30000, 60000);
       jest.advanceTimersByTime(30000);
 
-      // Output соединение не существует, поэтому ping не должен вызываться для него
-      expect(mockWsInput.ping).toHaveBeenCalled(); // Но input должен получить ping
+      expect(mockWsInput.ping).not.toHaveBeenCalled();
     });
   });
 
   describe('Интеграционные тесты', () => {
     test('должен корректно обрабатывать закрытие соединения через обработчик', () => {
-      registerClient(clientId, mockWsInput, 'input');
+      registerClient(global.mockWebSocketData.clientId, mockWsInput, 'input');
       
-      // Симулируем вызов обработчика close
       const closeHandler = mockWsInput.on.mock.calls.find(call => call[0] === 'close')[1];
       closeHandler();
 
-      expect(nodeRedClients.has(clientId)).toBe(false);
+      expect(nodeRedClients.has(global.mockWebSocketData.clientId)).toBe(false);
     });
 
     test('должен корректно обрабатывать ошибку соединения через обработчик', () => {
-      registerClient(clientId, mockWsInput, 'input');
+      registerClient(global.mockWebSocketData.clientId, mockWsInput, 'input');
       
-      // Симулируем вызов обработчика error
       const errorHandler = mockWsInput.on.mock.calls.find(call => call[0] === 'error')[1];
       errorHandler();
 
-      expect(nodeRedClients.has(clientId)).toBe(false);
+      expect(nodeRedClients.has(global.mockWebSocketData.clientId)).toBe(false);
     });
 
     test('должен обновлять lastActivity при pong', () => {
-      registerClient(clientId, mockWsInput, 'input');
+      registerClient(global.mockWebSocketData.clientId, mockWsInput, 'input');
       
       const originalLastActivity = mockWsInput.lastActivity;
       
-      // Даем немного времени, чтобы гарантировать разницу во времени
       jest.advanceTimersByTime(10);
       
-      // Симулируем pong
       const pongHandler = mockWsInput.on.mock.calls.find(call => call[0] === 'pong')[1];
       pongHandler();
 
@@ -324,17 +317,25 @@ describe('clientsStore', () => {
     });
 
     test('должен корректно обрабатывать несколько клиентов', () => {
-      // Регистрируем несколько клиентов
-      registerClient(clientId, mockWsInput, 'input');
-      registerClient(anotherClientId, mockWsOutput, 'output');
+      registerClient(global.mockWebSocketData.clientId, mockWsInput, 'input');
+      registerClient(global.mockWebSocketData.anotherClientId, mockWsOutput, 'output');
 
       expect(nodeRedClients.size).toBe(2);
       expect(getAllClients()).toHaveLength(2);
 
-      // Очищаем один клиент
-      cleanupConnection(clientId, 'input');
+      cleanupConnection(global.mockWebSocketData.clientId, 'input');
       expect(nodeRedClients.size).toBe(1);
       expect(getAllClients()).toHaveLength(1);
+    });
+
+    test('должен использовать глобальные тестовые данные корректно', () => {
+      // Проверяем, что глобальные данные доступны
+      expect(global.mockUserData.validUser).toBeDefined();
+      expect(global.mockUserData.adminUser).toBeDefined();
+      expect(global.testRequests.validLogin).toBeDefined();
+      expect(global.mockWebSocketData.clientId).toBeDefined();
+      expect(global.mockWsHelpersData.successResponse).toBeDefined();
+      expect(global.mockDevices.thermostat).toBeDefined();
     });
   });
 });
