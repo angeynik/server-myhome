@@ -198,7 +198,7 @@ ws.on('message', async (message) => {
             case 'init':
                     const connectionType = checkInputMessage.data.payload.typeConnect;
                   if (checkInputMessage.data.request === 'init_ws') {
-                    console.log('Пришло сообщение init_ws'); 
+                    //console.log('Пришло сообщение init_ws'); 
 
                       if (!clientId || !connectionType) {
                           console.error('Invalid wsConnect message');
@@ -217,11 +217,16 @@ ws.on('message', async (message) => {
 
               break;
             case 'post':
-                  //console.log('[Serverapp] - -- Post -- Добавляем сообщение в очередь');
+                  console.log('[Serverapp] - -- Post -- Добавляем сообщение в очередь');
                   const key = `${checkInputMessage.data.type}|
                   ${checkInputMessage.data.name}|
                   ${checkInputMessage.data.request}|
                   ${checkInputMessage.data.payload.room}|
+                  ${checkInputMessage.data.payload.title}|
+                  ${checkInputMessage.data.payload.group}|
+                  ${checkInputMessage.data.payload.item_value}|
+                  ${checkInputMessage.data.payload.item_type}|
+                  ${checkInputMessage.data.payload.item_title}|
                   ${checkInputMessage.data.payload.item_name}`;
                   //console.log('[Serverapp] - Ключ:', key);
                   addMessageToQueue(clientId, checkInputMessage.data);
@@ -382,7 +387,7 @@ function stringToJSON(message) {
 function checkMessage(message) {
   const data = stringToJSON(message); // Преобразуем строку в объект JSON
 
-  console.log(`[serverApp] - checkMessage получило сообщение: ${message}`);
+  //console.log(`[serverApp] - checkMessage получило сообщение: ${message}`);
   const { error } = validType(data);
   if (error) {
     console.log(`Некорректный формат полученного сообщения. ${message} Ошибка: Error validType: ${error.message}`);

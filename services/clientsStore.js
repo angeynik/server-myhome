@@ -5,7 +5,7 @@ const WebSocket = require('ws');
 const nodeRedClients = new Map();
 
 function registerClient(clientId, ws, connectionType) {
-  console.log( '[clientStore] - registerClient - Начинаем регистрацию');
+  //console.log( '[clientStore] - registerClient - Начинаем регистрацию');
   if (!['input', 'output'].includes(connectionType)) {
     throw new TypeError(`registerClient: invalid connectionType "${connectionType}"`);
   }

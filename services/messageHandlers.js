@@ -29,10 +29,11 @@ async function handlePostNodeRED(clientId, message) {
     const item_name = getValue(payload?.item_name);
     const item_value = getValue(payload?.item_value);
     const item_type = getValue(payload?.item_type);
+    const item_title = getValue(payload?.item_title);
     const title = getValue(payload?.title);
     const group = getValue(payload?.group);
 
-    console.log('--35-- [messageHandlers] - handlePostNodeRED - request:', request );
+    console.log('[messageHandlers] - handlePostNodeRED - request:', request );
 
     // Проверка обязательных полей (раскомментировать)
     if (!room || !item_name || item_value === undefined) {
@@ -50,43 +51,25 @@ async function handlePostNodeRED(clientId, message) {
                 id: Object.keys(data).filter(k => k.startsWith('room')).length,
                 title: title || `Комната-${room}`,
                 group: group || '',
-                sensors: {},
-                actuators: {},
-                setpoints: {}
+                // sensors: {},
+                // actuators: {},
+                // setpoints: {}
             };
         }
+        const objectName = request + 's';
+        // Создаем объект, если он не существует
+        if (!data[room][objectName]) {
+            data[room][objectName] = {};
+            console.log(`[messageHandlers] - handlePostNodeRED - Создан новый объект ${objectName} в комнате ${room}`);
+        }
+        // Добавляем/обновляем элемент
+        data[room][objectName][item_name] = {
+            value: item_value,
+            type: item_type,
+            lastUpdate: new Date().toString()
+        };
 
-        // Обновляем сенсор и временную метку
-        // if (!data[room].sensors[item_name]) {
-        //     data[room].sensors[item_name] = {
-        //         value: item_value,
-        //         type: item_type,
-        //         lastUpdate: new Date().toString()
-        //     };
-        // }
-        if(request === 'sensor') {
-          console.log('--68--[messageHandlers] -handlePostNodeRED - Добавляем сенсор:', item_name);
-              data[room].sensors[item_name] = {
-                value: item_value,
-                type: item_type,
-                lastUpdate: new Date().toString()
-            };
-        }
-        if(request === 'actuators') {
-            data[room].actuators[item_name] = {
-                value: item_value,
-                type: item_type,
-                lastUpdate: new Date().toString()
-            };
-        }
-        if(request === 'setpoints') {
-          console.log('--83-- [messageHandlers] -handlePostNodeRED - Добавляем setpoint:', item_name);
-            data[room].setpoints[item_name] = {
-                value: item_value,
-                type: item_type,
-                lastUpdate: new Date().toString()
-            };
-        }
+        console.log(`[messageHandlers] - handlePostNodeRED - Добавлен ${request}: ${item_name} в объект ${objectName}`);
 
         // Сохранение данных
         const dataString = JSON.stringify(data, null, 2);
@@ -359,53 +342,6 @@ const handlePost = async (ws, data) => {
           // Сохраняем обновленный конфиг
           const dataString = JSON.stringify(configData, null, 2);
           await writeFileSafely(filePath, dataString);
-          
-        //   // Отправляем сообщение в NodeRED
-        //   const nodeRedClient = getClient(dID, 'input');
-          
-        // if (nodeRedClient && nodeRedClient.readyState === WebSocket.OPEN) {
-        //         const messageForNodeRED = {
-        //             type: 'post',
-        //             request: 'setpoint',
-        //             name: dID,
-        //             payload: {
-        //                 room,
-        //                 item_name: param,
-        //                 item_value: value,
-        //                 item_type: configData[room].setpoints[param]?.type || 'number'
-        //             }
-        //         };
-                
-        //         nodeRedClient.send(JSON.stringify(messageForNodeRED));
-        //         //nodeRedClient.send(messageForNodeRED);
-        //         console.log(`[messageHandlers] - handlePost - setpoint -  Сообщение setpoint отправлено в NodeRED для ${dID}`);
-                
-        //         sendSuccess(ws, 'setpointSuccess', dID, {
-        //             room,
-        //             param,
-        //             value
-        //         });
-        //     } else {
-        //         console.error(`[messageHandlers] - handlePost - setpoint - NodeRED client для ${dID} не подключен`);
-        //         // Добавляем в очередь для последующей отправки
-        //         addMessageToQueue(dID, {
-        //             type: 'post',
-        //             request: 'setpoint',
-        //             name: dID,
-        //             payload: {
-        //                 room,
-        //                 item_name: param,
-        //                 item_value: value
-        //             }
-        //         });
-                
-        //         sendSuccess(ws, 'setpointQueued', dID, {
-        //             room,
-        //             param,
-        //             value,
-        //             message: 'Сообщение добавлено в очередь'
-        //         });
-        //     }
 
 
         } catch (error) {

@@ -9,7 +9,17 @@ let isProcessing = false;
  * @param {object} message - Сообщение для добавления в очередь
  */
 function addMessageToQueue(clientId, message) {
-  //console.log(`[messageStore] - 📬 Добавление сообщения в очередь для ${clientId}. Тип: ${message.type}, Имя: ${message.name}, Запрос: ${message.request}, Комната: ${message.payload.room}, Датчик: ${message.payload.item_name}`);
+  console.log(`[messageStore] - 📬 Добавление сообщения в очередь для ${clientId}. 
+    Тип: ${message.type}, 
+    Имя: ${message.name}, 
+    Запрос: ${message.request}, 
+    Комната: ${message.payload.room}, 
+    Датчик: ${message.payload.item_name},
+    Значение: ${message.payload.item_value},
+    Тип: ${message.payload.item_type},
+    Заголовок: ${message.payload.title},
+    Группа: ${message.payload.group}
+    `);
   if (!messageQueue.has(clientId)) {
     messageQueue.set(clientId, new Map());
   }
@@ -59,7 +69,7 @@ async function processClientQueue(clientId) {
             // Пропускаем если не прошло 5 секунд с последней попытки
             if (now - entry.lastAttempt < 5000) continue;
             
-            //console.log(`[messageStore] - 🔁 Обработка сообщения: ${key}`);
+            console.log(`[messageStore] - 🔁 Обработка сообщения: ${key}`);
             entry.lastAttempt = now;
             
             try {

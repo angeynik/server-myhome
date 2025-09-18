@@ -12,17 +12,18 @@ const schemaType = Joi.object({
       console.log(`Ошибка валидации Type: ${value.type} - ${error.message}`);
       return { error };
     } else {
-      console.log('Формат данных корректный - Type:', value.type);
+      //console.log('Формат данных корректный - Type:', value.type);
       return { value };
     }
   };
 
   // Проверка сообщения с типом - post
 const roomSchema = Joi.object({
-    sensors: Joi.object().pattern(/^d[a-zA-Z0-9]{0,15}$/, // Имя должно начинаться с "d" и содержать не более 16 букв или цифр
+    sensors: Joi.object().pattern(/^[das][a-zA-Z0-9]{0,15}$/, // Имя должно начинаться с "d", "a" или "s" и содержать не более 16 букв или цифр
         Joi.alternatives().try(Joi.boolean(), Joi.number()).required() // Тип данных - числовой или логический
     ).required()
 }).unknown(true); // Разрешить неизвестные ключи
+
 const schemaPostSensor = Joi.object({
     type: Joi.string().required(),
     // Используем pattern для проверки объектов с динамическими ключами
