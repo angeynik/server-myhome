@@ -18,10 +18,37 @@ const schemaType = Joi.object({
   };
 
   // Проверка сообщения с типом - post
+// const roomSchema = Joi.object({
+//     sensors: Joi.object().pattern(/^[das][a-zA-Z0-9]{0,15}$/, // Имя должно начинаться с "d", "a" или "s" и содержать не более 16 букв или цифр
+//         Joi.alternatives().try(Joi.boolean(), Joi.number()).required() // Тип данных - числовой или логический
+//     ).required()
+// }).unknown(true); // Разрешить неизвестные ключи
+
 const roomSchema = Joi.object({
-    sensors: Joi.object().pattern(/^[das][a-zA-Z0-9]{0,15}$/, // Имя должно начинаться с "d", "a" или "s" и содержать не более 16 букв или цифр
-        Joi.alternatives().try(Joi.boolean(), Joi.number()).required() // Тип данных - числовой или логический
-    ).required()
+    type: Joi.string().valid('post').required(), // предполагаем, что type всегда 'post'
+    request: Joi.string().valid(
+        'setpoints', 
+        'switches', 
+        'controllers', 
+        'actuators', 
+        'batteries', 
+        'powers'
+    ).required(),
+    payload: Joi.object({
+        item_name: Joi.string()
+            .pattern(/^[das][a-zA-Z0-9]{0,15}$/)
+            .required(),
+        // остальные поля payload, если нужны
+        room: Joi.string().optional(),
+        title: Joi.string().optional(),
+        group: Joi.string().optional(),
+        item_value: Joi.alternatives().try(Joi.number(), Joi.boolean()).optional(),
+        item_type: Joi.string().optional(),
+        item_title: Joi.string().optional()
+    }).required(),
+    // остальные поля сообщения
+    name: Joi.string().optional(),
+    time: Joi.date().iso().optional()
 }).unknown(true); // Разрешить неизвестные ключи
 
 const schemaPostSensor = Joi.object({

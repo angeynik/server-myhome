@@ -56,20 +56,20 @@ async function handlePostNodeRED(clientId, message) {
                 // setpoints: {}
             };
         }
-        const objectName = request + 's';
+        //const objectName = request + 's';
         // Создаем объект, если он не существует
-        if (!data[room][objectName]) {
-            data[room][objectName] = {};
-            console.log(`[messageHandlers] - handlePostNodeRED - Создан новый объект ${objectName} в комнате ${room}`);
+        if (!data[room][request]) {
+            data[room][request] = {};
+            console.log(`[messageHandlers] - handlePostNodeRED - Создан новый объект ${request} в комнате ${room}`);
         }
         // Добавляем/обновляем элемент
-        data[room][objectName][item_name] = {
+        data[room][request][item_name] = {
             value: item_value,
             type: item_type,
             lastUpdate: new Date().toString()
         };
 
-        console.log(`[messageHandlers] - handlePostNodeRED - Добавлен ${request}: ${item_name} в объект ${objectName}`);
+        console.log(`[messageHandlers] - handlePostNodeRED - Добавлен ${request}: ${item_name} в объект ${request}`);
 
         // Сохранение данных
         const dataString = JSON.stringify(data, null, 2);

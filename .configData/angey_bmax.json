@@ -28,176 +28,190 @@
       "dTemp10": {
         "value": 24.5,
         "type": "num",
-        "lastUpdate": "Thu Sep 18 2025 11:59:39 GMT+0300 (Москва, стандартное время)"
+        "lastUpdate": "Tue Sep 30 2025 17:11:55 GMT+0300 (Москва, стандартное время)"
       },
       "dHum10": {
-        "value": 27.1,
+        "value": 26.8,
         "type": "num",
-        "lastUpdate": "Thu Sep 18 2025 11:50:54 GMT+0300 (Москва, стандартное время)"
-      },
-      "dMove01": {
-        "value": false,
-        "type": "bool",
-        "lastUpdate": "Thu Sep 18 2025 11:57:54 GMT+0300 (Москва, стандартное время)"
+        "lastUpdate": "Tue Sep 30 2025 17:10:40 GMT+0300 (Москва, стандартное время)"
       }
     },
     "setpoints": {
       "sTemp": {
         "value": 26,
         "type": "num",
-        "lastUpdate": "Thu Sep 18 2025 11:58:24 GMT+0300 (Москва, стандартное время)"
+        "lastUpdate": "Tue Sep 30 2025 17:05:40 GMT+0300 (Москва, стандартное время)"
       }
     }
   },
-  "room03": {
+  "room06": {
     "id": 1,
-    "title": "Кухня",
-    "group": "Родители",
-    "sensors": {
-      "dTemp12": {
-        "value": 23.1,
-        "type": "num",
-        "lastUpdate": "Thu Sep 18 2025 11:56:09 GMT+0300 (Москва, стандартное время)"
-      },
-      "dFire10": {
-        "value": false,
-        "type": "bool",
-        "lastUpdate": "Thu Sep 18 2025 11:58:54 GMT+0300 (Москва, стандартное время)"
-      },
-      "dLeak10": {
-        "value": false,
-        "type": "bool",
-        "lastUpdate": "Thu Sep 18 2025 11:59:09 GMT+0300 (Москва, стандартное время)"
-      }
-    },
-    "setpoints": {
-      "sHum": {
-        "value": 42,
-        "type": "num",
-        "lastUpdate": "Thu Sep 18 2025 11:58:39 GMT+0300 (Москва, стандартное время)"
-      },
-      "sTemp": {
-        "value": 17,
-        "type": "num",
-        "lastUpdate": "Thu Sep 18 2025 11:58:39 GMT+0300 (Москва, стандартное время)"
-      }
-    }
-  },
-  "room02": {
-    "id": 2,
-    "title": "Спальня",
-    "group": "Родители",
-    "switchs": {
-      "aSwitch12": {
-        "value": true,
-        "type": "bool",
-        "lastUpdate": "Thu Sep 18 2025 11:54:54 GMT+0300 (Москва, стандартное время)"
-      },
-      "aSwitch11": {
-        "value": false,
-        "type": "bool",
-        "lastUpdate": "Thu Sep 18 2025 11:57:54 GMT+0300 (Москва, стандартное время)"
-      },
-      "aSwitch01": {
-        "value": "ON",
-        "type": "bool",
-        "lastUpdate": "Thu Sep 18 2025 11:53:24 GMT+0300 (Москва, стандартное время)"
-      }
-    },
-    "sensors": {
-      "dHum11": {
-        "value": 30.4,
-        "type": "num",
-        "lastUpdate": "Thu Sep 18 2025 11:54:09 GMT+0300 (Москва, стандартное время)"
-      },
-      "dTemp11": {
-        "value": 24.7,
-        "type": "num",
-        "lastUpdate": "Thu Sep 18 2025 11:52:54 GMT+0300 (Москва, стандартное время)"
-      }
-    },
-    "conrtollers": {
-      "aController01": {
-        "value": 1.7,
-        "type": "num",
-        "lastUpdate": "Thu Sep 18 2025 11:55:09 GMT+0300 (Москва, стандартное время)"
-      }
-    },
-    "setpoints": {
-      "sTemp": {
-        "value": 23,
-        "type": "num",
-        "lastUpdate": "Thu Sep 18 2025 11:58:24 GMT+0300 (Москва, стандартное время)"
-      },
-      "sHum": {
-        "value": 39,
-        "type": "num",
-        "lastUpdate": "Thu Sep 18 2025 11:58:39 GMT+0300 (Москва, стандартное время)"
-      }
-    }
-  },
-  "room04": {
-    "id": 3,
-    "title": "Прихожая",
-    "group": "Родители",
-    "switchs": {
-      "aSwitch10": {
-        "value": false,
-        "type": "bool",
-        "lastUpdate": "Thu Sep 18 2025 11:59:24 GMT+0300 (Москва, стандартное время)"
-      }
-    },
-    "sensors": {
-      "dMove10": {
-        "value": false,
-        "type": "bool",
-        "lastUpdate": "Thu Sep 18 2025 11:52:09 GMT+0300 (Москва, стандартное время)"
-      },
-      "dHum12": {
-        "value": 11.7,
-        "type": "num",
-        "lastUpdate": "Thu Sep 18 2025 11:56:54 GMT+0300 (Москва, стандартное время)"
-      },
-      "dTemp13": {
-        "value": 20.5,
-        "type": "num",
-        "lastUpdate": "Thu Sep 18 2025 11:56:54 GMT+0300 (Москва, стандартное время)"
-      }
-    },
-    "powers": {
-      "dFrequency01": {
-        "value": 49,
-        "type": "num",
-        "lastUpdate": "Thu Sep 18 2025 11:59:54 GMT+0300 (Москва, стандартное время)"
-      },
-      "dVoltage01": {
-        "value": 236.6,
-        "type": "num",
-        "lastUpdate": "Thu Sep 18 2025 11:59:54 GMT+0300 (Москва, стандартное время)"
-      },
-      "dСurrent_a": {
-        "value": 1.166,
-        "type": "num",
-        "lastUpdate": "Thu Sep 18 2025 11:59:54 GMT+0300 (Москва, стандартное время)"
-      },
-      "dСurrent_b": {
-        "value": 1.139,
-        "type": "num",
-        "lastUpdate": "Thu Sep 18 2025 11:59:54 GMT+0300 (Москва, стандартное время)"
-      }
-    },
-    "actuators": {
-      "aActuator10": {
-        "value": 2.2,
-        "type": "num",
-        "lastUpdate": "Thu Sep 18 2025 11:52:24 GMT+0300 (Москва, стандартное время)"
-      }
-    },
+    "title": "Леша",
+    "group": "Дети",
     "setpoints": {
       "sTemp": {
         "value": 28,
         "type": "num",
-        "lastUpdate": "Thu Sep 18 2025 11:58:39 GMT+0300 (Москва, стандартное время)"
+        "lastUpdate": "Tue Sep 30 2025 17:05:40 GMT+0300 (Москва, стандартное время)"
+      }
+    }
+  },
+  "room03": {
+    "id": 2,
+    "title": "Кухня",
+    "group": "Родители",
+    "setpoints": {
+      "sTemp": {
+        "value": 17,
+        "type": "num",
+        "lastUpdate": "Tue Sep 30 2025 17:05:40 GMT+0300 (Москва, стандартное время)"
+      },
+      "sHum": {
+        "value": 42,
+        "type": "num",
+        "lastUpdate": "Tue Sep 30 2025 17:05:40 GMT+0300 (Москва, стандартное время)"
+      }
+    },
+    "sensors": {
+      "dTemp12": {
+        "value": 22.9,
+        "type": "num",
+        "lastUpdate": "Tue Sep 30 2025 17:06:25 GMT+0300 (Москва, стандартное время)"
+      },
+      "dFire10": {
+        "value": false,
+        "type": "bool",
+        "lastUpdate": "Tue Sep 30 2025 17:08:40 GMT+0300 (Москва, стандартное время)"
+      }
+    }
+  },
+  "room02": {
+    "id": 3,
+    "title": "Спальня",
+    "group": "Родители",
+    "setpoints": {
+      "sHum": {
+        "value": 39,
+        "type": "num",
+        "lastUpdate": "Tue Sep 30 2025 17:05:40 GMT+0300 (Москва, стандартное время)"
+      },
+      "sTemp": {
+        "value": 22,
+        "type": "num",
+        "lastUpdate": "Tue Sep 30 2025 17:05:40 GMT+0300 (Москва, стандартное время)"
+      }
+    },
+    "switches": {
+      "aSwitch01": {
+        "value": "ON",
+        "type": "bool",
+        "lastUpdate": "Tue Sep 30 2025 17:12:10 GMT+0300 (Москва, стандартное время)"
+      }
+    }
+  },
+  "room08": {
+    "id": 4,
+    "title": "Коридор(дети)",
+    "group": "Дети",
+    "switches": {
+      "aSwitch12": {
+        "value": false,
+        "type": "bool",
+        "lastUpdate": "Tue Sep 30 2025 17:11:40 GMT+0300 (Москва, стандартное время)"
+      }
+    }
+  },
+  "room07": {
+    "id": 5,
+    "title": "Миша",
+    "group": "Дети",
+    "switches": {
+      "aSwitch11": {
+        "value": false,
+        "type": "bool",
+        "lastUpdate": "Tue Sep 30 2025 17:06:10 GMT+0300 (Москва, стандартное время)"
+      }
+    },
+    "sensors": {
+      "dHum11": {
+        "value": 30.3,
+        "type": "num",
+        "lastUpdate": "Tue Sep 30 2025 17:08:40 GMT+0300 (Москва, стандартное время)"
+      },
+      "dTemp11": {
+        "value": 24.8,
+        "type": "num",
+        "lastUpdate": "Tue Sep 30 2025 17:12:10 GMT+0300 (Москва, стандартное время)"
+      }
+    },
+    "conrtollers": {
+      "aController01": {
+        "value": 1.9,
+        "type": "num",
+        "lastUpdate": "Tue Sep 30 2025 17:07:25 GMT+0300 (Москва, стандартное время)"
+      }
+    }
+  },
+  "room04": {
+    "id": 6,
+    "title": "Прихожая",
+    "group": "Родители",
+    "powers": {
+      "dFrequency01": {
+        "value": 49,
+        "type": "num",
+        "lastUpdate": "Tue Sep 30 2025 17:07:10 GMT+0300 (Москва, стандартное время)"
+      },
+      "dVoltage01": {
+        "value": 236.7,
+        "type": "num",
+        "lastUpdate": "Tue Sep 30 2025 17:07:10 GMT+0300 (Москва, стандартное время)"
+      },
+      "dСurrent_a": {
+        "value": 0.8,
+        "type": "num",
+        "lastUpdate": "Tue Sep 30 2025 17:07:10 GMT+0300 (Москва, стандартное время)"
+      },
+      "dСurrent_b": {
+        "value": 0.795,
+        "type": "num",
+        "lastUpdate": "Tue Sep 30 2025 17:07:10 GMT+0300 (Москва, стандартное время)"
+      },
+      "dEnergy_a": {
+        "value": 1789.49,
+        "type": "num",
+        "lastUpdate": "Tue Sep 30 2025 17:07:10 GMT+0300 (Москва, стандартное время)"
+      },
+      "dEnergy_b": {
+        "value": 1735.45,
+        "type": "num",
+        "lastUpdate": "Tue Sep 30 2025 17:07:10 GMT+0300 (Москва, стандартное время)"
+      }
+    },
+    "switches": {
+      "aSwitch10": {
+        "value": false,
+        "type": "bool",
+        "lastUpdate": "Tue Sep 30 2025 17:12:25 GMT+0300 (Москва, стандартное время)"
+      }
+    },
+    "sensors": {
+      "dTemp13": {
+        "value": 20.4,
+        "type": "num",
+        "lastUpdate": "Tue Sep 30 2025 17:09:40 GMT+0300 (Москва, стандартное время)"
+      },
+      "dHum12": {
+        "value": 11.6,
+        "type": "num",
+        "lastUpdate": "Tue Sep 30 2025 17:11:55 GMT+0300 (Москва, стандартное время)"
+      }
+    },
+    "actuators": {
+      "aActuator10": {
+        "value": 1.6,
+        "type": "num",
+        "lastUpdate": "Tue Sep 30 2025 17:12:10 GMT+0300 (Москва, стандартное время)"
       }
     }
   }
