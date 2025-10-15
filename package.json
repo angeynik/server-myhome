@@ -10,6 +10,21 @@
     "test:all": "jest",
     "start": "nodemon serverapp.js"
   },
+   "nodemonConfig": {
+    "ignore": [
+      "configData/**/*",
+      "logs/**/*",
+      "*.log",
+      "temp/**/*"
+    ],
+    "watch": [
+      "services/",
+      "*.js",
+      "*.json"
+    ],
+    "ext": "js,json",
+    "delay": "1000"
+  },
   "keywords": [],
   "author": "",
   "license": "ISC",

@@ -321,7 +321,7 @@ const handlePost = async (ws, data) => {
           
         }
     break;
-    case 'setpoint':
+    case 'setpoints':
       //console.log('[messageHandlers] - handlePost - Request - setpoint');
       try {
         const dID = data.name;
