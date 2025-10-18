@@ -31,9 +31,9 @@
         "lastUpdate": "Tue Sep 30 2025 17:11:55 GMT+0300 (Москва, стандартное время)"
       },
       "dHum10": {
-        "value": 26.8,
+        "value": 26.9,
         "type": "num",
-        "lastUpdate": "Tue Sep 30 2025 17:10:40 GMT+0300 (Москва, стандартное время)"
+        "lastUpdate": "Sat Oct 18 2025 05:38:47 GMT+0300 (Москва, стандартное время)"
       }
     },
     "setpoints": {
@@ -74,14 +74,14 @@
     },
     "sensors": {
       "dTemp12": {
-        "value": 22.9,
+        "value": 23.1,
         "type": "num",
-        "lastUpdate": "Tue Sep 30 2025 17:06:25 GMT+0300 (Москва, стандартное время)"
+        "lastUpdate": "Sat Oct 18 2025 05:43:12 GMT+0300 (Москва, стандартное время)"
       },
       "dFire10": {
         "value": false,
         "type": "bool",
-        "lastUpdate": "Tue Sep 30 2025 17:08:40 GMT+0300 (Москва, стандартное время)"
+        "lastUpdate": "Sat Oct 18 2025 05:40:57 GMT+0300 (Москва, стандартное время)"
       }
     }
   },
@@ -136,7 +136,7 @@
       "dHum11": {
         "value": 30.3,
         "type": "num",
-        "lastUpdate": "Tue Sep 30 2025 17:08:40 GMT+0300 (Москва, стандартное время)"
+        "lastUpdate": "Sat Oct 18 2025 05:43:12 GMT+0300 (Москва, стандартное время)"
       },
       "dTemp11": {
         "value": 24.8,
@@ -160,32 +160,32 @@
       "dFrequency01": {
         "value": 49,
         "type": "num",
-        "lastUpdate": "Tue Sep 30 2025 17:07:10 GMT+0300 (Москва, стандартное время)"
+        "lastUpdate": "Sat Oct 18 2025 05:43:42 GMT+0300 (Москва, стандартное время)"
       },
       "dVoltage01": {
-        "value": 236.7,
+        "value": 237.4,
         "type": "num",
-        "lastUpdate": "Tue Sep 30 2025 17:07:10 GMT+0300 (Москва, стандартное время)"
+        "lastUpdate": "Sat Oct 18 2025 05:43:42 GMT+0300 (Москва, стандартное время)"
       },
       "dСurrent_a": {
-        "value": 0.8,
+        "value": 0.899,
         "type": "num",
-        "lastUpdate": "Tue Sep 30 2025 17:07:10 GMT+0300 (Москва, стандартное время)"
+        "lastUpdate": "Sat Oct 18 2025 05:43:42 GMT+0300 (Москва, стандартное время)"
       },
       "dСurrent_b": {
-        "value": 0.795,
+        "value": 0.885,
         "type": "num",
-        "lastUpdate": "Tue Sep 30 2025 17:07:10 GMT+0300 (Москва, стандартное время)"
+        "lastUpdate": "Sat Oct 18 2025 05:43:42 GMT+0300 (Москва, стандартное время)"
       },
       "dEnergy_a": {
-        "value": 1789.49,
+        "value": 1885.87,
         "type": "num",
-        "lastUpdate": "Tue Sep 30 2025 17:07:10 GMT+0300 (Москва, стандартное время)"
+        "lastUpdate": "Sat Oct 18 2025 05:43:42 GMT+0300 (Москва, стандартное время)"
       },
       "dEnergy_b": {
-        "value": 1735.45,
+        "value": 1828.54,
         "type": "num",
-        "lastUpdate": "Tue Sep 30 2025 17:07:10 GMT+0300 (Москва, стандартное время)"
+        "lastUpdate": "Sat Oct 18 2025 05:43:42 GMT+0300 (Москва, стандартное время)"
       }
     },
     "switches": {
