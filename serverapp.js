@@ -182,7 +182,14 @@ const reconnectInterval = 100;
 
 // Работаем с NodeRED
 WSSNodeRED.on('connection', (ws, req) => {
+  const params = new URLSearchParams(req.url.replace(/^.*\?/, ""));
+  const id = params.get("id");
+  console.log(`Подключился клиент: id = ${id}`);
+
+
+
 console.log(`Client connected to NodeRED on port ${wsRedPORT}`);
+//console.log('[Serverapp] - WSSNodeRED - Соединение установлено', ws);
 
 ws.on('message', async (message) => {
       // console.log(`Starting heartbeat: interval=${pingInterval}ms, timeout=${timeOut}ms`);
@@ -190,7 +197,7 @@ ws.on('message', async (message) => {
      
       try {
         const checkInputMessage = checkMessage(message);
-        //console.log('-- 193 -- WSSNodeRED - checkInputMessage - ', checkInputMessage.data);
+        console.log('-- 193 -- WSSNodeRED - checkInputMessage - ', checkInputMessage);
         if(checkInputMessage.status === 'ok') {
 
           const clientId = checkInputMessage.data.name;
