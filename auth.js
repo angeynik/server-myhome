@@ -19,12 +19,12 @@ const secret = process.env.JWT_SECRET || 'default-secret-key';
  * @returns {Object} - Данные пользователя и токен
  */
 const loginUser = async (username, password) => {
-  //console.log('-- auth -- loginUser - проверяем пользователя --', username, 'с паролем --', password);
+  console.log('-- auth -- loginUser - проверяем пользователя --', username, 'с паролем --', password);
   try {
     const user = await DBManager.findUser(username);
     
     if (!user) {
-      return { error: 'User not found', code: 'USER_NOT_FOUND' };
+      return { error: `User ${username} not found`, code: 'USER_NOT_FOUND' };
     }
 
     const isValid = await bcrypt.compare(password, user.password);

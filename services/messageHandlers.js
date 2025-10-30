@@ -89,7 +89,7 @@ const handleAuth = async (ws, data) => {
     //console.log('[messageHandlers] - handleAuth - Request - ', data);
   switch (data?.request) {
     case 'login':
-        //console.log('[messageHandlers] - handleAuth  - Request - login');
+        console.log('[messageHandlers] - handleAuth  - Request - login');
       try {
         const { username, password } = data?.payload;
         const result = await loginUser(username, password);

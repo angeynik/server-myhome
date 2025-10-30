@@ -197,7 +197,7 @@ ws.on('message', async (message) => {
      
       try {
         const checkInputMessage = checkMessage(message);
-        console.log('-- 193 -- WSSNodeRED - checkInputMessage - ', checkInputMessage);
+        //console.log('-- 193 -- WSSNodeRED - checkInputMessage - ', checkInputMessage);
         if(checkInputMessage.status === 'ok') {
 
           const clientId = checkInputMessage.data.name;
@@ -224,7 +224,7 @@ ws.on('message', async (message) => {
 
               break;
             case 'post':
-                  console.log('[Serverapp] - -- Post -- Добавляем сообщение в очередь');
+                  //console.log('[Serverapp] - -- Post -- Добавляем сообщение в очередь');
                   const key = `${checkInputMessage.data.type}|
                   ${checkInputMessage.data.name}|
                   ${checkInputMessage.data.request}|
@@ -287,7 +287,7 @@ WSSDash.on('connection', (ws) => {
           switch (dashData?.data?.type) {
             case 'auth':
                 const auth = dashData.data.payload;
-                //console.log('[Serverapp] - -- auth --', auth);
+                console.log('[Serverapp] - -- auth --', auth);
                 handleAuth(ws, dashData.data);
                 break;
             case 'get': // Используем строку 'get' для сравнения
