@@ -101,8 +101,10 @@ const initDefaulUser = async () => {
   }
 }
 const initDB_dID = async () => {
+  console.log('[initServer] - initDB_dID - Проверка наличия базы данных по умолчанию...');
   try {
         const envName = process.env.DEFAULT_USER_DID;
+        console.log(`[initServer] - Проверяем существование базы данных "${envName}"...`);
     if (envName) {
       try {
         const DBdID = await DBManager.query('SELECT NOW()', [], envName, 'root', 'poddyPASS');

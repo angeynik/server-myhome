@@ -188,7 +188,7 @@ class DBManager {
         port: this.dbPort || 5432,
       });
 
-      console.log(`Создан новый пул для базы данных: ${dbName}`);
+      console.log(`[db] - getPool - Создан новый пул для базы данных: ${dbName}`);
     }
 
     return this.pools[key];
@@ -197,7 +197,7 @@ class DBManager {
   async closeAllPools() {
     for (const key of Object.keys(this.pools)) {
       await this.pools[key].end();
-      console.log(`Пул для ключа ${key} завершен.`);
+      console.log(`[db] - closeAllPools - Пул для ключа ${key} завершен.`);
     }
     this.pools = {};
   }
@@ -207,37 +207,37 @@ class DBManager {
     if (this.pools[key]) {
       await this.pools[key].end();
       delete this.pools[key];
-      console.log(`Пул для базы данных ${dbName} завершен.`);
+      console.log(`[db] - closePool - Пул для базы данных ${dbName} завершен.`);
     }
   }
   async query(text, params, dbName, dbUser, dbPass) {
     const Name = dbName || this.dbName;
     const User = dbUser || this.dbUser;
     const Pass = dbPass || this.dbPass;
-      //console.log(`[QUERY START] ${text}`);
-      //console.log(`Параметры: ${JSON.stringify(params)}`);
+      console.log(`[db]- query - [QUERY START] ${text}`);
+      //console.log(`[db]- query - Параметры: ${JSON.stringify(params)}`);
 
-    console.log(`Выполнение запроса для ${Name}, ${User}, ${Pass}`);
+    console.log(`[db]- query - Выполнение запроса для ${Name}, ${User}, ${Pass}`);
     const pool = this.getPool(Name, User, Pass);
     //const start = Date.now();
     try {
       const res = await pool.query(text, params);
       //const duration = Date.now() - start;
-      console.log(`Подключение к базе данных ${finalDbName} пользователь ${finalDbUser} выполнено за ${duration} мс`);
-      //console.log('Результат выполнения запроса:', JSON.stringify(res, null, 2));
+      console.log(`[db]- query - Подключение к базе данных ${finalDbName} пользователь ${finalDbUser} выполнено за ${duration} мс`);
+      //console.log('[db]- query - Результат выполнения запроса:', JSON.stringify(res, null, 2));
   
       return res;
     } catch (error) {
-      console.error('Ошибка при выполнении запроса:', error.message);
+      console.error('[db]- query - Ошибка при выполнении запроса:', error.message);
       throw error;
     }
   }
 
     // Проверка существования записи в таблице по условиям
     async checkRecordExists(tableName, param, dbName, dbUser, dbPass) {
-      //console.log('Входим в checkRecordExists');
+      //console.log('[db]- checkRecordExists - Входим в checkRecordExists');
       if (Object.keys(param).length === 0) {
-        throw new Error('Необходимо указать условия для проверки существования записи');
+        throw new Error('db]- checkRecordExists - Необходимо указать условия для проверки существования записи');
       }
     
       const whereClauses = [];
@@ -257,7 +257,7 @@ class DBManager {
         LIMIT 1
       `;
       
-      //console.log('checkRecordExists - Готовим запрос queryText', queryText);
+      //console.log('db]- checkRecordExists - - Готовим запрос queryText', queryText);
       
       try {
         const result = await this.query(
@@ -269,43 +269,43 @@ class DBManager {
         );
     
         if (result.rows.length > 0) {
-          console.log('checkRecordExists - Запись найдена, ID:', result.rows[0].id);
+          console.log('db]- checkRecordExists -  - Запись найдена, ID:', result.rows[0].id);
           return { 
             exists: true, 
             id: result.rows[0].id 
           };
         }
         
-        //console.log('checkRecordExists - Запись не найдена');
+        //console.log('db]- checkRecordExists -  - Запись не найдена');
         return { 
           exists: false, 
           id: null 
         };
     
       } catch (error) {
-        console.error(`Ошибка проверки записи в таблице ${tableName}:`, error.message);
+        console.error(`db]- checkRecordExists - Ошибка проверки записи в таблице ${tableName}:`, error.message);
         throw error;
       }
     }
 
     async createDB (createDB, dbName, dbUser, dbPass) {
-      console.log(`createDB - Создаем базу - ${createDB} Параметры подключения ${dbName} - ${dbUser}`);
+      console.log(`[db] - createDB - Создаем базу - ${createDB} Параметры подключения ${dbName} - ${dbUser}`);
       try {
-        console.log(`Попытка создания базы данных ${createDB} ...`);
+        console.log(`[db] - createDB - Попытка создания базы данных ${createDB} ...`);
         await this.query(`CREATE DATABASE "${createDB}"`, [], dbName, dbUser, dbPass);
-        console.log(`База данных "${createDB}" создана успешно.`);
+        console.log(`[db] - createDB - База данных "${createDB}" создана успешно.`);
 
         await this.query(`ALTER DATABASE "${createDB}" OWNER TO "${dbUser}"`, [], 'root', 'root', 'poddyPASS');
-        console.log(`Владелец базы данных "${createDB}" изменен на "${dbUser}".`);
+        console.log(`[db] - createDB - Владелец базы данных "${createDB}" изменен на "${dbUser}".`);
 
         await this.query(`GRANT ALL PRIVILEGES ON DATABASE "${createDB}" TO "${dbUser}"`, [], 'root', 'root', 'poddyPASS');
-        console.log(`Права на базу данных "${createDB}" переданы пользователю "${dbUser}".`);
+        console.log(`[db] - createDB - Права на базу данных "${createDB}" переданы пользователю "${dbUser}".`);
           // Подключаемся к новой базе данных "spring" для установки расширения "uuid-ossp"
         await this.query(`CREATE EXTENSION IF NOT EXISTS "uuid-ossp"`, [], createDB, dbUser, dbPass);
-        console.log(`Расширение "uuid-ossp" установлено в базе данных ${createDB}.`);
+        console.log(`[db] - createDB - Расширение "uuid-ossp" установлено в базе данных ${createDB}.`);
 
       } catch (createError) {
-        console.error('Ошибка при создании базы данных:', createError.message);
+        console.error('[db] - createDB - Ошибка при создании базы данных:', createError.message);
         throw createError;
     }
     }
