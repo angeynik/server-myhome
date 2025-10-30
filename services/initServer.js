@@ -105,9 +105,9 @@ const initDB_dID = async () => {
         const envName = process.env.DEFAULT_USER_DID;
     if (envName) {
       try {
-        const DBdID = await DBManager.query('SELECT NOW()', [], envName, 'root', 'root', 'poddyPASS');
+        const DBdID = await DBManager.query('SELECT NOW()', [], envName, 'root', 'poddyPASS');
         console.log(`[initServer] - База данных "${envName}" существует. Результат запроса:`, DBdID.rows[0]);
-              // Проверяем существование таблиц
+      // Проверяем существование таблиц
       const tablesExist = await DBManager.checkTableExists(envName);
       if (!tablesExist) {
         console.log(`[initServer] - Таблицы в базе "${envName}" отсутствуют. Создаем...`);
@@ -137,7 +137,7 @@ const initDB_dID = async () => {
       console.log(`[initServer] - Не удалось получить имя пользователя по умолчанию - ${envName}`);
     }
   } catch (error) {
-    console.error('[initServer] - Ошибка базы данных пользователя:', envName, error.message);
+    console.error('[initServer] - Ошибка базы данных пользователя:', process.env.DEFAULT_USER_DID, error.message);
     throw error;  
   }
 }

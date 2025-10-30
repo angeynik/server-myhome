@@ -217,13 +217,13 @@ class DBManager {
       //console.log(`[QUERY START] ${text}`);
       //console.log(`Параметры: ${JSON.stringify(params)}`);
 
-    //console.log(`Выполнение запроса для ${Name}, ${User}, ${Pass}`);
+    console.log(`Выполнение запроса для ${Name}, ${User}, ${Pass}`);
     const pool = this.getPool(Name, User, Pass);
     //const start = Date.now();
     try {
       const res = await pool.query(text, params);
       //const duration = Date.now() - start;
-      //console.log(`Подключение к базе данных ${finalDbName} пользователь ${finalDbUser} выполнено за ${duration} мс`);
+      console.log(`Подключение к базе данных ${finalDbName} пользователь ${finalDbUser} выполнено за ${duration} мс`);
       //console.log('Результат выполнения запроса:', JSON.stringify(res, null, 2));
   
       return res;

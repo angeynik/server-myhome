@@ -37,7 +37,7 @@ function addMessageToQueue(clientId, message) {
     });
     //console.log(`[messageStore]- processClientQueue - 📬 Сообщение добавлено в очередь для ${clientId}. Ключ: ${key}`);
   } else {
-    console.log(`[messageStore]- processClientQueue - ⚠️  Сообщение уже в очереди. ${clientId} Ключ: ${key}`);
+    //console.log(`[messageStore]- processClientQueue - ⚠️  Сообщение уже в очереди. ${clientId} Ключ: ${key}`);
   }
 }
 
