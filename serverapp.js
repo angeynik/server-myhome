@@ -278,7 +278,7 @@ WSSDash.on('connection', (ws) => {
   });
 
   ws.on('message', (message) => {
-      //console.log (`[Serverapp] - WSSDash получено сообщение ${message}`);
+      console.log (`[Serverapp] - WSSDash получено сообщение ${message}`);
       try {
         const dashData = checkMessage(message);
         //console.log('[Serverapp] - WSSDash - checkInputMessage - ', dashData.data);
@@ -338,14 +338,14 @@ function sendToClient(dID, data) {
   // Проверка готовности клиентов
   let hasOpenClients = false;
   WSSDash.clients.forEach((client) => {
-    console.log(`[Serverapp] - Состояние клиента Dashboard: ${client.readyState} (${client.readyState === WebSocket.OPEN ? 'открыт' : 'не открыт'})`);
+    //console.log(`[Serverapp] - Состояние клиента Dashboard: ${client.readyState} (${client.readyState === WebSocket.OPEN ? 'открыт' : 'не открыт'})`);
     if (client.readyState === WebSocket.OPEN) {
       hasOpenClients = true;
     }
   });
 
   if (!hasOpenClients) {
-    console.log('[Serverapp] - Нет подключенных клиентов Dashboard в состоянии OPEN.');
+    //console.log('[Serverapp] - Нет подключенных клиентов Dashboard в состоянии OPEN.');
     return;
   }
 
