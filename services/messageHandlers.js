@@ -22,6 +22,8 @@ function getValue(value) {
 };
 
 async function handlePostNodeRED(clientId, message) {
+  const info = JSON.stringify(message);
+  //console.log(`[messageHandlers] - handlePostNodeRED - Обработка сообщения: ${info}`);
     const { name, request, payload = {} } = message;
 
     // Извлекаем значения из payload
@@ -33,7 +35,7 @@ async function handlePostNodeRED(clientId, message) {
     const title = getValue(payload?.title);
     const group = getValue(payload?.group);
 
-    //console.log('[messageHandlers] - handlePostNodeRED - request:', request );
+    //console.log('[messageHandlers] - handlePostNodeRED - type:', item_type, 'room:', room, 'name: ', item_name, 'value: ', item_value );
 
     // Проверка обязательных полей (раскомментировать)
     if (!room || !item_name || item_value === undefined) {
@@ -326,7 +328,7 @@ const handlePost = async (ws, data) => {
       try {
         const dID = data.name;
         const { room, param, value } = data.payload;
-        //console.log('[messageHandlers] - handlePost - Получены данные:', data, 'dID -', dID);
+        console.log('[messageHandlers] - handlePost - Получены данные:', data, 'dID -', dID);
         
         // Читаем данные из конфигурационного файла на диске
         const { data: configData, filePath } = await readFileSafely(dID);

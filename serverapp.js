@@ -25,13 +25,19 @@ const {validType, validConfig, validPost} = require('./validate');
 const servPORT = process.env.SERVER_PORT || 3010;
 const wsRedPORT = process.env.WSR_PORT || 9200;
 const wsDashPORT = process.env.WSD_PORT || 9202;
-const pingInterval = process.env.WS_PING_INTERVAL || 150000;
-const timeOut = process.env.WS_TIME_OUT || 300000;
+// const EXT_URL = process.env.EXT_URL || 'http://192.168.1.94:3020';
+// const LOCAL_URL = process.env.LOCAL_URL || 'http://localhost:3020';
+// const pingInterval = process.env.WS_PING_INTERVAL || 150000;
+// const timeOut = process.env.WS_TIME_OUT || 300000;
 
 const app = express();
 app.set(servPORT);
 const server = http.createServer(app);
 app.use(cors());
+// app.use(cors({
+//   origin: [EXT_URL, LOCAL_URL],
+//   credentials: true
+// }));
 app.use(express.json());
 app.use(bodyParser.json());
 
@@ -162,7 +168,7 @@ const { error } = require('console');
 
 //устанавливаем соединение через Web Socket
 const WSSNodeRED = new WebSocket.Server ({port:wsRedPORT});
-const WSSDash = new WebSocket.Server ({port:wsDashPORT});
+const WSSDash = new WebSocket.Server ({port:wsDashPORT, host: '0.0.0.0' });
 
 // Запускаем обработчик очередей WebSocket сообщений каждые 5 секунд (можно чаще, например, каждую секунду)
 const QUEUE_PROCESS_INTERVAL = 15000;
@@ -281,7 +287,7 @@ WSSDash.on('connection', (ws) => {
       console.log (`[Serverapp] - WSSDash получено сообщение ${message}`);
       try {
         const dashData = checkMessage(message);
-        //console.log('[Serverapp] - WSSDash - checkInputMessage - ', dashData.data);
+        console.log('[Serverapp] - WSSDash - checkInputMessage - ', dashData.data);
         if(dashData.status === 'ok') {
           //console.log('[Serverapp] -  WSSDash - checkInputMessage - OK ');
           switch (dashData?.data?.type) {
