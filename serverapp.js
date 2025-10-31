@@ -231,16 +231,23 @@ ws.on('message', async (message) => {
               break;
             case 'post':
                   //console.log('[Serverapp] - -- Post -- Добавляем сообщение в очередь');
-                  const key = `${checkInputMessage.data.type}|
+                  const key = 
+                  `${checkInputMessage.data.type}|
                   ${checkInputMessage.data.name}|
                   ${checkInputMessage.data.request}|
                   ${checkInputMessage.data.payload.room}|
-                  ${checkInputMessage.data.payload.title}|
-                  ${checkInputMessage.data.payload.group}|
-                  ${checkInputMessage.data.payload.item_value}|
-                  ${checkInputMessage.data.payload.item_type}|
-                  ${checkInputMessage.data.payload.item_title}|
-                  ${checkInputMessage.data.payload.item_name}`;
+                  ${checkInputMessage.data.payload.item_name}|
+                  ${checkInputMessage.data.payload.item_value}`;
+                  // `${checkInputMessage.data.type}|
+                  // ${checkInputMessage.data.name}|
+                  // ${checkInputMessage.data.request}|
+                  // ${checkInputMessage.data.payload.room}|
+                  // ${checkInputMessage.data.payload.title}|
+                  // ${checkInputMessage.data.payload.group}|
+                  // ${checkInputMessage.data.payload.item_value}|
+                  // ${checkInputMessage.data.payload.item_type}|
+                  // ${checkInputMessage.data.payload.item_title}|
+                  // ${checkInputMessage.data.payload.item_name}`;
                   //console.log('[Serverapp] - Ключ:', key);
                   addMessageToQueue(clientId, checkInputMessage.data);
                   try {
@@ -284,10 +291,10 @@ WSSDash.on('connection', (ws) => {
   });
 
   ws.on('message', (message) => {
-      console.log (`[Serverapp] - WSSDash получено сообщение ${message}`);
+      //console.log (`[Serverapp] - WSSDash получено сообщение ${message}`);
       try {
         const dashData = checkMessage(message);
-        console.log('[Serverapp] - WSSDash - checkInputMessage - ', dashData.data);
+        //console.log('[Serverapp] - WSSDash - checkInputMessage - ', dashData.data);
         if(dashData.status === 'ok') {
           //console.log('[Serverapp] -  WSSDash - checkInputMessage - OK ');
           switch (dashData?.data?.type) {
@@ -296,18 +303,18 @@ WSSDash.on('connection', (ws) => {
                 console.log('[Serverapp] - -- auth --', auth);
                 handleAuth(ws, dashData.data);
                 break;
-            case 'get': // Используем строку 'get' для сравнения
+            case 'get': 
                 //console.log('[Serverapp] - WSSDash - Переходим к проверке сообщения типа get.');
                 handleGet(ws, dashData.data);
                 break;
-            case 'post': // Используем строку 'post' для сравнения
+            case 'post': 
                 //console.log('[Serverapp] - WSSDash - Переходим к проверке сообщения типа post. ', dashData.data, dashData.data.name);
                 handlePost(ws, dashData.data);
                 const dID = dashData.data.name;
                 try {
                     sendToNodeRED(dID, dashData.data);
                 } catch (error) {
-                    console.log('[Serverapp] -  Ошибка отправки полученного сообщения от NodeRED  клиенту WSSDash:', error);
+                    console.log('[Serverapp] -  Ошибка отправки полученного сообщения от VUE клиента к NodeRED:', error);
                 }
             break;
             default:
@@ -334,7 +341,7 @@ console.log(`WebSocket servers are running on nodeRed ws port:${wsRedPORT} and D
 
 
 function sendToClient(dID, data) {
-  //console.log('[Serverapp] - sendToClient: dID =', dID, 'data =', data);
+  console.log('[Serverapp] - sendToClient: dID =', dID, 'data =', data);
   
   data.time = new Date().toString();
   //console.log('[Serverapp] - sendToClient: data.time =', data.time);

@@ -35,7 +35,7 @@ async function handlePostNodeRED(clientId, message) {
     const title = getValue(payload?.title);
     const group = getValue(payload?.group);
 
-    //console.log('[messageHandlers] - handlePostNodeRED - type:', item_type, 'room:', room, 'name: ', item_name, 'value: ', item_value );
+    console.log('[messageHandlers] - handlePostNodeRED - type:', item_type, 'room:', room, 'name: ', item_name, 'value: ', item_value );
 
     // Проверка обязательных полей (раскомментировать)
     if (!room || !item_name || item_value === undefined) {
@@ -187,7 +187,7 @@ const handleGet = async (ws, data) => {
 };
 
 const handlePost = async (ws, data) => {
-    console.log('[messageHandlers] - handlePost - Переходим к проверке сообщения типа post, request - ', data.request);
+    //console.log('[messageHandlers] - handlePost - Переходим к проверке сообщения типа post, request - ', data.request);
   switch (data?.request) {
     case 'createUser':
         console.log('[messageHandlers] - handlePost - Request - createUser');
