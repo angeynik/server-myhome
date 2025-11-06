@@ -7,6 +7,8 @@ const bodyParser = require('body-parser');
 const fs = require('fs');
 const {initServer, initUsers, initDefaulUser, initDB_dID} = require('./services/initServer.js');
 //const tableDB = require('./services/tableDB.js');
+
+const wsManager = require('./classes/wsManager.js');
 const { nodeRedClients, registerClient, getAllClients, getClient, startHeartbeat} = require('./services/clientsStore');
 const { addMessageToQueue, getAllQueueMessages, processAllQueues, removeFromQueue, triggerQueueProcessing} = require('./services/messageStore.js');
 const { handleAuth, handleGet, handlePost, handleResponse, handleSet, handleError} = require('./services/messageHandlers.js'); // Подключаем обработку входящих по WS сообщений
@@ -281,6 +283,10 @@ ws.on('error', (error) => {
 // Работаем с Dashboard
 
 WSSDash.on('connection', (ws) => {
+  console.log('[Serverapp] - WSSDash.on - Новое подключение Dashboard (VUE)');
+  const clientId = wsManager.registerConnection(ws, 'dashboard', null);
+  console.log(`[Serverapp] - WSSDash.on - VUE соединение зарегистрировано: ${clientId}`);
+
   WSSDash.clients.forEach((client) => {
     client.send(
                         JSON.stringify({

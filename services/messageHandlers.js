@@ -9,6 +9,7 @@ const authDB = process.env.DB_DATABASE || 'spring'; // База данных п�
 const dbUser = process.env.DB_USER;
 const dbPass = process.env.DB_PASSWORD;
 
+const wsManager = require('../classes/wsManager');
 const { loginUser, verifyToken } = require('../auth'); // Импортируем функции авторизации
 const { writeFileSafely, readFileSafely  } = require('./configStore');
 const { nodeRedClients  } = require('./clientsStore');
@@ -97,25 +98,39 @@ const handleAuth = async (ws, data) => {
         const result = await loginUser(username, password);
         //console.log('[messageHandlers] - handleAuth  Результат проверки:', result);
         if (result.error) {
-          sendError(ws, 'loginError', data.name, {
+          wsManager.sendToConnection(ws, 'input', 'loginError', data.name, {
             code: result.code,
             message: result.error
           });
+          // sendError(ws, 'loginError', data.name, {
+          //   code: result.code,
+          //   message: result.error
+          // });
         } else {
           console.log('[messageHandlers] - handleAuth  Успешная проверка отправляем ответ Vue');
-          sendSuccess(ws, 'loginSuccess', result.dID, {
+          wsManager.sendToConnection(ws, 'input', 'loginSuccess', data.name, {
             token: result.token,
             username: result.username,
             userlevel: result.userlevel
           });
+          // sendSuccess(ws, 'loginSuccess', result.dID, {
+          //   token: result.token,
+          //   username: result.username,
+          //   userlevel: result.userlevel
+          // });
         }
       } catch (error) {
         console.error('Необработанная ошибка:', error);
-        sendError(ws, 'loginError', data.name, {
-          username: data.payload.username,
-          code: 'UNHANDLED_ERROR',
-          message: 'Произошла непредвиденная ошибка'
-        });
+        wsManager.sendToConnection(ws, 'input', 'loginError', data.name, {
+            username: data.payload.username,
+            code: 'UNHANDLED_ERROR',
+            message: 'Произошла непредвиденная ошибка'
+          });
+        // sendError(ws, 'loginError', data.name, {
+        //   username: data.payload.username,
+        //   code: 'UNHANDLED_ERROR',
+        //   message: 'Произошла непредвиденная ошибка'
+        // });
       }
       break;
     default:

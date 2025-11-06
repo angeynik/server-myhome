@@ -14,15 +14,15 @@ class WsManager {
     this.connections = new Map();
     this.heartbeatInterval = null;
   }
-  generateConnectionId(dID = null) {
-    const random = Math.random().toString(32);
-    return dID ? `${dID}_${random}` : `${random}`;
-  }
+  // generateConnectionId() {
+  //   const random = Math.random().toString(32);
+  //   return random;
+  // }
   registerConnection(ws, connectionType, dID = null, key = null) {
     console.log('[wsManager] - registerConnection - Начинаем регистрацию подключения');
-    if (!['input', 'output'].includes(connectionType)) {
-      throw new TypeError(`Invalid connectionType: "${connectionType}"`);
-    }   
+    // if (!['input', 'output'].includes(connectionType)) {
+    //   throw new TypeError(`Invalid connectionType: "${connectionType}"`);
+    // }   
     const remoteAddress = ws._socket?.remoteAddress || 'unknown';
     const remotePort = ws._socket?.remotePort || 'unknown';
     const fullAddress = `${(remoteAddress || "").replace(/^::ffff:/, "")}:${remotePort}`;
@@ -40,7 +40,7 @@ class WsManager {
         //     );
         return existingConnection.clientId;
     }
-    const clientId = this.generateConnectionId(dID);
+    const clientId = Math.random().toString(16);
 
     const connection = {
       ws,
@@ -139,7 +139,7 @@ findExistingConnection(dID, connectionType, remoteAddress) {
     if (dID) {
       this.unlinkUserDevice(dID, clientId);
     }
-    console.log(`[WsManager] - 🗑 Connection removed: ${clientId} (${connectionType}, ${key || 'no-key'})`);
+    console.log(`[WsManager] - 🗑 Connection removed: ${clientId} (${connectionType}, ${connection.key || 'no-key'})`);
   }
 
   hasConnection(clientId) {
@@ -187,11 +187,19 @@ getUserConnections(dID, key = null) {
     return result;
   }
 
-  sendToConnection(clientId, message) {
+  sendToConnection(clientId, type, request, name, message) {
     const ws = this.getConnection(clientId);
     if (ws && ws.readyState === WebSocket.OPEN) {
       try {
-        const messageString = typeof message === 'string' ? message : JSON.stringify(message);
+        const response = {
+          type: type || 'unknown',
+          request: request || 'unknown',
+          name: name || 'unknown',
+          payload: message
+        };
+        console.log('[wsManager] - sendToConnection - Отправляем сообщение:', response);
+
+        const messageString = typeof response === 'string' ? response : JSON.stringify(response);
         ws.send(messageString);
         console.log ('[WsManager] - sendToConnection - Отправлено сообщение', clientId);
         return true;
