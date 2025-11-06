@@ -58,20 +58,21 @@ class WsManager {
     this.connections.set(clientId, connection);
     this.setupConnectionHandlers(clientId, ws);
     console.log(`[WsManager] - ✅ ${connectionType} Соединение зарегистрировано: ${clientId} (${key || 'no-key'}) - ${fullAddress}`);
-    
+    const allClients = wsManager.getAllActiveConnections();
+    console.log(` !!!!!!!!!!!!!!!! - - - - - [Serverapp] - WSSDash.on - Все соединения:`, allClients);
     return clientId;
   }
-findExistingConnection(dID, connectionType, remoteAddress) {
-  for (const [clientId, connection] of this.connections) {
-    if (connection.dID === dID && 
-        connection.connectionType === connectionType && 
-        connection.meta.remoteAddress === remoteAddress &&
-        this.isConnectionActive(clientId)) {
-      return { clientId, connection };
+  findExistingConnection(dID, connectionType, remoteAddress) {
+    for (const [clientId, connection] of this.connections) {
+      if (connection.dID === dID && 
+          connection.connectionType === connectionType && 
+          connection.meta.remoteAddress === remoteAddress &&
+          this.isConnectionActive(clientId)) {
+        return { clientId, connection };
+      }
     }
+    return null;
   }
-  return null;
-}
   closeDuplicateConnections(dID, connectionType, remoteAddress) {
     let closedCount = 0;
     
@@ -146,30 +147,58 @@ findExistingConnection(dID, connectionType, remoteAddress) {
     return this.connections.has(clientId) && this.isConnectionActive(clientId);
   }
 
+  // getConnection(clientId) {
+  //   const connection = this.connections.get(clientId);
+  //   return connection && this.isConnectionActive(clientId) ? connection.ws : null;
+  // }
+
+
   getConnection(clientId) {
     const connection = this.connections.get(clientId);
-    return connection && this.isConnectionActive(clientId) ? connection.ws : null;
-  }
-
-getUserConnections(dID, key = null) {
-  const result = [];
-  
-  for (const [clientId, connection] of this.connections) {
-    if (!this.isConnectionActive(clientId)) continue;
-    if (connection.dID !== dID) continue;
     
-    // Если key не указан - возвращаем все соединения с этим dID
-    // Если key указан - возвращаем только соединения с этим ключом
-    if (key === null || connection.key === key) {
-      result.push({
-        clientId,
-        connection: connection // исправлено с connect на connection
-      });
+    if (!connection) {
+      console.log(`[WsManager] - getConnection - ❌ Соединение ${clientId} не найдено`);
+      return null;
     }
-  }
+
+    const { ws, meta, connectionType, dID } = connection;
+    
+    if (!this.isConnectionActive(clientId)) {
+      console.log(`[WsManager] - getConnection - ⚠️ Соединение ${clientId} неактивно`);
+      return null;
+    }
+
+    // Детальное логирование информации о клиенте
+    console.log(`[WsManager] - getConnection - 📋 Информация о клиенте:`);
+    console.log(`  ID клиента: ${meta.clientId}`);
+    console.log(`  Тип подключения: ${connectionType}`);
+    console.log(`  dID: ${dID || 'не задан'}`);
+    console.log(`  Адрес: ${meta.remoteAddress}`);
+    console.log(`  Статус WebSocket: ${ws.readyState === WebSocket.OPEN ? 'OPEN' : 'NOT_OPEN'}`);
+    console.log(`  Время последней активности: ${new Date(meta.lastActivity).toISOString()}`);
+    
+    return ws;
   
-  return result;
-}
+  }
+  getUserConnections(dID, key = null) {
+    const result = [];
+    
+    for (const [clientId, connection] of this.connections) {
+      if (!this.isConnectionActive(clientId)) continue;
+      if (connection.dID !== dID) continue;
+      
+      // Если key не указан - возвращаем все соединения с этим dID
+      // Если key указан - возвращаем только соединения с этим ключом
+      if (key === null || connection.key === key) {
+        result.push({
+          clientId,
+          connection: connection // исправлено с connect на connection
+        });
+      }
+    }
+    
+    return result;
+  }
 
   getAllActiveConnections() {
     const result = [];
@@ -189,6 +218,7 @@ getUserConnections(dID, key = null) {
 
   sendToConnection(clientId, type, request, name, message) {
     const ws = this.getConnection(clientId);
+    
     if (ws && ws.readyState === WebSocket.OPEN) {
       try {
         const response = {
@@ -197,7 +227,11 @@ getUserConnections(dID, key = null) {
           name: name || 'unknown',
           payload: message
         };
-        console.log('[wsManager] - sendToConnection - Отправляем сообщение:', response);
+        console.log('[WsManager] - sendToConnection - 📨 Отправляем сообщение:');
+        console.log(`  Тип: ${type}`);
+        console.log(`  Запрос: ${request}`);
+        console.log(`  Имя: ${name}`);
+        console.log(`  Данные:`, message);
 
         const messageString = typeof response === 'string' ? response : JSON.stringify(response);
         ws.send(messageString);

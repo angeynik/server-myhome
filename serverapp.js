@@ -23,6 +23,17 @@ const DBManager = require('./services/db.js'); // Импортируем DBManag
 // Подключаем функции модуля joi для валидации данных
 const {validType, validConfig, validPost} = require('./validate');
 
+const logLevel = process.env.LOG_LEVEL || 'info';
+let logInfo, logDev, logError = false;
+if (logLevel === 'dev') {
+  logDev = true;
+  logInfo = true;
+  logError = true;
+} else if (logLevel === 'error') {
+  logInfo = true;
+  logError = true;
+} else (logLevel === 'info') ? logInfo = true : false;
+
 
 const servPORT = process.env.SERVER_PORT || 3010;
 const wsRedPORT = process.env.WSR_PORT || 9200;
@@ -283,9 +294,11 @@ ws.on('error', (error) => {
 // Работаем с Dashboard
 
 WSSDash.on('connection', (ws) => {
-  console.log('[Serverapp] - WSSDash.on - Новое подключение Dashboard (VUE)');
+  if (logInfo) {console.log('[Serverapp] - WSSDash.on - Новое подключение Dashboard (VUE)');}
   const clientId = wsManager.registerConnection(ws, 'dashboard', null);
-  console.log(`[Serverapp] - WSSDash.on - VUE соединение зарегистрировано: ${clientId}`);
+  if (logInfo) {console.log(`[Serverapp] - WSSDash.on - VUE соединение зарегистрировано: ${clientId}`);}
+  // const allClients = wsManager.getAllActiveConnections();
+  // if (logDev) {console.log(`[Serverapp] - WSSDash.on - Все соединения:`, allClients);}
 
   WSSDash.clients.forEach((client) => {
     client.send(
@@ -307,15 +320,15 @@ WSSDash.on('connection', (ws) => {
             case 'auth':
                 const auth = dashData.data.payload;
                 console.log('[Serverapp] - -- auth --', auth);
-                handleAuth(ws, dashData.data);
+                handleAuth(clientId, dashData.data);
                 break;
             case 'get': 
                 //console.log('[Serverapp] - WSSDash - Переходим к проверке сообщения типа get.');
-                handleGet(ws, dashData.data);
+                handleGet(clientId, dashData.data);
                 break;
             case 'post': 
                 //console.log('[Serverapp] - WSSDash - Переходим к проверке сообщения типа post. ', dashData.data, dashData.data.name);
-                handlePost(ws, dashData.data);
+                handlePost(clientId, dashData.data);
                 const dID = dashData.data.name;
                 try {
                     sendToNodeRED(dID, dashData.data);

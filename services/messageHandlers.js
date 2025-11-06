@@ -13,7 +13,7 @@ const wsManager = require('../classes/wsManager');
 const { loginUser, verifyToken } = require('../auth'); // Импортируем функции авторизации
 const { writeFileSafely, readFileSafely  } = require('./configStore');
 const { nodeRedClients  } = require('./clientsStore');
-const { sendSuccess, sendError, sendRequest} = require('./wsHelpers');
+//const { sendSuccess, sendError, sendRequest} = require('./wsHelpers');
 const { type } = require('os');
 // Получаем список имен конфигов из переменной окружения
 const configNames = JSON.parse(process.env.DB_CONFIG_NAMES || '[]');
@@ -87,7 +87,7 @@ async function handlePostNodeRED(clientId, message) {
 };
 
 
-const handleAuth = async (ws, data) => {
+const handleAuth = async (clientId, data) => {
     console.log('[messageHandlers] - handleAuth Переходим к проверке сообщения типа auth');
     //console.log('[messageHandlers] - handleAuth - Request - ', data);
   switch (data?.request) {
@@ -98,7 +98,7 @@ const handleAuth = async (ws, data) => {
         const result = await loginUser(username, password);
         //console.log('[messageHandlers] - handleAuth  Результат проверки:', result);
         if (result.error) {
-          wsManager.sendToConnection(ws, 'input', 'loginError', data.name, {
+          wsManager.sendToConnection(clientId, 'error', 'loginError', data.name, {
             code: result.code,
             message: result.error
           });
@@ -108,7 +108,7 @@ const handleAuth = async (ws, data) => {
           // });
         } else {
           console.log('[messageHandlers] - handleAuth  Успешная проверка отправляем ответ Vue');
-          wsManager.sendToConnection(ws, 'input', 'loginSuccess', data.name, {
+          wsManager.sendToConnection(clientId, 'response', 'loginSuccess', data.name, {
             token: result.token,
             username: result.username,
             userlevel: result.userlevel
@@ -121,7 +121,7 @@ const handleAuth = async (ws, data) => {
         }
       } catch (error) {
         console.error('Необработанная ошибка:', error);
-        wsManager.sendToConnection(ws, 'input', 'loginError', data.name, {
+        wsManager.sendToConnection(clientId, 'error', 'loginError', data.name, {
             username: data.payload.username,
             code: 'UNHANDLED_ERROR',
             message: 'Произошла непредвиденная ошибка'
@@ -138,32 +138,44 @@ const handleAuth = async (ws, data) => {
   }
 };
 
-const handleGet = async (ws, data) => {
+const handleGet = async (clientId, data) => {
     console.log('[messageHandlers] - handleGet - Переходим к проверке сообщения типа get');
     const dID = data.name;
   switch (data?.request) {
     case 'fetchUsers':
       try {
         const users = await DBManager.fetchUsers();
-        sendSuccess(ws, 'fetchUsersSuccess', data.name, {
-          users: users
-        });
+        wsManager.sendToConnection(clientId, 'response', 'fetchUsersSuccess', data.name, {
+            users: users
+          });
+        // sendSuccess(ws, 'fetchUsersSuccess', data.name, {
+        //   users: users
+        // });
       } catch (error) {
-        sendError(ws, 'fetchUsersError', data.name, {
-          message: error.message
-        });
+          wsManager.sendToConnection(clientId, 'error', 'fetchUsersError', data.name, {
+            message: error.message
+          });
+        // sendError(ws, 'fetchUsersError', data.name, {
+        //   message: error.message
+        // });
       }
       break;
     case 'fetchDataSources':
       try {
         const dataSources = await DBManager.fetchDataSources();
-        sendSuccess(ws, 'fetchDataSourcesSuccess', data.name, {
-          sources: dataSources
-        });
+          wsManager.sendToConnection(clientId, 'error', 'fetchDataSourcesSuccess', data.name, {
+            sources: dataSources
+          });
+        // sendSuccess(ws, 'fetchDataSourcesSuccess', data.name, {
+        //   sources: dataSources
+        // });
       } catch (error) {
-        sendError(ws, 'fetchDataSourcesError', data.name, {
-          message: error.message
-        });
+          wsManager.sendToConnection(clientId, 'error', 'fetchDataSourcesError', data.name, {
+            message: error.message
+          });
+        // sendError(ws, 'fetchDataSourcesError', data.name, {
+        //   message: error.message
+        // });
       }
       break;
 
@@ -184,16 +196,21 @@ const handleGet = async (ws, data) => {
         }
        
         console.log(`[messageHandlers] -  Sending config to ${name}`);
-        sendSuccess(ws, 'config', name, configData.data);
+        wsManager.sendToConnection(clientId, 'response', 'config', data.name, configData.data);
+        // sendSuccess(ws, 'config', name, configData.data);
 
         console.log(`[messageHandlers] - Конфиг ${name} успешно отправлен`);
     
       } catch (error) {
         console.error('[messageHandlers] - Ошибка получения конфига:', error);
-        sendError(ws, 'configError', dID, {
-          message: error.message,
+          wsManager.sendToConnection(clientId, 'error', 'configError', dID, {
+            message: error.message,
           code: error.code || 'config_read_error'
-        });
+          });
+        // sendError(ws, 'configError', dID, {
+        //   message: error.message,
+        //   code: error.code || 'config_read_error'
+        // });
       }
       break;
     default:
@@ -201,7 +218,7 @@ const handleGet = async (ws, data) => {
   }
 };
 
-const handlePost = async (ws, data) => {
+const handlePost = async (clientId, data) => {
     //console.log('[messageHandlers] - handlePost - Переходим к проверке сообщения типа post, request - ', data.request);
   switch (data?.request) {
     case 'createUser':
@@ -220,14 +237,20 @@ const handlePost = async (ws, data) => {
           await DBManager.createTableDID(dataSource);
           console.log(`[messageHandlers] - handlePost - Таблицы успешно созданы в базе "${dataSource}".`);
         }
-        sendSuccess(ws, 'createUserSuccess', data.name, {
-          user: newUser.user
-        });
+        wsManager.sendToConnection(clientId, 'response', 'createUserSuccess', data.name, {
+            user: newUser.user
+          });
+        // sendSuccess(ws, 'createUserSuccess', data.name, {
+        //   user: newUser.user
+        // });
         return 'ok';
       } catch (error) {
-        sendError(ws, 'createUserError', data.name, {
-          message: error.message
-        });
+          wsManager.sendToConnection(clientId, 'error', 'createUserError', data.name, {
+            message: error.message
+          });
+        // sendError(ws, 'createUserError', data.name, {
+        //   message: error.message
+        // });
       }
       break;
     case 'linkUserToDataSource':
@@ -239,19 +262,29 @@ const handlePost = async (ws, data) => {
         );
         
         if (linkUser.error) {
-          sendError(ws, 'linkUserToDataSourceError', data.name, {
+          wsManager.sendToConnection(clientId, 'error', 'linkUserToDataSourceError', data.name, {
             message: linkUser.error
           });
+          // sendError(ws, 'linkUserToDataSourceError', data.name, {
+          //   message: linkUser.error
+          // });
         } else {
-          sendSuccess(ws, 'linkUserToDataSourceSuccess', data.name, {
+          wsManager.sendToConnection(clientId, 'response', 'linkUserToDataSourceSuccess', data.name, {
             message: 'Связь успешно создана',
             linkId: linkUser.id
           });
+          // sendSuccess(ws, 'linkUserToDataSourceSuccess', data.name, {
+          //   message: 'Связь успешно создана',
+          //   linkId: linkUser.id
+          // });
         }
       } catch (error) {
-        sendError(ws, 'linkUserToDataSourceError', data.name, {
-          message: error.message
-        });
+          wsManager.sendToConnection(clientId, 'error', 'linkUserToDataSourceError', data.name, {
+            message: error.message
+          });
+        // sendError(ws, 'linkUserToDataSourceError', data.name, {
+        //   message: error.message
+        // });
       }
       break;
     case 'init_dID':
@@ -313,12 +346,14 @@ const handlePost = async (ws, data) => {
                     } else {
                       console.log('[messageHandlers] - handlePost - JSON файл существует, но пустой или содержит null');
                     const client = nodeRedClients.get(clientId);
-                    sendRequest(client, 'config', dID, {config});
+                    wsManager.sendToConnection(clientId, 'get', 'config', dID, {config});
+                    // sendRequest(client, 'config', dID, {config});
                     }
                 }
               } else {
                 console.log(`[messageHandlers] - handlePost - Запись ${config} НЕ существует. Формируем запрос к nodeRED на получение конфигурации ${config}`);
-                sendRequest(ws, 'config', dID, {config});
+                wsManager.sendToConnection(clientId, 'get', 'config', dID, {config});
+                // sendRequest(ws, 'config', dID, {config});
               }
             }
           }
@@ -363,9 +398,12 @@ const handlePost = async (ws, data) => {
 
         } catch (error) {
             console.error('[messageHandlers] - handlePost - Ошибка обработки setpoint:', error);
-            sendError(ws, 'setpointError', data.name, {
-                message: error.message
-            });
+          wsManager.sendToConnection(clientId, 'error', 'setpointError', data.name, {
+            message: error.message
+          });
+            // sendError(ws, 'setpointError', data.name, {
+            //     message: error.message
+            // });
         }
     break;
 
@@ -410,12 +448,18 @@ const handleResponse = async (clientId, data) => {
                   // 2. Если конфиг уже существует
                   if (checkResult.exists) {
                     const client = nodeRedClients.get(clientId);
-                    sendSuccess(client.output, 'configExists', dID, {
-                        config: configName,
+                    wsManager.sendToConnection(clientId, 'response', 'configExists', data.name, {
+                      config: configName,
                         message: `Конфиг '${configName}' уже существует в базе`,
                         exists: true,
                         id: checkResult.id
                     });
+                    // sendSuccess(client.output, 'configExists', dID, {
+                    //     config: configName,
+                    //     message: `Конфиг '${configName}' уже существует в базе`,
+                    //     exists: true,
+                    //     id: checkResult.id
+                    // });
                     //continue;
                 };
                   // 3. Создание новой записи
@@ -433,14 +477,22 @@ const handleResponse = async (clientId, data) => {
                     throw new Error('Failed to insert config record');
                   }
                   // 4. Отправка подтверждения
-                  sendSuccess(client.output, 'configSaved', dID, {
+                  wsManager.sendToConnection(clientId, 'response', 'configSaved', dID, {
                     config: configName,
-                    record: {
-                        id: result.rows[0].id,
-                        name: result.rows[0].name,
-                        update_date: result.rows[0].update_date
-                    }
-                });
+                            record: {
+                                id: result.rows[0].id,
+                                name: result.rows[0].name,
+                                update_date: result.rows[0].update_date
+                            }
+                  });
+                //   sendSuccess(client.output, 'configSaved', dID, {
+                //     config: configName,
+                //     record: {
+                //         id: result.rows[0].id,
+                //         name: result.rows[0].name,
+                //         update_date: result.rows[0].update_date
+                //     }
+                // });
 
                 console.log(`[messageHandlers] - handleResponse - Конфиг ${configName} сохранен в БД ${dID}`);
 
@@ -450,10 +502,14 @@ const handleResponse = async (clientId, data) => {
 
           } catch (error) {
             console.error('[messageHandlers] - handleResponse - Ошибка обработки конфига:', error);
-            sendError(client.output, 'configError', data.name, {
+            wsManager.sendToConnection(clientId, 'error', 'configError', data.name, {
                 message: error.message,
                 code: error.code || 'DB_ERROR'
             });
+            // sendError(client.output, 'configError', data.name, {
+            //     message: error.message,
+            //     code: error.code || 'DB_ERROR'
+            // });
           }
         break;
         default:
