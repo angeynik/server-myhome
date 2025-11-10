@@ -98,7 +98,7 @@ const handleAuth = async (clientId, data) => {
         const result = await loginUser(username, password);
         //console.log('[messageHandlers] - handleAuth  Результат проверки:', result);
         if (result.error) {
-          wsManager.sendToConnection(clientId, 'error', 'loginError', data.name, {
+          wsManager.sendToConnection('VUE_connections', clientId, 'error', 'loginError', data.name, {
             code: result.code,
             message: result.error
           });
@@ -108,7 +108,7 @@ const handleAuth = async (clientId, data) => {
           // });
         } else {
           console.log('[messageHandlers] - handleAuth  Успешная проверка отправляем ответ Vue');
-          wsManager.sendToConnection(clientId, 'response', 'loginSuccess', data.name, {
+          wsManager.sendToConnection('VUE_connections', clientId, 'response', 'loginSuccess', data.name, {
             token: result.token,
             username: result.username,
             userlevel: result.userlevel
@@ -121,7 +121,7 @@ const handleAuth = async (clientId, data) => {
         }
       } catch (error) {
         console.error('Необработанная ошибка:', error);
-        wsManager.sendToConnection(clientId, 'error', 'loginError', data.name, {
+        wsManager.sendToConnection('VUE_connections', clientId, 'error', 'loginError', data.name, {
             username: data.payload.username,
             code: 'UNHANDLED_ERROR',
             message: 'Произошла непредвиденная ошибка'
@@ -145,14 +145,14 @@ const handleGet = async (clientId, data) => {
     case 'fetchUsers':
       try {
         const users = await DBManager.fetchUsers();
-        wsManager.sendToConnection(clientId, 'response', 'fetchUsersSuccess', data.name, {
+        wsManager.sendToConnection('VUE_connections', clientId, 'response', 'fetchUsersSuccess', data.name, {
             users: users
           });
         // sendSuccess(ws, 'fetchUsersSuccess', data.name, {
         //   users: users
         // });
       } catch (error) {
-          wsManager.sendToConnection(clientId, 'error', 'fetchUsersError', data.name, {
+          wsManager.sendToConnection('VUE_connections', clientId, 'error', 'fetchUsersError', data.name, {
             message: error.message
           });
         // sendError(ws, 'fetchUsersError', data.name, {
@@ -163,14 +163,14 @@ const handleGet = async (clientId, data) => {
     case 'fetchDataSources':
       try {
         const dataSources = await DBManager.fetchDataSources();
-          wsManager.sendToConnection(clientId, 'error', 'fetchDataSourcesSuccess', data.name, {
+          wsManager.sendToConnection('VUE_connections', clientId, 'error', 'fetchDataSourcesSuccess', data.name, {
             sources: dataSources
           });
         // sendSuccess(ws, 'fetchDataSourcesSuccess', data.name, {
         //   sources: dataSources
         // });
       } catch (error) {
-          wsManager.sendToConnection(clientId, 'error', 'fetchDataSourcesError', data.name, {
+          wsManager.sendToConnection('VUE_connections', clientId, 'error', 'fetchDataSourcesError', data.name, {
             message: error.message
           });
         // sendError(ws, 'fetchDataSourcesError', data.name, {
@@ -196,14 +196,14 @@ const handleGet = async (clientId, data) => {
         }
        
         console.log(`[messageHandlers] -  Sending config to ${name}`);
-        wsManager.sendToConnection(clientId, 'response', 'config', data.name, configData.data);
+        wsManager.sendToConnection('VUE_connections', clientId, 'response', 'config', data.name, configData.data);
         // sendSuccess(ws, 'config', name, configData.data);
 
         console.log(`[messageHandlers] - Конфиг ${name} успешно отправлен`);
     
       } catch (error) {
         console.error('[messageHandlers] - Ошибка получения конфига:', error);
-          wsManager.sendToConnection(clientId, 'error', 'configError', dID, {
+          wsManager.sendToConnection('VUE_connections', clientId, 'error', 'configError', dID, {
             message: error.message,
           code: error.code || 'config_read_error'
           });
@@ -237,7 +237,7 @@ const handlePost = async (clientId, data) => {
           await DBManager.createTableDID(dataSource);
           console.log(`[messageHandlers] - handlePost - Таблицы успешно созданы в базе "${dataSource}".`);
         }
-        wsManager.sendToConnection(clientId, 'response', 'createUserSuccess', data.name, {
+        wsManager.sendToConnection('VUE_connections', clientId, 'response', 'createUserSuccess', data.name, {
             user: newUser.user
           });
         // sendSuccess(ws, 'createUserSuccess', data.name, {
@@ -245,7 +245,7 @@ const handlePost = async (clientId, data) => {
         // });
         return 'ok';
       } catch (error) {
-          wsManager.sendToConnection(clientId, 'error', 'createUserError', data.name, {
+          wsManager.sendToConnection('VUE_connections', clientId, 'error', 'createUserError', data.name, {
             message: error.message
           });
         // sendError(ws, 'createUserError', data.name, {
@@ -262,14 +262,14 @@ const handlePost = async (clientId, data) => {
         );
         
         if (linkUser.error) {
-          wsManager.sendToConnection(clientId, 'error', 'linkUserToDataSourceError', data.name, {
+          wsManager.sendToConnection('VUE_connections', clientId, 'error', 'linkUserToDataSourceError', data.name, {
             message: linkUser.error
           });
           // sendError(ws, 'linkUserToDataSourceError', data.name, {
           //   message: linkUser.error
           // });
         } else {
-          wsManager.sendToConnection(clientId, 'response', 'linkUserToDataSourceSuccess', data.name, {
+          wsManager.sendToConnection('VUE_connections', clientId, 'response', 'linkUserToDataSourceSuccess', data.name, {
             message: 'Связь успешно создана',
             linkId: linkUser.id
           });
@@ -279,7 +279,7 @@ const handlePost = async (clientId, data) => {
           // });
         }
       } catch (error) {
-          wsManager.sendToConnection(clientId, 'error', 'linkUserToDataSourceError', data.name, {
+          wsManager.sendToConnection('VUE_connections', clientId, 'error', 'linkUserToDataSourceError', data.name, {
             message: error.message
           });
         // sendError(ws, 'linkUserToDataSourceError', data.name, {
@@ -346,13 +346,13 @@ const handlePost = async (clientId, data) => {
                     } else {
                       console.log('[messageHandlers] - handlePost - JSON файл существует, но пустой или содержит null');
                     const client = nodeRedClients.get(clientId);
-                    wsManager.sendToConnection(clientId, 'get', 'config', dID, {config});
+                    wsManager.sendToConnection('nRED_connections', clientId, 'get', 'config', dID, {config});
                     // sendRequest(client, 'config', dID, {config});
                     }
                 }
               } else {
                 console.log(`[messageHandlers] - handlePost - Запись ${config} НЕ существует. Формируем запрос к nodeRED на получение конфигурации ${config}`);
-                wsManager.sendToConnection(clientId, 'get', 'config', dID, {config});
+                wsManager.sendToConnection('nRED_connections', clientId, 'get', 'config', dID, {config});
                 // sendRequest(ws, 'config', dID, {config});
               }
             }
@@ -448,7 +448,7 @@ const handleResponse = async (clientId, data) => {
                   // 2. Если конфиг уже существует
                   if (checkResult.exists) {
                     const client = nodeRedClients.get(clientId);
-                    wsManager.sendToConnection(clientId, 'response', 'configExists', data.name, {
+                    wsManager.sendToConnection('nRED_connections', clientId, 'response', 'configExists', data.name, {
                       config: configName,
                         message: `Конфиг '${configName}' уже существует в базе`,
                         exists: true,
@@ -477,7 +477,7 @@ const handleResponse = async (clientId, data) => {
                     throw new Error('Failed to insert config record');
                   }
                   // 4. Отправка подтверждения
-                  wsManager.sendToConnection(clientId, 'response', 'configSaved', dID, {
+                  wsManager.sendToConnection('nRED_connections',clientId, 'response', 'configSaved', dID, {
                     config: configName,
                             record: {
                                 id: result.rows[0].id,
@@ -502,7 +502,7 @@ const handleResponse = async (clientId, data) => {
 
           } catch (error) {
             console.error('[messageHandlers] - handleResponse - Ошибка обработки конфига:', error);
-            wsManager.sendToConnection(clientId, 'error', 'configError', data.name, {
+            wsManager.sendToConnection('nRED_connections', clientId, 'error', 'configError', data.name, {
                 message: error.message,
                 code: error.code || 'DB_ERROR'
             });

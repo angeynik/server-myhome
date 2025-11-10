@@ -201,6 +201,11 @@ const reconnectInterval = 100;
 
 // Работаем с NodeRED
 WSSNodeRED.on('connection', (ws, req) => {
+  if (logInfo) {console.log('[Serverapp] - WSSNodeRED.on - Новое подключение nodeRED');}
+  const clientId = wsManager.registerConnection(ws, 'nodeRED', null);
+  if (logInfo) {console.log(`[Serverapp] - WSSNodeRED.on - nodeRED соединение зарегистрировано: ${clientId}`);}
+
+  
   const params = new URLSearchParams(req.url.replace(/^.*\?/, ""));
   const id = params.get("id");
   console.log(`Подключился клиент: id = ${id}`);

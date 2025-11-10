@@ -11,7 +11,8 @@ const WebSocket = require('ws');
 
 class WsManager {
   constructor() {
-    this.connections = new Map();
+    this.VUE_connections = new Map();
+    this.nRED_connections = new Map();
     this.heartbeatInterval = null;
   }
   // generateConnectionId() {
@@ -55,33 +56,58 @@ class WsManager {
         isAlive: true
       }
     };
-    this.connections.set(clientId, connection);
-    this.setupConnectionHandlers(clientId, ws);
+    if (connectionType === 'dashboard') {
+      this.VUE_connections.set(clientId, connection);
+      this.setupConnectionHandlers('VUE_connections', clientId, ws);
+      const allClients = wsManager.getAllActiveConnections('VUE_connections');
+      console.log(` !!!!!!!!!!!!!!!! - - - - - [wsManager] - registerConnection - Все соединения:`, allClients);
+    } else if (connectionType === 'nodeRED') {
+      this.nRED_connections.set(clientId, connection);
+      this.setupConnectionHandlers('nRED_connections', clientId, ws);
+      const allClients = wsManager.getAllActiveConnections('nRED_connection');
+      console.log(` !!!!!!!!!!!!!!!! - - - - - [wsManager] - registerConnection- Все соединения:`, allClients);
+    } else {
+      return error = 'Invalid connectionType';
+    }
+    // this.connections.set(clientId, connection);
+    //this.setupConnectionHandlers(clientId, ws);
     console.log(`[WsManager] - ✅ ${connectionType} Соединение зарегистрировано: ${clientId} (${key || 'no-key'}) - ${fullAddress}`);
-    const allClients = wsManager.getAllActiveConnections();
-    console.log(` !!!!!!!!!!!!!!!! - - - - - [Serverapp] - WSSDash.on - Все соединения:`, allClients);
+
     return clientId;
   }
   findExistingConnection(dID, connectionType, remoteAddress) {
-    for (const [clientId, connection] of this.connections) {
+    if (connectionType === 'dashboard') {
+      for (const [clientId, connection] of this.VUE_connections) {
       if (connection.dID === dID && 
           connection.connectionType === connectionType && 
           connection.meta.remoteAddress === remoteAddress &&
-          this.isConnectionActive(clientId)) {
+          this.isConnectionActive('VUE_connections', clientId)) {
         return { clientId, connection };
       }
+      }
     }
+    if (connectionType === 'nodeRED') {
+    for (const [clientId, connection] of this.nRED_connections) {
+      if (connection.dID === dID && 
+          connection.connectionType === connectionType && 
+          connection.meta.remoteAddress === remoteAddress &&
+          this.isConnectionActive('nRED_connections', clientId)) {
+        return { clientId, connection };
+      }
+      }
+    }
+
     return null;
   }
-  closeDuplicateConnections(dID, connectionType, remoteAddress) {
+  closeDuplicateConnections(connections, dID, connectionType, remoteAddress) {
     let closedCount = 0;
     
-    for (const [existingClientId, connection] of this.connections) {
+    for (const [existingClientId, connection] of this[connections]) {
       if (connection.dID === dID && 
           connection.connectionType === connectionType && 
           connection.meta.remoteAddress === remoteAddress) {
         console.log(`[WsManager] - Closing duplicate connection: ${existingClientId} (${remoteAddress})`);
-        this.removeConnection(existingClientId);
+        this.removeConnection(connections, existingClientId);
         closedCount++;
       }
     }
@@ -89,22 +115,22 @@ class WsManager {
     return closedCount;
   }
 
-  setupConnectionHandlers(clientId, ws) {
+  setupConnectionHandlers(connections, clientId, ws) {
     ws.isAlive = true;
     ws.lastActivity = Date.now();
     
     ws.on('pong', () => {
       ws.isAlive = true;
       ws.lastActivity = Date.now();
-      this.updateConnection(clientId, ws.lastActivity);
+      this.updateConnection(connections, clientId, ws.lastActivity);
     });
 
-    ws.on('close', () => this.removeConnection(clientId));
-    ws.on('error', () => this.removeConnection(clientId));
+    ws.on('close', () => this.removeConnection(connections, clientId));
+    ws.on('error', () => this.removeConnection(connections, clientId));
   }
 
-  updateConnection(clientId, timestamp, dID = null) {
-    const connection = this.connections.get(clientId);
+  updateConnection(connections, clientId, timestamp, dID = null) {
+    const connection = this[connections].get(clientId);
     let newdID = connection.meta.dID;
     if (dID) {
         newdID = dID;
@@ -117,16 +143,16 @@ class WsManager {
     console.log(`[WsManager] - 📡 Connection updated: ${clientId} (${newdID})`);
   }
 
-  isConnectionActive(clientId) {
-    const connection = this.connections.get(clientId);
+  isConnectionActive(connections, clientId) {
+    const connection = this[connections].get(clientId);
     if (!connection) return false;
 
     const { ws, meta } = connection;
     return ws && ws.readyState === WebSocket.OPEN && meta.isAlive;
   }
 
-  removeConnection(clientId) {
-    const connection = this.connections.get(clientId);
+  removeConnection(connections, clientId) {
+    const connection = this[connections].get(clientId);
     if (!connection) return;
 
     const { ws, dID, connectionType } = connection;
@@ -135,7 +161,7 @@ class WsManager {
       ws.terminate();
     }
 
-    this.connections.delete(clientId);
+    this[connections].delete(clientId);
 
     if (dID) {
       this.unlinkUserDevice(dID, clientId);
@@ -143,8 +169,8 @@ class WsManager {
     console.log(`[WsManager] - 🗑 Connection removed: ${clientId} (${connectionType}, ${connection.key || 'no-key'})`);
   }
 
-  hasConnection(clientId) {
-    return this.connections.has(clientId) && this.isConnectionActive(clientId);
+  hasConnection(connections, clientId) {
+    return this[connections].has(clientId) && this.isConnectionActive(connections, clientId);
   }
 
   // getConnection(clientId) {
@@ -153,8 +179,8 @@ class WsManager {
   // }
 
 
-  getConnection(clientId) {
-    const connection = this.connections.get(clientId);
+  getConnection(connections,clientId) {
+    const connection = this[connections].get(clientId);
     
     if (!connection) {
       console.log(`[WsManager] - getConnection - ❌ Соединение ${clientId} не найдено`);
@@ -163,7 +189,7 @@ class WsManager {
 
     const { ws, meta, connectionType, dID } = connection;
     
-    if (!this.isConnectionActive(clientId)) {
+    if (!this.isConnectionActive(connections, clientId)) {
       console.log(`[WsManager] - getConnection - ⚠️ Соединение ${clientId} неактивно`);
       return null;
     }
@@ -180,11 +206,11 @@ class WsManager {
     return ws;
   
   }
-  getUserConnections(dID, key = null) {
+  getUserConnections(connections,dID, key = null) {
     const result = [];
     
-    for (const [clientId, connection] of this.connections) {
-      if (!this.isConnectionActive(clientId)) continue;
+    for (const [clientId, connection] of this[connections]) {
+      if (!this.isConnectionActive(connections, clientId)) continue;
       if (connection.dID !== dID) continue;
       
       // Если key не указан - возвращаем все соединения с этим dID
@@ -200,10 +226,15 @@ class WsManager {
     return result;
   }
 
-  getAllActiveConnections() {
+  getAllActiveConnections(connections) {
+    const map = this[connections];
+  if (!(map instanceof Map)) {
+    console.error(`[WsManager] - ❌ ${connections} is not a Map`);
+    return [];
+  }
     const result = [];
-    for (const [clientId, connection] of this.connections) {
-      if (this.isConnectionActive(clientId)) {
+    for (const [clientId, connection] of map) {
+      if (this.isConnectionActive(connections, clientId)) {
         result.push({
           clientId,
           ws: connection.ws.isAlive,
@@ -216,8 +247,8 @@ class WsManager {
     return result;
   }
 
-  sendToConnection(clientId, type, request, name, message) {
-    const ws = this.getConnection(clientId);
+  sendToConnection(connections, clientId, type, request, name, message) {
+    const ws = this.getConnection(connections, clientId);
     
     if (ws && ws.readyState === WebSocket.OPEN) {
       try {
@@ -239,19 +270,19 @@ class WsManager {
         return true;
       } catch (error) {
         console.error(`[WsManager] - sendToConnection - Error sending to ${clientId}:`, error);
-        this.removeConnection(clientId);
+        this.removeConnection(connections, clientId);
         return false;
       }
     }
     return false;
   }
 
-sendToUser(dID, message, key = null) {
+sendToUser(connections, dID, message, key = null) {
   const userConnections = this.getUserConnections(dID, key);
   let sentCount = 0;
 
   userConnections.forEach(({ clientId }) => {
-    if (this.sendToConnection(clientId, message)) {
+    if (this.sendToConnection(connections, clientId, message)) {
       sentCount++;
     }
   });
@@ -275,7 +306,7 @@ sendToUser(dID, message, key = null) {
 //   }
 
 
-  startHeartbeat(interval = 30000, timeout = 60000) {
+  startHeartbeat(connections, interval = 30000, timeout = 60000) {
     if (this.heartbeatInterval) {
       clearInterval(this.heartbeatInterval);
     }
@@ -283,23 +314,23 @@ sendToUser(dID, message, key = null) {
     this.heartbeatInterval = setInterval(() => {
       const now = Date.now();
       
-      for (const [clientId, connection] of this.connections) {
+      for (const [clientId, connection] of this[connections]) {
         const { ws, meta } = connection;
         
         if (!ws || ws.readyState !== WebSocket.OPEN) {
-          this.removeConnection(clientId);
+          this.removeConnection(connections, clientId);
           continue;
         }
 
         if (now - meta.lastActivity > timeout) {
           console.warn(`[WsManager] - 💀 Heartbeat timeout for ${clientId}`);
-          this.removeConnection(clientId);
+          this.removeConnection(connections,clientId);
           continue;
         }
 
         if (!meta.isAlive) {
           ws.terminate();
-          this.removeConnection(clientId);
+          this.removeConnection(connections, clientId);
           continue;
         }
 
@@ -308,12 +339,12 @@ sendToUser(dID, message, key = null) {
           ws.ping(null, false, (err) => {
             if (err) {
               console.error(`[WsManager] - Ping error for ${clientId}:`, err);
-              this.removeConnection(clientId);
+              this.removeConnection(connections, clientId);
             }
           });
         } catch (error) {
           console.error(`[WsManager] - Ping failed for ${clientId}:`, error);
-          this.removeConnection(clientId);
+          this.removeConnection(connections, clientId);
         }
       }
     }, interval).unref();
@@ -329,28 +360,24 @@ sendToUser(dID, message, key = null) {
     }
   }
 
-  getStats() {
-    const totalConnections = this.connections.size;
-    const activeConnections = this.getAllActiveConnections().length;
+  getStats(connections) {
+    const totalConnections = this[connections].size;
+    const activeConnections = this.getAllActiveConnections(connections).length;
     
     return {
       totalConnections,
       activeConnections,
-      connectionsByType: {
-        input: this.getConnectionsByType('input').length,
-        output: this.getConnectionsByType('output').length
-      }
     };
   }
 
-  cleanup() {
+  cleanup(connections) {
     this.stopHeartbeat();
     
-    for (const clientId of this.connections.keys()) {
-      this.removeConnection(clientId);
+    for (const clientId of this[connections].keys()) {
+      this.removeConnection(connections, clientId);
     }
     
-    this.connections.clear();
+    this[connections].clear();
     
     console.log('[WsManager] - All connections cleaned up');
   }
