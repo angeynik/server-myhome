@@ -5,6 +5,8 @@ const DBManager = require('./db');
 const tableDB = require('./tableDB');
 const dotenv = require('dotenv');
 dotenv.config({ path: './conf.env' });
+const logger = require('./logger.js');
+
 const authDB = process.env.DB_DATABASE || 'spring'; // База данных по умолчанию
 const dbUser = process.env.DB_USER;
 const dbPass = process.env.DB_PASSWORD;
@@ -24,7 +26,7 @@ function getValue(value) {
 
 async function handlePostNodeRED(clientId, message) {
   const info = JSON.stringify(message);
-  //console.log(`[messageHandlers] - handlePostNodeRED - Обработка сообщения: ${info}`);
+  logger.logDevMessage(`[messageHandlers] - handlePostNodeRED - Обработка сообщения: ${info}`);
     const { name, request, payload = {} } = message;
 
     // Извлекаем значения из payload
@@ -36,7 +38,7 @@ async function handlePostNodeRED(clientId, message) {
     const title = getValue(payload?.title);
     const group = getValue(payload?.group);
 
-    console.log('[messageHandlers] - handlePostNodeRED - type:', item_type, 'room:', room, 'name: ', item_name, 'value: ', item_value );
+    logger.logDevMessage(`[messageHandlers] - handlePostNodeRED - type:', ${item_type}, 'room:', ${room}, 'name: ', ${item_name}, 'value: ', ${item_value} `);
 
     // Проверка обязательных полей (раскомментировать)
     if (!room || !item_name || item_value === undefined) {
@@ -63,7 +65,7 @@ async function handlePostNodeRED(clientId, message) {
         // Создаем объект, если он не существует
         if (!data[room][request]) {
             data[room][request] = {};
-            console.log(`[messageHandlers] - handlePostNodeRED - Создан новый объект ${request} в комнате ${room}`);
+            logger.logInfoMessage(`[messageHandlers] - handlePostNodeRED - Создан новый объект ${request} в комнате ${room}`);
         }
         // Добавляем/обновляем элемент
         data[room][request][item_name] = {
@@ -72,43 +74,40 @@ async function handlePostNodeRED(clientId, message) {
             lastUpdate: new Date().toString()
         };
 
-        //console.log(`[messageHandlers] - handlePostNodeRED - Добавлен ${request}: ${item_name} в объект ${request}`);
+        logger.logDevMessage(`[messageHandlers] - handlePostNodeRED - Добавлен ${request}: ${item_name} в объект ${request}`);
 
         // Сохранение данных
         const dataString = JSON.stringify(data, null, 2);
         await writeFileSafely(filePath, dataString);
-        //console.log(`[messageHandlers] -handlePostNodeRED - ✅ Данные успешно обновлены в ${filePath}`);
-        //console.log('[messageHandlers] -handlePostNodeRED - Содержимое файла:', dataString);
+        logger.logDevMessage(`[messageHandlers] -handlePostNodeRED - ✅ Данные успешно обновлены в ${filePath}`);
+        logger.logDevMessage('[messageHandlers] -handlePostNodeRED - Содержимое файла:', dataString);
         return 'ok';
     } catch (err) {
-        console.error(`[messageHandlers] -handlePostNodeRED - Ошибка при работе с файлом ${filePath}:`, err);
+        logger.logErrorMessage(`[messageHandlers] -handlePostNodeRED - Ошибка при работе с файлом ${filePath}:`, err);
         return 'error';
     }
 };
 
 
 const handleAuth = async (clientId, data) => {
-    console.log('[messageHandlers] - handleAuth Переходим к проверке сообщения типа auth');
-    //console.log('[messageHandlers] - handleAuth - Request - ', data);
+    logger.logDevMessage(`[messageHandlers] - handleAuth Переходим к проверке сообщения типа auth`);
+    logger.logDevMessage(`[messageHandlers] - handleAuth - Request - ', ${data} `);
   switch (data?.request) {
     case 'login':
-        console.log('[messageHandlers] - handleAuth  - Request - login');
+        logger.logDevMessage(`[messageHandlers] - handleAuth  - Request - login`);
       try {
         const { username, password } = data?.payload;
         const result = await loginUser(username, password);
-        //console.log('[messageHandlers] - handleAuth  Результат проверки:', result);
+        logger.logInfoMessage(`[messageHandlers] - handleAuth  Результат проверки: ${result}`);
         if (result.error) {
-          wsManager.sendToConnection('VUE_connections', clientId, 'error', 'loginError', data.name, {
+          wsManager.sendToConnection('VUE_connections', clientId, 'error', 'loginError', result.dID, {
             code: result.code,
             message: result.error
           });
-          // sendError(ws, 'loginError', data.name, {
-          //   code: result.code,
-          //   message: result.error
-          // });
         } else {
-          console.log('[messageHandlers] - handleAuth  Успешная проверка отправляем ответ Vue');
-          wsManager.sendToConnection('VUE_connections', clientId, 'response', 'loginSuccess', data.name, {
+          logger.logDevMessage(`[messageHandlers] - handleAuth  Успешная проверка отправляем ответ Vue`);
+          wsManager.updateConnection('VUE_connections', clientId, Date.now(), result.dID);
+          wsManager.sendToConnection('VUE_connections', clientId, 'response', 'loginSuccess', result.dID, {
             token: result.token,
             username: result.username,
             userlevel: result.userlevel
@@ -120,7 +119,7 @@ const handleAuth = async (clientId, data) => {
           // });
         }
       } catch (error) {
-        console.error('Необработанная ошибка:', error);
+        logger.logErrorMessage(`Необработанная ошибка:', ${error}`);
         wsManager.sendToConnection('VUE_connections', clientId, 'error', 'loginError', data.name, {
             username: data.payload.username,
             code: 'UNHANDLED_ERROR',
@@ -139,7 +138,7 @@ const handleAuth = async (clientId, data) => {
 };
 
 const handleGet = async (clientId, data) => {
-    console.log('[messageHandlers] - handleGet - Переходим к проверке сообщения типа get');
+    logger.logDevMessage('[messageHandlers] - handleGet - Переходим к проверке сообщения типа get');
     const dID = data.name;
   switch (data?.request) {
     case 'fetchUsers':
@@ -182,27 +181,27 @@ const handleGet = async (clientId, data) => {
     case 'config':
       try {
         const { name } = data;
-        console.log('[messageHandlers] - handleGet - Request - config -- dID - ', name);
+        logger.logDevMessage(`[messageHandlers] - handleGet - Request - config -- dID - ', ${name}`);
         if (!name) {
           throw new Error('[messageHandlers] - Не указано имя конфига в запросе');
         }
     
         // Читаем конфиг
         const configData = await readFileSafely(name);
-        //console.log('[messageHandlers] - handleGet - configData - ', configData);
+        logger.logDevMessage(`[messageHandlers] - handleGet - configData - ', ${configData}`);
         
         if (!configData) {
           throw new Error('[messageHandlers] - Failed to read configuration file');
         }
        
-        console.log(`[messageHandlers] -  Sending config to ${name}`);
+        logger.logDevMessage(`[messageHandlers] -  Sending config to ${name}`);
         wsManager.sendToConnection('VUE_connections', clientId, 'response', 'config', data.name, configData.data);
         // sendSuccess(ws, 'config', name, configData.data);
 
-        console.log(`[messageHandlers] - Конфиг ${name} успешно отправлен`);
+        logger.logDevMessage(`[messageHandlers] - Конфиг ${name} успешно отправлен`);
     
       } catch (error) {
-        console.error('[messageHandlers] - Ошибка получения конфига:', error);
+        logger.logErrorMessage('[messageHandlers] - Ошибка получения конфига:', error);
           wsManager.sendToConnection('VUE_connections', clientId, 'error', 'configError', dID, {
             message: error.message,
           code: error.code || 'config_read_error'
@@ -219,23 +218,23 @@ const handleGet = async (clientId, data) => {
 };
 
 const handlePost = async (clientId, data) => {
-    //console.log('[messageHandlers] - handlePost - Переходим к проверке сообщения типа post, request - ', data.request);
+    logger.logDevMessage(`[messageHandlers] - handlePost - Переходим к проверке сообщения типа post, request - ', ${data.request}`);
   switch (data?.request) {
     case 'createUser':
-        console.log('[messageHandlers] - handlePost - Request - createUser');
+        logger.logDevMessage(`[messageHandlers] - handlePost - Request - createUser`);
       try {
         const { username, password, dataSource, permissionLevel } = data.payload;
         const newUser = await tableDB.registerUser(
           username, password, permissionLevel, 
           dataSource, dataSource, '', '', process.env.DB_DATABASE
         );
-        console.log('handlePost - Результат createUser:', newUser);
+        logger.logDevMessage(`handlePost - Результат createUser:', ${newUser}`);
         if (newUser) {
           // Создаем базу данных
           await DBManager.createDB(dataSource, authDB, dbUser, dbPass);
-          console.log(`[messageHandlers] - handlePost - База данных "${dataSource}" успешно создана.`);
+          logger.logInfoMessage(`[messageHandlers] - handlePost - База данных "${dataSource}" успешно создана.`);
           await DBManager.createTableDID(dataSource);
-          console.log(`[messageHandlers] - handlePost - Таблицы успешно созданы в базе "${dataSource}".`);
+          logger.logInfoMessage(`[messageHandlers] - handlePost - Таблицы успешно созданы в базе "${dataSource}".`);
         }
         wsManager.sendToConnection('VUE_connections', clientId, 'response', 'createUserSuccess', data.name, {
             user: newUser.user
@@ -254,7 +253,7 @@ const handlePost = async (clientId, data) => {
       }
       break;
     case 'linkUserToDataSource':
-        console.log('[messageHandlers] - handlePost -  Request - linkUserToDataSource');
+        logger.logDevMessage(`[messageHandlers] - handlePost -  Request - linkUserToDataSource`);
       try {
         const { userId, dataSourceId } = data.payload;
         const linkUser = await tableDB.linkDataSourceToUser(
@@ -288,20 +287,20 @@ const handlePost = async (clientId, data) => {
       }
       break;
     case 'init_dID':
-        console.log('[messageHandlers] - handlePost - request - init_dID :', data.name);
+        logger.logInfoMessage(`[messageHandlers] - handlePost - request - init_dID :', ${data.name}`);
         const dID = data.name;
         try {
-          //console.log('Получены данные:', data);
-          console.log ('[messageHandlers] - handlePost - Начинаем проверку наличия БД с именем - ', dID);
+          logger.logDevMessage(`Получены данные:', ${data}`);
+          logger.logDevMessage(`[messageHandlers] - handlePost - Начинаем проверку наличия БД с именем - ', ${dID}`);
           DBManager.getPool(authDB, dbUser, dbPass).on('error', (err) => {
-            console.error('[messageHandlers] - handlePost - Ошибка в пуле соединений:', err);
+            logger.logErrorMessage(`[messageHandlers] - handlePost - Ошибка в пуле соединений: ${err}`);
           });
           const dbDID = await DBManager.query('SELECT NOW()', [], dID, dbUser, dbPass);
-          //console.log('Подключение к базе данных успешно установлено.', dbDID.rows[0].now);
+          logger.logDevMessage(`[messageHandlers] - handlePost - Подключение к базе данных успешно установлено.', ${dbDID.rows[0].now}`);
           if (!dbDID) {
-            console.log(`[messageHandlers] - handlePost - База данных "${dID}" не существует.`);
+            logger.logDevMessage(`[messageHandlers] - handlePost - База данных "${dID}" не существует.`);
           } else {
-            console.log(`[messageHandlers] - handlePost - База данных "${dID}" существует.`);
+            logger.logDevMessage(`[messageHandlers] - handlePost - База данных "${dID}" существует.`);
 
                           // Проверяем существование таблиц config и data в базе dID
           const tablesToCheck = ['config', 'data'];
@@ -316,9 +315,9 @@ const handlePost = async (clientId, data) => {
           }
           
           if (!allTablesExist) {
-            console.log(`[messageHandlers] - handlePost - Таблицы в базе "${dID}" отсутствуют.`);
+            logger.logInfoMessage(`[messageHandlers] - handlePost - Таблицы в базе "${dID}" отсутствуют.`);
           } else {
-            console.log(`[messageHandlers] - handlePost - Таблицы в базе "${dID}" существуют.`);
+            logger.logInfoMessage(`[messageHandlers] - handlePost - Таблицы в базе "${dID}" существуют.`);
             for (const config of configNames) {
               const checkResult = await DBManager.checkRecordExists(
                 'config', 
@@ -329,7 +328,7 @@ const handlePost = async (clientId, data) => {
               );
 
               if (checkResult.exists) {
-                console.log(`[messageHandlers] - handlePost - Запись ${config} существует. Проверяем файл...`);
+                logger.logInfoMessage(`[messageHandlers] - handlePost - Запись ${config} существует. Проверяем файл...`);
                 // Получаем содержимое поля file
                 const fileResult = await DBManager.query(
                   'SELECT file FROM config WHERE name = $1',
@@ -342,16 +341,16 @@ const handlePost = async (clientId, data) => {
                 if (fileResult.rows.length > 0) {
                   const fileData = fileResult.rows[0].file;
                     if (fileData && Object.keys(fileData).length > 0) {
-                      //console.log('JSON файл валиден:', fileData);
+                      logger.logDevMessage(`JSON файл валиден:', ${fileData}`);
                     } else {
-                      console.log('[messageHandlers] - handlePost - JSON файл существует, но пустой или содержит null');
+                      logger.logDevMessage(`[messageHandlers] - handlePost - JSON файл существует, но пустой или содержит null`);
                     const client = nodeRedClients.get(clientId);
                     wsManager.sendToConnection('nRED_connections', clientId, 'get', 'config', dID, {config});
                     // sendRequest(client, 'config', dID, {config});
                     }
                 }
               } else {
-                console.log(`[messageHandlers] - handlePost - Запись ${config} НЕ существует. Формируем запрос к nodeRED на получение конфигурации ${config}`);
+                logger.logDevMessage(`[messageHandlers] - handlePost - Запись ${config} НЕ существует. Формируем запрос к nodeRED на получение конфигурации ${config}`);
                 wsManager.sendToConnection('nRED_connections', clientId, 'get', 'config', dID, {config});
                 // sendRequest(ws, 'config', dID, {config});
               }
@@ -361,24 +360,24 @@ const handlePost = async (clientId, data) => {
 
 
         } catch (error) {
-          console.error('[messageHandlers] - handlePost - Ошибка обращения к базе данных', dID, ' вероятно ее не существует');
+          logger.logErrorMessage(`[messageHandlers] - handlePost - Ошибка обращения к базе данных', ${dID}, ' вероятно ее не существует`);
           // Обработка ошибки
         }
     break;
     case 'wsConnect':
-        console.log('[messageHandlers] - handlePost - Request - wsConnect');
+        logger.logDevMessage(`[messageHandlers] - handlePost - Request - wsConnect`);
         try {
-          //console.log('[messageHandlers] - handlePost - Получены данные:', data);
+          logger.logDevMessage(`[messageHandlers] - handlePost - Получены данные:', ${data}`);
         } catch (error) {
           
         }
     break;
     case 'setpoints':
-      //console.log('[messageHandlers] - handlePost - Request - setpoint');
+      logger.logDevMessage(`[messageHandlers] - handlePost - Request - setpoint`);
       try {
         const dID = data.name;
         const { room, param, value } = data.payload;
-        console.log('[messageHandlers] - handlePost - Получены данные:', data, 'dID -', dID);
+        logger.logDevMessage(`[messageHandlers] - handlePost - Получены данные:', ${data}, 'dID -', ${dID}`);
         
         // Читаем данные из конфигурационного файла на диске
         const { data: configData, filePath } = await readFileSafely(dID);
@@ -397,7 +396,7 @@ const handlePost = async (clientId, data) => {
 
 
         } catch (error) {
-            console.error('[messageHandlers] - handlePost - Ошибка обработки setpoint:', error);
+            logger.logErrorMessage(`[messageHandlers] - handlePost - Ошибка обработки setpoint:', ${error}`);
           wsManager.sendToConnection(clientId, 'error', 'setpointError', data.name, {
             message: error.message
           });
@@ -409,11 +408,11 @@ const handlePost = async (clientId, data) => {
 
 
     case 'sensors':
-        console.log('[messageHandlers] - handlePost - Request - sensor');
+        logger.logDevMessage(`[messageHandlers] - handlePost - Request - sensor`);
         try {
-          //console.log('[messageHandlers] - handlePost - Получены данные:', data);
+          logger.logDevMessage(`[messageHandlers] - handlePost - Получены данные:', ${data}`);
         } catch (error) {
-          console
+          logger.logErrorMessage(`[messageHandlers] - handlePost - Ошибка обработки sensors:', ${error}`);
         }
     break;
     default:
@@ -422,20 +421,20 @@ const handlePost = async (clientId, data) => {
 };
 
 const handleResponse = async (clientId, data) => {
-    console.log('[messageHandlers] - handleResponse - Переходим к проверке сообщения типа response.');
+    logger.logDevMessage(`messageHandlers] - handleResponse - Переходим к проверке сообщения типа response.`);
     const client = nodeRedClients.get(clientId);
     switch (data?.request) {
         case 'config':
           try {
-            //console.log('[messageHandlers] - handleResponse - Request - config', data);
+            logger.logDevMessage(`[messageHandlers] - handleResponse - Request - config ${data}`);
             if (data.payload) {
               const dID = data.name;
               const configName = Object.keys(data.payload)[0];
               const configData = data.payload[configName];
 
-              console.log('[messageHandlers] - handleResponse -Config ID:', dID);
-              console.log('[messageHandlers] - handleResponse - Config Name:', configName);
-              //console.log('[messageHandlers] - handleResponse - Config Data:', configData);
+              logger.logDevMessage(`[messageHandlers] - handleResponse -Config ID: ${dID}`);
+              logger.logDevMessage(`[messageHandlers] - handleResponse - Config Name: ${configName}`);
+              logger.logDevMessage(`[messageHandlers] - handleResponse - Config Data: ${configData}`);
 
                   // 1. Проверка существования конфига
                   const checkResult = await DBManager.checkRecordExists(
@@ -494,14 +493,14 @@ const handleResponse = async (clientId, data) => {
                 //     }
                 // });
 
-                console.log(`[messageHandlers] - handleResponse - Конфиг ${configName} сохранен в БД ${dID}`);
+                logger.logDevMessage(`[messageHandlers] - handleResponse - Конфиг ${configName} сохранен в БД ${dID}`);
 
           } else {
-              console.error('[messageHandlers] - handleResponse - Invalid data structure');
+              logger.logErrorMessage(`[messageHandlers] - handleResponse - Invalid data structure`);
           }
 
           } catch (error) {
-            console.error('[messageHandlers] - handleResponse - Ошибка обработки конфига:', error);
+            logger.logErrorMessage(`[messageHandlers] - handleResponse - Ошибка обработки конфига: ${error}`);
             wsManager.sendToConnection('nRED_connections', clientId, 'error', 'configError', data.name, {
                 message: error.message,
                 code: error.code || 'DB_ERROR'
@@ -517,10 +516,10 @@ const handleResponse = async (clientId, data) => {
     }
 };
 const handleSet = async (clientId, data) => {
-    console.log('[messageHandlers] - handleSet - Переходим к проверке сообщения типа set.');
+    logger.logDevMessage(`[messageHandlers] - handleSet - Переходим к проверке сообщения типа set.`);
 };
 const handleError = async (clientId, data) => {
-    console.log('[messageHandlers] - handleError -  Переходим к проверке сообщения типа Error');
+    logger.logDevMessage(`[messageHandlers] - handleError -  Переходим к проверке сообщения типа Error`);
 };
 
 module.exports = {

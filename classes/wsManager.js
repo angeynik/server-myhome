@@ -130,8 +130,11 @@ class WsManager {
   }
 
   updateConnection(connections, clientId, timestamp, dID = null) {
+    console.log(`[WsManager] - 📡 Connection updated: ${dID}`);
+
     const connection = this[connections].get(clientId);
     let newdID = connection.meta.dID;
+    connection.dID = dID;
     if (dID) {
         newdID = dID;
     } 

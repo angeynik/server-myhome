@@ -10,6 +10,8 @@ const DBManager = require('./services/db.js'); // Импортируем DBManag
 // Секретный ключ для JWT
 const dotenv = require('dotenv'); // Подключаем .ENV файл с переменными окружения
 dotenv.config({path: './conf.env'}); // Указываем путь к  файлу .env
+const logger = require('../serverApp/services/logger.js');
+
 const secret = process.env.JWT_SECRET || 'default-secret-key';
 
 /**
@@ -33,7 +35,9 @@ const loginUser = async (username, password) => {
     }
 
     const token = jwt.sign({ id: user.id }, secret, { expiresIn: '1h' });
-    console.log(`User ${user.username} Login successfull`);
+    //console.log(`User ${user.username} Login successfull`);
+    logger.logInfoMessage(`User ${user.username} Login successfull`);
+    logger.logDevMessage(`[auth] - loginUser - User dID: ${user.dID}`);
     return {
       success: true,
       token,

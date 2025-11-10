@@ -23,17 +23,19 @@ const DBManager = require('./services/db.js'); // Импортируем DBManag
 // Подключаем функции модуля joi для валидации данных
 const {validType, validConfig, validPost} = require('./validate');
 
-const logLevel = process.env.LOG_LEVEL || 'info';
-let logInfo, logDev, logError = false;
-if (logLevel === 'dev') {
-  logDev = true;
-  logInfo = true;
-  logError = true;
-} else if (logLevel === 'error') {
-  logInfo = true;
-  logError = true;
-} else (logLevel === 'info') ? logInfo = true : false;
+// const logLevel = process.env.LOG_LEVEL || 'info';
+// let logInfo, logDev, logError = false;
+// if (logLevel === 'dev') {
+//   logDev = true;
+//   logInfo = true;
+//   logError = true;
+// } else if (logLevel === 'error') {
+//   logInfo = true;
+//   logError = true;
+// } else (logLevel === 'info') ? logInfo = true : false;
 
+const logger = require('./services/logger.js');
+logger.initLogging();
 
 const servPORT = process.env.SERVER_PORT || 3010;
 const wsRedPORT = process.env.WSR_PORT || 9200;
@@ -201,11 +203,11 @@ const reconnectInterval = 100;
 
 // Работаем с NodeRED
 WSSNodeRED.on('connection', (ws, req) => {
-  if (logInfo) {console.log('[Serverapp] - WSSNodeRED.on - Новое подключение nodeRED');}
+  if (logger.logInfo()) {console.log('[Serverapp] - WSSNodeRED.on - Новое подключение nodeRED');}
   const clientId = wsManager.registerConnection(ws, 'nodeRED', null);
-  if (logInfo) {console.log(`[Serverapp] - WSSNodeRED.on - nodeRED соединение зарегистрировано: ${clientId}`);}
+  if (logger.logInfo()) {console.log(`[Serverapp] - WSSNodeRED.on - nodeRED соединение зарегистрировано: ${clientId}`);}
 
-  
+
   const params = new URLSearchParams(req.url.replace(/^.*\?/, ""));
   const id = params.get("id");
   console.log(`Подключился клиент: id = ${id}`);
@@ -299,11 +301,11 @@ ws.on('error', (error) => {
 // Работаем с Dashboard
 
 WSSDash.on('connection', (ws) => {
-  if (logInfo) {console.log('[Serverapp] - WSSDash.on - Новое подключение Dashboard (VUE)');}
+  if (logger.logInfo()) {console.log('[Serverapp] - WSSDash.on - Новое подключение Dashboard (VUE)');}
   const clientId = wsManager.registerConnection(ws, 'dashboard', null);
-  if (logInfo) {console.log(`[Serverapp] - WSSDash.on - VUE соединение зарегистрировано: ${clientId}`);}
+  if (logger.logInfo()) {console.log(`[Serverapp] - WSSDash.on - VUE соединение зарегистрировано: ${clientId}`);}
   // const allClients = wsManager.getAllActiveConnections();
-  // if (logDev) {console.log(`[Serverapp] - WSSDash.on - Все соединения:`, allClients);}
+  // if (logger.logDev()) {console.log(`[Serverapp] - WSSDash.on - Все соединения:`, allClients);}
 
   WSSDash.clients.forEach((client) => {
     client.send(
