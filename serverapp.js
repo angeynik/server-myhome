@@ -203,9 +203,9 @@ const reconnectInterval = 100;
 
 // Работаем с NodeRED
 WSSNodeRED.on('connection', (ws, req) => {
-  if (logger.logInfo()) {console.log('[Serverapp] - WSSNodeRED.on - Новое подключение nodeRED');}
-  const clientId = wsManager.registerConnection(ws, 'nodeRED', null);
-  if (logger.logInfo()) {console.log(`[Serverapp] - WSSNodeRED.on - nodeRED соединение зарегистрировано: ${clientId}`);}
+  logger.logDevMessage(`[Serverapp] - WSSNodeRED.on - Новое подключение nodeRED (VUE)`);
+  const connectionId = wsManager.registerConnection(ws, 'nodeRED', null);
+  logger.logDevMessage(`[Serverapp] - WSSNodeRED.on - nodeRED соединение зарегистрировано: ${connectionId}`);
 
 
   const params = new URLSearchParams(req.url.replace(/^.*\?/, ""));
@@ -213,8 +213,7 @@ WSSNodeRED.on('connection', (ws, req) => {
   console.log(`Подключился клиент: id = ${id}`);
 
 
-
-console.log(`Client connected to NodeRED on port ${wsRedPORT}`);
+logger.logDevMessage(`Client connected to NodeRED on port ${wsRedPORT}`);
 //console.log('[Serverapp] - WSSNodeRED - Соединение установлено', ws);
 
 ws.on('message', async (message) => {
@@ -223,30 +222,24 @@ ws.on('message', async (message) => {
      
       try {
         const checkInputMessage = checkMessage(message);
-        //console.log('-- 193 -- WSSNodeRED - checkInputMessage - ', checkInputMessage);
+        //logger.logDevMessage(`[Serverapp] - WSSNodeRED - checkInputMessage - ${JSON.parse(checkInputMessage)}`);
+        console.log('-- 226 -- WSSNodeRED - checkInputMessage - ', checkInputMessage);
         if(checkInputMessage.status === 'ok') {
 
-          const clientId = checkInputMessage.data.name;
+          const dID = checkInputMessage.data.name;
+          
           switch (checkInputMessage?.data?.type) {
             case 'init':
-                    const connectionType = checkInputMessage.data.payload.typeConnect;
+                   
                   if (checkInputMessage.data.request === 'init_ws') {
-                    //console.log('Пришло сообщение init_ws'); 
-
-                      if (!clientId || !connectionType) {
-                          console.error('Invalid wsConnect message');
-                          return;
-                      }
-                      // Регистрация соединения
-                      //console.log('--205 -- serverapp.js - Регистрация соединения', connectionType);
-                      registerClient(clientId, ws, connectionType);
-                      //console.log('Список всех зарегистрированных клинтов:', getAllClients());
+                    console.log('Пришло сообщение init_ws:', checkInputMessage.data.name);
+                    wsManager.updateConnection('nRED_connections', connectionId, Date.now(), checkInputMessage.data.name);
                   }
-                  const wsClient = getClient(clientId, connectionType);
-                  if (!wsClient) {
-                    console.error(`Client ${clientId} (${connectionType}) not registered`);
-                    return;      // или ws.close() того соединения, на котором вы вешали этот хандлер
-                  }
+                  // const wsClient = getClient(connectionId, connectionType);
+                  // if (!wsClient) {
+                  //   console.error(`Client ${connectionId} (${connectionType}) not registered`);
+                  //   return;      // или ws.close() того соединения, на котором вы вешали этот хандлер
+                  // }
 
               break;
             case 'post':
@@ -258,20 +251,13 @@ ws.on('message', async (message) => {
                   ${checkInputMessage.data.payload.room}|
                   ${checkInputMessage.data.payload.item_name}|
                   ${checkInputMessage.data.payload.item_value}`;
-                  // `${checkInputMessage.data.type}|
-                  // ${checkInputMessage.data.name}|
-                  // ${checkInputMessage.data.request}|
-                  // ${checkInputMessage.data.payload.room}|
-                  // ${checkInputMessage.data.payload.title}|
-                  // ${checkInputMessage.data.payload.group}|
-                  // ${checkInputMessage.data.payload.item_value}|
-                  // ${checkInputMessage.data.payload.item_type}|
-                  // ${checkInputMessage.data.payload.item_title}|
-                  // ${checkInputMessage.data.payload.item_name}`;
-                  //console.log('[Serverapp] - Ключ:', key);
-                  addMessageToQueue(clientId, checkInputMessage.data);
+                  addMessageToQueue(dID , checkInputMessage.data);
+                  
                   try {
-                    sendToClient(clientId, checkInputMessage.data);
+                    //sendToClient(dID, checkInputMessage.data);
+                  broadcast(connectionId, dID, checkInputMessage.data);
+                  // Рассылка только VUE клиентам
+                  //broadcast(connectionId, messageData, ['VUE_connections']);
                   } catch (error) {
                     console.log('[Serverapp] -  Ошибка отправки полученного сообщения от NodeRED  клиенту WSSDash:', error);
                   }
@@ -302,8 +288,8 @@ ws.on('error', (error) => {
 
 WSSDash.on('connection', (ws) => {
   if (logger.logInfo()) {console.log('[Serverapp] - WSSDash.on - Новое подключение Dashboard (VUE)');}
-  const clientId = wsManager.registerConnection(ws, 'dashboard', null);
-  if (logger.logInfo()) {console.log(`[Serverapp] - WSSDash.on - VUE соединение зарегистрировано: ${clientId}`);}
+  const connectionId = wsManager.registerConnection(ws, 'dashboard', null);
+  if (logger.logInfo()) {console.log(`[Serverapp] - WSSDash.on - VUE соединение зарегистрировано: ${connectionId}`);}
   // const allClients = wsManager.getAllActiveConnections();
   // if (logger.logDev()) {console.log(`[Serverapp] - WSSDash.on - Все соединения:`, allClients);}
 
@@ -327,18 +313,21 @@ WSSDash.on('connection', (ws) => {
             case 'auth':
                 const auth = dashData.data.payload;
                 console.log('[Serverapp] - -- auth --', auth);
-                handleAuth(clientId, dashData.data);
+                handleAuth(connectionId, dashData.data);
                 break;
             case 'get': 
                 //console.log('[Serverapp] - WSSDash - Переходим к проверке сообщения типа get.');
-                handleGet(clientId, dashData.data);
+                handleGet(connectionId, dashData.data);
                 break;
             case 'post': 
                 //console.log('[Serverapp] - WSSDash - Переходим к проверке сообщения типа post. ', dashData.data, dashData.data.name);
-                handlePost(clientId, dashData.data);
+                handlePost(connectionId, dashData.data);
                 const dID = dashData.data.name;
                 try {
-                    sendToNodeRED(dID, dashData.data);
+                    //sendToNodeRED(dID, dashData.data);
+                    broadcast(connectionId, dID, dashData.data);
+                    // Рассылка только NodeRED клиентам  
+                  //broadcast(dID, messageData, ['nRED_connections']);
                 } catch (error) {
                     console.log('[Serverapp] -  Ошибка отправки полученного сообщения от VUE клиента к NodeRED:', error);
                 }
@@ -366,64 +355,121 @@ WSSDash.on('connection', (ws) => {
 console.log(`WebSocket servers are running on nodeRed ws port:${wsRedPORT} and DashBoard (client) ws port:${wsDashPORT}`);
 
 
-function sendToClient(dID, data) {
-  console.log('[Serverapp] - sendToClient: dID =', dID, 'data =', data);
+
+
+// function broadcast(excludeClientId, dID, data, targets = ['VUE_connections', 'nRED_connections']) {
+//   console.log('[Serverapp] - broadcast: excludeClientId =', excludeClientId, 'dID =', dID, 'targets =', targets, 'data =', data);
   
+//   // Добавляем временную метку
+//   data.time = new Date().toString();
+  
+//   try {
+//     let totalSent = 0;
+    
+//     targets.forEach(targetType => {
+//       // Получаем все активные соединения указанного типа с нужным dID
+//       const userConnections = wsManager.getUserConnections(targetType, dID);
+      
+//       if (userConnections.length === 0) {
+//         console.log(`[Serverapp] - broadcast - Нет активных соединений типа ${targetType} с dID: ${dID}`);
+//         return;
+//       }
+      
+//       let typeSent = 0;
+      
+//       // Отправляем сообщение каждому соединению с нужным dID, исключая отправителя
+//       userConnections.forEach(({ clientId, connection }) => {
+//         if (clientId === excludeClientId) {
+//           console.log(`[Serverapp] - broadcast - Пропускаем отправителя: ${clientId}`);
+//           return;
+//         }
+        
+//         // Проверяем, что соединение активно
+//         if (connection.ws && connection.ws.readyState === WebSocket.OPEN) {
+//           try {
+//             // Отправляем исходное сообщение в неизменном виде
+//             const messageString = JSON.stringify(data);
+//             connection.ws.send(messageString);
+//             typeSent++;
+//             totalSent++;
+//             console.log(`[Serverapp] - broadcast - Сообщение отправлено клиенту: ${clientId} (${targetType})`);
+//           } catch (error) {
+//             console.error(`[Serverapp] - broadcast - Ошибка отправки клиенту ${clientId}:`, error);
+//           }
+//         }
+//       });
+      
+//       console.log(`[Serverapp] - broadcast - Отправлено ${typeSent}/${userConnections.length} сообщений для ${targetType} с dID: ${dID}`);
+//     });
+    
+//     if (totalSent === 0) {
+//       console.log(`[Serverapp] - broadcast - Нет активных клиентов для рассылки (dID: ${dID}, исключен: ${excludeClientId})`);
+//     } else {
+//       console.log(`[Serverapp] - broadcast - Всего отправлено ${totalSent} сообщений для dID: ${dID}`);
+//     }
+    
+//   } catch (error) {
+//     console.error('[Serverapp] - broadcast - Ошибка рассылки:', error);
+//   }
+// };
+
+function broadcast(excludeClientId, dID, data, targets = ['VUE_connections', 'nRED_connections']) {
+  console.log('[Serverapp] - broadcast: excludeClientId =', excludeClientId, 'dID =', dID, 'targets =', targets, 'data =', data);
+  
+  // Добавляем временную метку
   data.time = new Date().toString();
-  //console.log('[Serverapp] - sendToClient: data.time =', data.time);
   
-  const messageString = JSON.stringify(data);
-
-  // Проверка готовности клиентов
-  let hasOpenClients = false;
-  WSSDash.clients.forEach((client) => {
-    //console.log(`[Serverapp] - Состояние клиента Dashboard: ${client.readyState} (${client.readyState === WebSocket.OPEN ? 'открыт' : 'не открыт'})`);
-    if (client.readyState === WebSocket.OPEN) {
-      hasOpenClients = true;
+  try {
+    let totalSent = 0;
+    
+    targets.forEach(targetType => {
+      // Получаем все активные соединения указанного типа с нужным dID
+      const userConnections = wsManager.getUserConnections(targetType, dID);
+      
+      if (userConnections.length === 0) {
+        console.log(`[Serverapp] - broadcast - Нет активных соединений типа ${targetType} с dID: ${dID}`);
+        return;
+      }
+      
+      let typeSent = 0;
+      
+      // Отправляем сообщение каждому соединению с нужным dID, исключая отправителя
+      userConnections.forEach(({ clientId, connection }) => {
+        if (clientId === excludeClientId) {
+          console.log(`[Serverapp] - broadcast - Пропускаем отправителя: ${clientId}`);
+          return;
+        }
+        
+        // Проверяем, что соединение активно
+        if (connection.ws && connection.ws.readyState === WebSocket.OPEN) {
+          try {
+            // Отправляем исходное сообщение в неизменном виде
+            const messageString = JSON.stringify(data);
+            connection.ws.send(messageString);
+            typeSent++;
+            totalSent++;
+            console.log(`[Serverapp] - broadcast - Сообщение отправлено клиенту: ${clientId} (${targetType})`);
+          } catch (error) {
+            console.error(`[Serverapp] - broadcast - Ошибка отправки клиенту ${clientId}:`, error);
+          }
+        }
+      });
+      
+      console.log(`[Serverapp] - broadcast - Отправлено ${typeSent}/${userConnections.length} сообщений для ${targetType} с dID: ${dID}`);
+    });
+    
+    if (totalSent === 0) {
+      console.log(`[Serverapp] - broadcast - Нет активных клиентов для рассылки (dID: ${dID}, исключен: ${excludeClientId})`);
+    } else {
+      console.log(`[Serverapp] - broadcast - Всего отправлено ${totalSent} сообщений для dID: ${dID}`);
     }
-  });
-
-  if (!hasOpenClients) {
-    //console.log('[Serverapp] - Нет подключенных клиентов Dashboard в состоянии OPEN.');
-    return;
+    
+  } catch (error) {
+    console.error('[Serverapp] - broadcast - Ошибка рассылки:', error);
   }
-
-  // Отправка сообщения всем открытым клиентам
-  WSSDash.clients.forEach((client) => {
-    if (client.readyState === WebSocket.OPEN) {
-      client.send(messageString, (error) => {
-        if (error) {
-          console.error('[Serverapp] - Ошибка отправки сообщения на Dashboard:', error);
-        } else {
-          //console.log(`[Serverapp] - Сообщение отправлено на Dashboard: ${messageString}`);
-        }
-      });
-    }
-  });
 };
-function sendToNodeRED(dID, data) {
- //console.log('[Serverapp] - sendToNodeRED: dID =', dID, 'data =', data);
- //data.time = new Date().toString();
-  const messageString = JSON.stringify(data);
-  // Отправка сообщения всем открытым клиентам
-  WSSNodeRED.clients.forEach((client) => {
-    if (client.readyState === WebSocket.OPEN) {
-      client.send(messageString, (error) => {
-        if (error) {
-          console.error('[Serverapp] - sendToNodeRED - Ошибка отправки сообщения на nodeRED:', error);
-        } else {
-          console.log(`[Serverapp] - sendToNodeRED - Сообщение отправлено на nodeRED: ${messageString}`);
-        }
-      });
-    }
-  });
 
 
-
-
-
-
-};
 function stringToJSON(message) {
   const data = message.toString('utf8');
     return JSON.parse(data);

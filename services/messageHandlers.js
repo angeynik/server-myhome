@@ -24,6 +24,7 @@ function getValue(value) {
     return Array.isArray(value) ? value[0] : value;
 };
 
+
 async function handlePostNodeRED(clientId, message) {
   const info = JSON.stringify(message);
   logger.logDevMessage(`[messageHandlers] - handlePostNodeRED - Обработка сообщения: ${info}`);

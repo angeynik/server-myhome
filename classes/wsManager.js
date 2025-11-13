@@ -178,7 +178,7 @@ class WsManager {
   // }
 
 
-  getConnection(connections,clientId) {
+  getConnection(connections, clientId) {
     const connection = this[connections].get(clientId);
     
     if (!connection) {
@@ -205,7 +205,7 @@ class WsManager {
     return ws;
   
   }
-  getUserConnections(connections,dID, key = null) {
+  getUserConnections(connections, dID, key = null) {
     const result = [];
     
     for (const [clientId, connection] of this[connections]) {
@@ -261,7 +261,7 @@ class WsManager {
         console.log(`  Тип: ${type}`);
         console.log(`  Запрос: ${request}`);
         console.log(`  Имя: ${name}`);
-        console.log(`  Данные:`, message);
+        //console.log(`  Данные:`, message);
 
         const messageString = typeof response === 'string' ? response : JSON.stringify(response);
         ws.send(messageString);
