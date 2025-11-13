@@ -64,7 +64,7 @@ class WsManager {
     } else if (connectionType === 'nodeRED') {
       this.nRED_connections.set(clientId, connection);
       this.setupConnectionHandlers('nRED_connections', clientId, ws);
-      const allClients = wsManager.getAllActiveConnections('nRED_connection');
+      const allClients = wsManager.getAllActiveConnections('nRED_connections');
       console.log(` !!!!!!!!!!!!!!!! - - - - - [wsManager] - registerConnection- Все соединения:`, allClients);
     } else {
       return error = 'Invalid connectionType';
@@ -165,10 +165,6 @@ class WsManager {
     }
 
     this[connections].delete(clientId);
-
-    if (dID) {
-      this.unlinkUserDevice(dID, clientId);
-    }
     console.log(`[WsManager] - 🗑 Connection removed: ${clientId} (${connectionType}, ${connection.key || 'no-key'})`);
   }
 

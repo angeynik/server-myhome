@@ -12,7 +12,7 @@ const dotenv = require('dotenv'); // Подключаем .ENV файл с п�
 dotenv.config({path: './conf.env'}); // Указываем путь к  файлу .env
 const logger = require('../serverApp/services/logger.js');
 
-const secret = process.env.JWT_SECRET || 'default-secret-key';
+const secret = process.env.JWT_SECRET || 'default-poDDysecret-key';
 
 /**
  * Вход пользователя
