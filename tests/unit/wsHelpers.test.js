@@ -1,272 +1,281 @@
-// tests/unit/wsHelpers.test.js
-const { sendSuccess, sendRequest, sendError } = require('../../services/wsHelpers');
+// tests/unit/wsManager.test.js
+const wsManager = require('../../classes/wsManager');
 
-// Мокируем console для чистоты вывода тестов
-jest.spyOn(console, 'log').mockImplementation(() => {});
-jest.spyOn(console, 'error').mockImplementation(() => {});
-jest.spyOn(console, 'warn').mockImplementation(() => {});
+// Выносим тестовые данные в отдельные константы
+const TEST_DATA = {
+  DASHBOARD: {
+    type: 'dashboard',
+    dID: 'test-dashboard-123',
+    key: 'dashboard-key'
+  },
+  NODERED: {
+    type: 'nodeRED',
+    dID: 'test-nodered-456', 
+    key: 'nodered-key'
+  },
+  ADDRESSES: {
+    LOCALHOST: '127.0.0.1:12345',
+    LOCALHOST_IPV6: '::ffff:127.0.0.1:12345',
+    REMOTE: '192.168.1.100:54321'
+  }
+};
 
-describe('wsHelpers', () => {
-  let mockClient;
-
-  beforeEach(() => {
-    // Создаем mock клиента перед каждым тестом
-    mockClient = {
-      send: jest.fn(),
-      output: {
-        send: jest.fn()
-      }
-    };
-
-    jest.clearAllMocks();
-  });
-
-  describe('sendSuccess', () => {
-    test('должен отправлять успешный ответ с правильной структурой', () => {
-      const requestType = 'get';
-      const name = global.mockWebSocketData.clientId;
-      const payload = global.mockWsHelpersData.successResponse.payload;
-
-      sendSuccess(mockClient, requestType, name, payload);
-
-      expect(mockClient.send).toHaveBeenCalledWith(
-        JSON.stringify({
-          type: 'response',
-          request: requestType,
-          name: name,
-          payload: payload
-        })
-      );
-
-      expect(console.log).toHaveBeenCalledWith(
-        '[wsHelpers] - sendSuccess - Отправлен успешный ответ:',
-        JSON.stringify({
-          type: 'response',
-          request: requestType,
-          dID: name
-        })
-      );
-    });
-
-    test('должен использовать глобальные тестовые данные', () => {
-      const payload = global.mockWebSocketMessages.inputMessage;
-      const name = global.mockDevices.thermostat.id;
-      const requestType = 'device_status';
-      
-      sendSuccess(mockClient, requestType, name, payload);
-
-      expect(mockClient.send).toHaveBeenCalledWith(
-        expect.stringContaining(JSON.stringify(payload))
-      );
-    });
-
-    test('должен обрабатывать различные типы payload', () => {
-      const testCases = [
-        { payload: global.mockUserData.validUser },
-        { payload: global.mockDevices.thermostat },
-        { payload: global.mockWebSocketMessages.inputMessage },
-        { payload: null },
-        { payload: undefined }
-      ];
-
-      testCases.forEach((testCase, index) => {
-        sendSuccess(mockClient, 'test', `device-${index}`, testCase.payload);
-        expect(mockClient.send).toHaveBeenCalledTimes(index + 1);
-      });
-    });
-  });
-
-  describe('sendRequest', () => {
-    test('должен отправлять запрос через output канал', () => {
-      const requestType = 'set';
-      const name = global.mockWebSocketData.clientId;
-      const payload = global.mockWsHelpersData.requestMessage.payload;
-
-      sendRequest(mockClient, requestType, name, payload);
-
-      expect(mockClient.output.send).toHaveBeenCalledWith(
-        JSON.stringify({
-          type: 'get',
-          request: requestType,
-          name: name,
-          payload: payload
-        })
-      );
-
-      expect(console.log).toHaveBeenCalledWith(
-        '[wsHelpers] - sendRequest - Запрос отправлен:',
-        JSON.stringify({
-          type: 'get',
-          request: requestType,
-          name: name,
-          payload: payload
-        })
-      );
-    });
-
-    test('должен использовать глобальные WebSocket сообщения', () => {
-      const message = global.mockWebSocketMessages.outputMessage;
-      const name = global.mockDevices.light.id;
-      
-      sendRequest(mockClient, message.type, name, message.data);
-
-      expect(mockClient.output.send).toHaveBeenCalledWith(
-        expect.stringContaining(message.type)
-      );
-    });
-
-test('должен корректно обрабатывать клиента без output', () => {
-  const clientWithoutOutput = { send: jest.fn() };
-  
-  // Мокируем console.error для этого теста
-  const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-  
-  // Это не должно падать с ошибкой
-  expect(() => {
-    sendRequest(clientWithoutOutput, 'test', 'device', {});
-  }).not.toThrow();
-
-  // Должен быть вызов console.error
-  expect(consoleErrorSpy).toHaveBeenCalled();
-  expect(consoleErrorSpy).toHaveBeenCalledWith(
-    expect.stringContaining('sendRequest error:'),
-    expect.any(Error)
-  );
-});
-  });
-
-  describe('sendError', () => {
-    test('должен отправлять ошибку с правильной структурой', () => {
-      const errorType = 'validation';
-      const name = global.mockWebSocketData.clientId;
-      const payload = global.mockWsHelpersData.errorResponse.payload;
-
-      sendError(mockClient, errorType, name, payload);
-
-      expect(mockClient.send).toHaveBeenCalledWith(
-        JSON.stringify({
-          type: 'error',
-          request: errorType,
-          name: name,
-          payload: payload
-        })
-      );
-
-      expect(console.log).toHaveBeenCalledWith(
-        '[wsHelpers] - sendError - Отправлена ошибка:',
-        JSON.stringify({
-          type: 'error',
-          request: errorType,
-          name: name,
-          payload: payload
-        })
-      );
-    });
-
-    test('должен использовать глобальные ошибки', () => {
-      const errorPayload = { 
-        message: global.testErrors.validationError.message,
-        code: 400
-      };
-
-      sendError(mockClient, 'validation', global.mockDevices.sensor.id, errorPayload);
-
-      expect(mockClient.send).toHaveBeenCalledWith(
-        expect.stringContaining('Validation failed')
-      );
-    });
-
-    test('должен обрабатывать различные типы ошибок', () => {
-      const errorTypes = ['auth', 'db', 'validation', 'timeout'];
-      
-      errorTypes.forEach((errorType, index) => {
-        const errorPayload = {
-          message: `Test error ${index}`,
-          code: 400 + index
-        };
-        sendError(mockClient, errorType, `device-${index}`, errorPayload);
-        expect(mockClient.send).toHaveBeenCalledTimes(index + 1);
-      });
-    });
-  });
-
-  describe('Интеграционные тесты', () => {
-    test('должен корректно работать с реальными JSON данными', () => {
-      const testData = global.mockUserData.validUser;
-      const name = global.mockWebSocketData.adminClientId;
-      
-      sendSuccess(mockClient, 'user', name, testData);
-
-      const sentData = JSON.parse(mockClient.send.mock.calls[0][0]);
-      expect(sentData.payload.username).toBe('testuser');
-      expect(sentData.payload.userlevel).toBe(1);
-    });
-
-    test('должен использовать глобальные clientId', () => {
-      const clientId = global.mockWebSocketData.clientId;
-      
-      sendSuccess(mockClient, 'test', clientId, { data: 'test' });
-
-      const sentData = JSON.parse(mockClient.send.mock.calls[0][0]);
-      expect(sentData.name).toBe(clientId);
-    });
-
-    test('должен логировать корректную информацию', () => {
-      const deviceId = global.mockDevices.thermostat.id;
-      
-      sendSuccess(mockClient, 'device_status', deviceId, { value: 42 });
-
-      expect(console.log).toHaveBeenCalledWith(
-        '[wsHelpers] - sendSuccess - Отправлен успешный ответ:',
-        JSON.stringify({
-          type: 'response',
-          request: 'device_status',
-          dID: deviceId
-        })
-      );
-    });
-  });
-
-  describe('Обработка ошибок', () => {
-test('должен обрабатывать ошибки при отправке', () => {
-  const errorClient = {
-    send: jest.fn().mockImplementation(() => {
-      throw new Error('Send failed');
-    })
+// Улучшенная фабрика для создания mock WebSocket
+function createTestWebSocket(overrides = {}) {
+  const defaults = {
+    _socket: {
+      remoteAddress: '127.0.0.1',
+      remotePort: '12345'
+    },
+    readyState: 1, // WebSocket.OPEN
+    isAlive: true,
+    lastActivity: null,
+    on: jest.fn(),
+    ping: jest.fn(),
+    terminate: jest.fn(),
+    send: jest.fn()
   };
 
-  // Мокируем console.error для этого теста
-  const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+  // Глубокое слияние объектов
+  return {
+    ...defaults,
+    ...overrides,
+    _socket: {
+      ...defaults._socket,
+      ...(overrides._socket || {})
+    }
+  };
+}
 
-  // Не должно падать с ошибкой
-  expect(() => {
-    sendSuccess(errorClient, 'test', 'device', {});
-  }).not.toThrow();
+// Вспомогательные функции для тестов
+const TestHelpers = {
+  createDashboardConnection: (wsManager, overrides = {}) => {
+    const ws = createTestWebSocket(overrides.ws);
+    const options = {
+      ...TEST_DATA.DASHBOARD,
+      ...overrides.options
+    };
+    const clientId = wsManager.registerConnection(
+      ws, 
+      options.type, 
+      options.dID, 
+      options.key
+    );
+    return { ws, clientId, options };
+  },
 
-  expect(consoleErrorSpy).toHaveBeenCalled();
-  expect(consoleErrorSpy).toHaveBeenCalledWith(
-    expect.stringContaining('sendSuccess error:'),
-    expect.any(Error)
-  );
-});
+  createNodeREDConnection: (wsManager, overrides = {}) => {
+    const ws = createTestWebSocket(overrides.ws);
+    const options = {
+      ...TEST_DATA.NODERED,
+      ...overrides.options
+    };
+    const clientId = wsManager.registerConnection(
+      ws, 
+      options.type, 
+      options.dID, 
+      options.key
+    );
+    return { ws, clientId, options };
+  },
 
-test('должен обрабатывать невалидный JSON', () => {
-  const circularObject = {};
-  circularObject.self = circularObject;
+  // Проверка что соединение активно и правильно зарегистрировано
+  validateConnection: (wsManager, clientId, expectedType, expectedDID, expectedKey = null) => {
+    const collection = expectedType === 'dashboard' ? 'VUE_connections' : 'nRED_connections';
+    const connection = wsManager[collection].get(clientId);
+    
+    expect(connection).toBeDefined();
+    expect(connection.connectionType).toBe(expectedType);
+    expect(connection.dID).toBe(expectedDID);
+    if (expectedKey) {
+      expect(connection.key).toBe(expectedKey);
+    }
+    expect(connection.meta.clientId).toBe(clientId);
+    expect(wsManager.isConnectionActive(collection, clientId)).toBe(true);
+    
+    return connection;
+  }
+};
 
-  // Мокируем console.error для этого теста
-  const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+describe('WsManager', () => {
+  let wsManager;
 
-  // Это не должно падать с ошибкой
-  expect(() => {
-    sendSuccess(mockClient, 'test', 'device', circularObject);
-  }).not.toThrow();
+  beforeEach(() => {
+    wsManager = new wsManager();
+    // Мокаем console.log чтобы не засорять вывод тестов
+    jest.spyOn(console, 'log').mockImplementation(() => {});
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+  });
 
-  expect(consoleErrorSpy).toHaveBeenCalled();
-  expect(consoleErrorSpy).toHaveBeenCalledWith(
-    expect.stringContaining('sendSuccess error:'),
-    expect.any(Error)
-  );
-});
+  afterEach(() => {
+    jest.restoreAllMocks();
+    wsManager.cleanup('VUE_connections');
+    wsManager.cleanup('nRED_connections');
+  });
+
+  describe('registerConnection', () => {
+    describe('Успешная регистрация', () => {
+      test('should register a new dashboard connection with helper', () => {
+        // Act
+        const { ws, clientId, options } = TestHelpers.createDashboardConnection(wsManager);
+
+        // Assert
+        expect(clientId).toBeDefined();
+        TestHelpers.validateConnection(wsManager, clientId, options.type, options.dID, options.key);
+        
+        // Проверяем что установлены обработчики
+        expect(ws.on).toHaveBeenCalledWith('pong', expect.any(Function));
+        expect(ws.on).toHaveBeenCalledWith('close', expect.any(Function));
+        expect(ws.on).toHaveBeenCalledWith('error', expect.any(Function));
+      });
+
+      test('should register a new nodeRED connection with helper', () => {
+        // Act
+        const { clientId, options } = TestHelpers.createNodeREDConnection(wsManager);
+
+        // Assert
+        expect(clientId).toBeDefined();
+        TestHelpers.validateConnection(wsManager, clientId, options.type, options.dID, options.key);
+      });
+
+      test('should handle different remote addresses correctly', () => {
+        // Arrange
+        const remoteAddresses = [
+          '192.168.1.100:54321',
+          '10.0.0.5:8080',
+          '::ffff:127.0.0.1:3000'
+        ];
+
+        remoteAddresses.forEach((address, index) => {
+          const [ip, port] = address.split(':');
+          const ws = createTestWebSocket({
+            _socket: { remoteAddress: ip, remotePort: port }
+          });
+
+          // Act
+          const clientId = wsManager.registerConnection(
+            ws, 
+            'dashboard', 
+            `device-${index}`
+          );
+
+          // Assert
+          const connection = wsManager.VUE_connections.get(clientId);
+          expect(connection.meta.remoteAddress).toBe(address);
+        });
+      });
+    });
+
+    describe('Валидация и ошибки', () => {
+      test('should return error for invalid connectionType', () => {
+        // Arrange
+        const ws = createTestWebSocket();
+        const invalidType = 'invalid-type';
+
+        // Act
+        const result = wsManager.registerConnection(ws, invalidType);
+
+        // Assert
+        expect(result).toBe('Invalid connectionType');
+        expect(wsManager.VUE_connections.size).toBe(0);
+        expect(wsManager.nRED_connections.size).toBe(0);
+      });
+
+      test('should handle WebSocket without remote address', () => {
+        // Arrange
+        const ws = createTestWebSocket({
+          _socket: null
+        });
+
+        // Act
+        const clientId = wsManager.registerConnection(ws, 'dashboard', 'test-device');
+
+        // Assert
+        expect(clientId).toBeDefined();
+        const connection = wsManager.VUE_connections.get(clientId);
+        expect(connection.meta.remoteAddress).toBe('unknown:unknown');
+      });
+    });
+
+    describe('Предотвращение дубликатов', () => {
+      test('should return existing clientId for duplicate connection', () => {
+        // Arrange
+        const { clientId: firstClientId, options } = TestHelpers.createDashboardConnection(wsManager);
+        
+        // Act - пытаемся зарегистрировать дубликат
+        const ws2 = createTestWebSocket(); // тот же адрес и порт
+        const secondClientId = wsManager.registerConnection(
+          ws2, 
+          options.type, 
+          options.dID, 
+          options.key
+        );
+
+        // Assert
+        expect(secondClientId).toBe(firstClientId);
+        expect(wsManager.VUE_connections.size).toBe(1);
+      });
+
+      test('should allow different connections with different dID', () => {
+        // Act
+        const { clientId: client1 } = TestHelpers.createDashboardConnection(wsManager, {
+          options: { dID: 'device-1' }
+        });
+        
+        const { clientId: client2 } = TestHelpers.createDashboardConnection(wsManager, {
+          options: { dID: 'device-2' }
+        });
+
+        // Assert
+        expect(client1).not.toBe(client2);
+        expect(wsManager.VUE_connections.size).toBe(2);
+      });
+
+      test('should allow same dID but different remote addresses', () => {
+        // Arrange
+        const { clientId: client1 } = TestHelpers.createDashboardConnection(wsManager, {
+          ws: { _socket: { remoteAddress: '192.168.1.100', remotePort: '12345' } }
+        });
+
+        // Act
+        const { clientId: client2 } = TestHelpers.createDashboardConnection(wsManager, {
+          ws: { _socket: { remoteAddress: '192.168.1.101', remotePort: '12346' } },
+          options: { dID: 'device-1' } // тот же dID, но другой адрес
+        });
+
+        // Assert
+        expect(client1).not.toBe(client2);
+        expect(wsManager.VUE_connections.size).toBe(2);
+      });
+    });
+
+    describe('Метаданные соединения', () => {
+      test('should set correct metadata for new connection', () => {
+        // Act
+        const { ws, clientId } = TestHelpers.createDashboardConnection(wsManager);
+
+        // Assert
+        const connection = wsManager.VUE_connections.get(clientId);
+        expect(connection.meta.clientId).toBe(clientId);
+        expect(connection.meta.registeredAt).toBeDefined();
+        expect(typeof connection.meta.registeredAt).toBe('number');
+        expect(connection.meta.lastActivity).toBeDefined();
+        expect(connection.meta.isAlive).toBe(true);
+        expect(connection.meta.remoteAddress).toBe(TEST_DATA.ADDRESSES.LOCALHOST);
+      });
+
+      test('should initialize WebSocket handlers and flags', () => {
+        // Arrange
+        const ws = createTestWebSocket();
+
+        // Act
+        wsManager.registerConnection(ws, 'dashboard', 'test-device');
+
+        // Assert
+        expect(ws.isAlive).toBe(true);
+        expect(ws.lastActivity).toBeDefined();
+        expect(ws.on).toHaveBeenCalledTimes(3); // pong, close, error
+      });
+    });
   });
 });

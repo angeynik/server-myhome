@@ -67,7 +67,7 @@ class WsManager {
       const allClients = wsManager.getAllActiveConnections('nRED_connections');
       console.log(` !!!!!!!!!!!!!!!! - - - - - [wsManager] - registerConnection- Все соединения:`, allClients);
     } else {
-      return error = 'Invalid connectionType';
+      return 'Invalid connectionType';
     }
     // this.connections.set(clientId, connection);
     //this.setupConnectionHandlers(clientId, ws);
@@ -115,24 +115,14 @@ class WsManager {
     return closedCount;
   }
 
-  setupConnectionHandlers(connections, clientId, ws) {
-    ws.isAlive = true;
-    ws.lastActivity = Date.now();
-    
-    ws.on('pong', () => {
-      ws.isAlive = true;
-      ws.lastActivity = Date.now();
-      this.updateConnection(connections, clientId, ws.lastActivity);
-    });
-
-    ws.on('close', () => this.removeConnection(connections, clientId));
-    ws.on('error', () => this.removeConnection(connections, clientId));
-  }
-
   updateConnection(connections, clientId, timestamp, dID = null) {
     console.log(`[WsManager] - 📡 Connection updated: ${dID}`);
 
     const connection = this[connections].get(clientId);
+    if (!connection) {
+      console.log(`[WsManager] - ⚠️ Connection not found for update: ${clientId}`);
+      return;
+    }
     let newdID = connection.meta.dID;
     connection.dID = dID;
     if (dID) {
@@ -276,38 +266,42 @@ class WsManager {
     return false;
   }
 
-sendToUser(connections, dID, message, key = null) {
-  const userConnections = this.getUserConnections(dID, key);
-  let sentCount = 0;
+  sendToUser(connections, dID, message, key = null) {
+    const userConnections = this.getUserConnections(dID, key);
+    let sentCount = 0;
 
-  userConnections.forEach(({ clientId }) => {
-    if (this.sendToConnection(connections, clientId, message)) {
-      sentCount++;
-    }
-  });
+    userConnections.forEach(({ clientId }) => {
+      if (this.sendToConnection(connections, clientId, message)) {
+        sentCount++;
+      }
+    });
 
-  console.log(`[WsManager] - Message sent to ${sentCount}/${userConnections.length} devices of user ${dID}${key ? ` with key ${key}` : ''}`);
-  return sentCount;
-}
+    console.log(`[WsManager] - Message sent to ${sentCount}/${userConnections.length} devices of user ${dID}${key ? ` with key ${key}` : ''}`);
+    return sentCount;
+  }
 
-//   broadcastToType(connectionType, message) {
-//     console.log(`[wsManager] - broadcastToType Выполняем отправку сообщения всем ${connectionType} connections`);
-//     const connections = this.getConnectionsByType(connectionType);
-//     let sentCount = 0;
+  setupConnectionHandlers(connections, clientId, ws) {
+    ws.isAlive = true;
+    ws.lastActivity = Date.now();
+    
+    ws.on('pong', () => {
+      ws.isAlive = true;
+      ws.lastActivity = Date.now();
+      this.updateConnection(connections, clientId, ws.lastActivity);
+    });
 
-//     connections.forEach(({ clientId }) => {
-//       if (this.sendToConnection(clientId, message)) {
-//         sentCount++;
-//       }
-//     });
-
-//     return sentCount;
-//   }
+    ws.on('close', () => this.removeConnection(connections, clientId));
+    ws.on('error', () => this.removeConnection(connections, clientId));
+  }
 
 
   startHeartbeat(connections, interval = 30000, timeout = 60000) {
     if (this.heartbeatInterval) {
       clearInterval(this.heartbeatInterval);
+    }
+    if (!this[connections] || !(this[connections] instanceof Map)) {
+      console.log(`[WsManager] - ❌ Invalid collection for heartbeat: ${connections}`);
+      return;
     }
 
     this.heartbeatInterval = setInterval(() => {
@@ -323,7 +317,7 @@ sendToUser(connections, dID, message, key = null) {
 
         if (now - meta.lastActivity > timeout) {
           console.warn(`[WsManager] - 💀 Heartbeat timeout for ${clientId}`);
-          this.removeConnection(connections,clientId);
+          this.removeConnection(connections, clientId);
           continue;
         }
 
@@ -371,7 +365,12 @@ sendToUser(connections, dID, message, key = null) {
 
   cleanup(connections) {
     this.stopHeartbeat();
-    
+   
+    // Добавляем проверку на существование коллекции
+    if (!this[connections] || !(this[connections] instanceof Map)) {
+      console.log(`[WsManager] - ❌ Invalid collection for cleanup: ${connections}`);
+      return;
+    }
     for (const clientId of this[connections].keys()) {
       this.removeConnection(connections, clientId);
     }

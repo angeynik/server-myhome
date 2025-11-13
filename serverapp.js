@@ -214,7 +214,6 @@ WSSNodeRED.on('connection', (ws, req) => {
 
 
 logger.logDevMessage(`Client connected to NodeRED on port ${wsRedPORT}`);
-//console.log('[Serverapp] - WSSNodeRED - Соединение установлено', ws);
 
 ws.on('message', async (message) => {
       // console.log(`Starting heartbeat: interval=${pingInterval}ms, timeout=${timeOut}ms`);
@@ -222,28 +221,20 @@ ws.on('message', async (message) => {
      
       try {
         const checkInputMessage = checkMessage(message);
-        //logger.logDevMessage(`[Serverapp] - WSSNodeRED - checkInputMessage - ${JSON.parse(checkInputMessage)}`);
-        console.log('-- 226 -- WSSNodeRED - checkInputMessage - ', checkInputMessage);
+        //logger.logDevMessage(`[Serverapp] - WSSNodeRED - checkInputMessage - ${JSON.stringify(checkInputMessage, null, 2)}`);
         if(checkInputMessage.status === 'ok') {
 
           const dID = checkInputMessage.data.name;
           
           switch (checkInputMessage?.data?.type) {
-            case 'init':
-                   
+            case 'init':     
                   if (checkInputMessage.data.request === 'init_ws') {
-                    console.log('Пришло сообщение init_ws:', checkInputMessage.data.name);
+                    logger.logDevMessage(`[Serverapp] - WSSNodeRED - Пришло сообщение init_ws: ${JSON.stringify(checkInputMessage.data, null, 2)}`);
                     wsManager.updateConnection('nRED_connections', connectionId, Date.now(), checkInputMessage.data.name);
                   }
-                  // const wsClient = getClient(connectionId, connectionType);
-                  // if (!wsClient) {
-                  //   console.error(`Client ${connectionId} (${connectionType}) not registered`);
-                  //   return;      // или ws.close() того соединения, на котором вы вешали этот хандлер
-                  // }
-
               break;
             case 'post':
-                  //console.log('[Serverapp] - -- Post -- Добавляем сообщение в очередь');
+                  logger.logDevMessage(`[Serverapp] - WSSNodeRED - Post -- Добавляем сообщение в очередь`);
                   const key = 
                   `${checkInputMessage.data.type}|
                   ${checkInputMessage.data.name}|
@@ -254,15 +245,10 @@ ws.on('message', async (message) => {
                   addMessageToQueue(dID , checkInputMessage.data);
                   
                   try {
-                    //sendToClient(dID, checkInputMessage.data);
                   broadcast(connectionId, dID, checkInputMessage.data);
-                  // Рассылка только VUE клиентам
-                  //broadcast(connectionId, messageData, ['VUE_connections']);
                   } catch (error) {
-                    console.log('[Serverapp] -  Ошибка отправки полученного сообщения от NodeRED  клиенту WSSDash:', error);
+                    logErrorMessage(`[Serverapp] - Ошибка отправки полученного сообщения от NodeRED  клиенту WSSDash: ${error}`);
                   }
-                  
-                  //await triggerQueueProcessing(); // Немедленный запуск обработки
               break;
 s
             default:
