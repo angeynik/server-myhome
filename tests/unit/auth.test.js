@@ -60,7 +60,7 @@ describe('Server-side Authentication', () => {
       const result = await loginUser('nonexistent', 'password');
 
       // Assert
-      expect(result.error).toBe('User not found');
+      expect(result.error).toBe('User nonexistent not found'); // Исправлено здесь
       expect(result.code).toBe('USER_NOT_FOUND');
       
       expect(DBManager.findUser).toHaveBeenCalledWith('nonexistent');

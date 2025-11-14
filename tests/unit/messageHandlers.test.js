@@ -13,16 +13,24 @@ const DBManager = require('../../services/db');
 const { loginUser, verifyToken } = require('../../auth');
 const { writeFileSafely, readFileSafely } = require('../../services/configStore');
 const { nodeRedClients } = require('../../services/clientsStore');
-const { sendSuccess, sendError, sendRequest } = require('../../services/wsHelpers');
+const wsManager = require('../../classes/wsManager');
 
 // Мокируем все зависимости
 jest.mock('../../services/db');
 jest.mock('../../auth');
 jest.mock('../../services/configStore');
 jest.mock('../../services/clientsStore');
-jest.mock('../../services/wsHelpers');
+jest.mock('../../classes/wsManager');
 jest.mock('jsonwebtoken');
 jest.mock('bcryptjs');
+
+// Мокируем logger
+jest.mock('../../services/logger.js', () => ({
+  logDevMessage: jest.fn(),
+  logInfoMessage: jest.fn(),
+  logErrorMessage: jest.fn()
+}));
+const logger = require('../../services/logger.js');
 
 // Мокируем tableDB
 jest.mock('../../services/tableDB', () => ({
@@ -76,6 +84,10 @@ describe('messageHandlers', () => {
     DBManager.query = jest.fn();
     DBManager.checkTableExists = jest.fn();
     DBManager.checkRecordExists = jest.fn();
+
+    // Моки для wsManager
+    wsManager.sendToConnection = jest.fn();
+    wsManager.updateConnection = jest.fn();
   });
 
   describe('handlePostNodeRED', () => {
@@ -146,11 +158,19 @@ describe('messageHandlers', () => {
         }
       };
 
-      await handleAuth(mockWs, data);
+      await handleAuth(mockClientId, data);
 
       expect(loginUser).toHaveBeenCalledWith('testuser', 'testpassword123');
-      expect(sendSuccess).toHaveBeenCalledWith(
-        mockWs,
+      expect(wsManager.updateConnection).toHaveBeenCalledWith(
+        'VUE_connections',
+        mockClientId,
+        expect.any(Number),
+        'test-did-123'
+      );
+      expect(wsManager.sendToConnection).toHaveBeenCalledWith(
+        'VUE_connections',
+        mockClientId,
+        'response',
         'loginSuccess',
         'test-did-123',
         expect.objectContaining({
@@ -164,7 +184,8 @@ describe('messageHandlers', () => {
     test('должен отправлять ошибку при неудачном login', async () => {
       loginUser.mockResolvedValueOnce({
         error: 'Invalid credentials',
-        code: 'AUTH_ERROR'
+        code: 'AUTH_ERROR',
+        dID: 'test-device'
       });
 
       const data = {
@@ -176,10 +197,12 @@ describe('messageHandlers', () => {
         }
       };
 
-      await handleAuth(mockWs, data);
+      await handleAuth(mockClientId, data);
 
-      expect(sendError).toHaveBeenCalledWith(
-        mockWs,
+      expect(wsManager.sendToConnection).toHaveBeenCalledWith(
+        'VUE_connections',
+        mockClientId,
+        'error',
         'loginError',
         'test-device',
         expect.objectContaining({
@@ -200,11 +223,13 @@ describe('messageHandlers', () => {
         name: 'test-device'
       };
 
-      await handleGet(mockWs, data);
+      await handleGet(mockClientId, data);
 
       expect(DBManager.fetchUsers).toHaveBeenCalled();
-      expect(sendSuccess).toHaveBeenCalledWith(
-        mockWs,
+      expect(wsManager.sendToConnection).toHaveBeenCalledWith(
+        'VUE_connections',
+        mockClientId,
+        'response',
         'fetchUsersSuccess',
         'test-device',
         { users: mockUsers }
@@ -217,34 +242,39 @@ describe('messageHandlers', () => {
         name: 'test-device-123'
       };
 
-      await handleGet(mockWs, data);
+      await handleGet(mockClientId, data);
 
       expect(readFileSafely).toHaveBeenCalledWith('test-device-123');
-      expect(sendSuccess).toHaveBeenCalledWith(
-        mockWs,
+      expect(wsManager.sendToConnection).toHaveBeenCalledWith(
+        'VUE_connections',
+        mockClientId,
+        'response',
         'config',
         'test-device-123',
         global.mockConfigData.validConfig
       );
     });
 
-    // test('должен отправлять ошибку при отсутствии имени конфига', async () => {
-    //   const data = {
-    //     request: 'config',
-    //     name: null
-    //   };
+    test('должен отправлять ошибку при отсутствии имени конфига', async () => {
+      const data = {
+        request: 'config',
+        name: null
+      };
 
-    //   await handleGet(mockWs, data);
+      await handleGet(mockClientId, data);
 
-    //   expect(sendError).toHaveBeenCalledWith(
-    //     mockWs,
-    //     'configError',
-    //     null,
-    //     expect.objectContaining({
-    //       message: 'Не указано имя конфига в запросе'
-    //     })
-    //   );
-    // });
+      expect(wsManager.sendToConnection).toHaveBeenCalledWith(
+        'VUE_connections',
+        mockClientId,
+        'error',
+        'configError',
+        null,
+        expect.objectContaining({
+          message: '[messageHandlers] - Не указано имя конфига в запросе',
+          code: 'config_read_error'
+        })
+      );
+    });
   });
 
   describe('handlePost', () => {
@@ -266,38 +296,24 @@ describe('messageHandlers', () => {
         }
       };
 
-      await handlePost(mockWs, data);
+      await handlePost(mockClientId, data);
 
       expect(tableDB.registerUser).toHaveBeenCalled();
       expect(DBManager.createDB).toHaveBeenCalled();
       expect(DBManager.createTableDID).toHaveBeenCalled();
-      expect(sendSuccess).toHaveBeenCalledWith(
-        mockWs,
+      expect(wsManager.sendToConnection).toHaveBeenCalledWith(
+        'VUE_connections',
+        mockClientId,
+        'response',
         'createUserSuccess',
         'test-device',
         { user: mockNewUser }
       );
     });
 
-    // test('должен обрабатывать init_dID запрос с существующей БД', async () => {
-    //   DBManager.query.mockResolvedValue({ rows: [{ now: new Date() }] });
-    //   DBManager.checkTableExists.mockResolvedValue(true);
-    //   DBManager.checkRecordExists.mockResolvedValue({ exists: true });
-
-    //   const data = {
-    //     request: 'init_dID',
-    //     name: 'existing-device'
-    //   };
-
-    //   await handlePost(mockWs, data);
-
-    //   expect(DBManager.query).toHaveBeenCalled();
-    //   expect(DBManager.checkTableExists).toHaveBeenCalled();
-    // });
-
     test('должен обрабатывать setpoint запрос', async () => {
       const data = {
-        request: 'setpoint',
+        request: 'setpoints',
         name: 'test-device-123',
         payload: {
           room: 'living_room',
@@ -306,7 +322,7 @@ describe('messageHandlers', () => {
         }
       };
 
-      await handlePost(mockWs, data);
+      await handlePost(mockClientId, data);
 
       expect(readFileSafely).toHaveBeenCalledWith('test-device-123');
       expect(writeFileSafely).toHaveBeenCalled();
@@ -331,8 +347,10 @@ describe('messageHandlers', () => {
 
       expect(DBManager.checkRecordExists).toHaveBeenCalled();
       expect(DBManager.query).toHaveBeenCalled();
-      expect(sendSuccess).toHaveBeenCalledWith(
-        mockWs,
+      expect(wsManager.sendToConnection).toHaveBeenCalledWith(
+        'nRED_connections',
+        mockClientId,
+        'response',
         'configSaved',
         'test-device-123',
         expect.any(Object)
@@ -350,8 +368,10 @@ describe('messageHandlers', () => {
 
       await handleResponse(mockClientId, data);
 
-      expect(sendSuccess).toHaveBeenCalledWith(
-        mockWs,
+      expect(wsManager.sendToConnection).toHaveBeenCalledWith(
+        'nRED_connections',
+        mockClientId,
+        'response',
         'configExists',
         'test-device-123',
         expect.objectContaining({
@@ -364,24 +384,22 @@ describe('messageHandlers', () => {
 
   describe('handleSet и handleError', () => {
     test('handleSet должен логировать вызов', async () => {
-      const consoleSpy = jest.spyOn(console, 'log');
       const data = { request: 'test' };
 
       await handleSet(mockClientId, data);
 
-      expect(consoleSpy).toHaveBeenCalledWith(
-        '[messageHandlers] - Переходим к проверке сообщения типа set.'
+      expect(logger.logDevMessage).toHaveBeenCalledWith(
+        '[messageHandlers] - handleSet - Переходим к проверке сообщения типа set.'
       );
     });
 
     test('handleError должен логировать вызов', async () => {
-      const consoleSpy = jest.spyOn(console, 'log');
       const data = { request: 'test' };
 
       await handleError(mockClientId, data);
 
-      expect(consoleSpy).toHaveBeenCalledWith(
-        '[messageHandlers] - Переходим к проверке сообщения типа Error'
+      expect(logger.logDevMessage).toHaveBeenCalledWith(
+        '[messageHandlers] - handleError - Переходим к проверке сообщения типа Error'
       );
     });
   });
@@ -393,7 +411,7 @@ describe('messageHandlers', () => {
         name: global.mockDeviceIDs[0] // thermostat-living-room
       };
 
-      await handleGet(mockWs, data);
+      await handleGet(mockClientId, data);
 
       expect(readFileSafely).toHaveBeenCalledWith(global.mockDeviceIDs[0]);
     });
@@ -405,7 +423,7 @@ describe('messageHandlers', () => {
         payload: global.testRequests.validLogin
       };
 
-      await handleAuth(mockWs, data);
+      await handleAuth(mockClientId, data);
 
       expect(loginUser).toHaveBeenCalledWith(
         global.testRequests.validLogin.username,
@@ -420,7 +438,7 @@ describe('messageHandlers', () => {
           name: deviceId
         };
 
-        await handleGet(mockWs, data);
+        await handleGet(mockClientId, data);
         expect(readFileSafely).toHaveBeenCalledWith(deviceId);
       }
     });
@@ -435,10 +453,12 @@ describe('messageHandlers', () => {
         name: 'test-device'
       };
 
-      await handleGet(mockWs, data);
+      await handleGet(mockClientId, data);
 
-      expect(sendError).toHaveBeenCalledWith(
-        mockWs,
+      expect(wsManager.sendToConnection).toHaveBeenCalledWith(
+        'VUE_connections',
+        mockClientId,
+        'error',
         'fetchUsersError',
         'test-device',
         expect.objectContaining({
@@ -455,10 +475,12 @@ describe('messageHandlers', () => {
         name: 'test-device-123'
       };
 
-      await handleGet(mockWs, data);
+      await handleGet(mockClientId, data);
 
-      expect(sendError).toHaveBeenCalledWith(
-        mockWs,
+      expect(wsManager.sendToConnection).toHaveBeenCalledWith(
+        'VUE_connections',
+        mockClientId,
+        'error',
         'configError',
         'test-device-123',
         expect.objectContaining({

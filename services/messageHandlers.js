@@ -520,7 +520,7 @@ const handleSet = async (clientId, data) => {
     logger.logDevMessage(`[messageHandlers] - handleSet - Переходим к проверке сообщения типа set.`);
 };
 const handleError = async (clientId, data) => {
-    logger.logDevMessage(`[messageHandlers] - handleError -  Переходим к проверке сообщения типа Error`);
+    logger.logDevMessage(`[messageHandlers] - handleError - Переходим к проверке сообщения типа Error`);
 };
 
 module.exports = {

@@ -172,7 +172,7 @@ describe('WebSocket Authentication Integration Tests', () => {
       }, timeout);
 
       const messageHandler = (data) => {
-        clearTimeout(timer);
+        clearTimeout(timer); // Добавьте эту строку
         ws.removeListener('message', messageHandler);
         try {
           resolve(JSON.parse(data.toString()));
@@ -181,10 +181,10 @@ describe('WebSocket Authentication Integration Tests', () => {
         }
       };
 
-      ws.on('message', messageHandler);
-      ws.send(JSON.stringify(message));
-    });
-  };
+        ws.on('message', messageHandler);
+        ws.send(JSON.stringify(message));
+      });
+    };
 
   describe('Успешная авторизация', () => {
     it('должен успешно авторизовать пользователя через WebSocket', async () => {
@@ -274,6 +274,7 @@ describe('WebSocket Authentication Integration Tests', () => {
   });
 
   describe('Неудачная авторизация', () => {
+  
     it('должен отклонить авторизацию для несуществующего пользователя', async () => {
       // Мокируем отсутствие пользователя
       DBManager.findUser.mockResolvedValue(null);
@@ -292,7 +293,7 @@ describe('WebSocket Authentication Integration Tests', () => {
 
       expect(response.type).toBe('auth');
       expect(response.status).toBe('error');
-      expect(response.error).toBe('User not found');
+      expect(response.error).toBe('User nonexistent not found'); // Изменено здесь
       expect(response.code).toBe('USER_NOT_FOUND');
     });
 
