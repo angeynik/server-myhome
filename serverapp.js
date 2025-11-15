@@ -102,37 +102,88 @@ const handleShutdown = async () => {
   safeWrite('\n🛑 Получен сигнал завершения. Начинаю остановку сервера...');
 
   try {
+    // 0. Останавливаем heartbeat мониторинг
+    wsManager.stopHeartbeat();
+    safeWrite('✅ Heartbeat monitoring stopped');
+
     // 1. Закрываем соединения с БД
     await DBManager.closeAllPools();
     safeWrite('✅ Все соединения с базами данных закрыты.');
 
     // 2. Закрываем WebSocket-серверы и их соединения
-    const wsServers = [
-      { name: 'WSSNodeRED', instance: WSSNodeRED },
-      // { name: 'WSSNodeRED_OUT', instance: WSSNodeRED_OUT },
-      { name: 'WSSDash', instance: WSSDash }
-    ];
-    
-    await Promise.all(wsServers.map(server => 
-      new Promise(resolve => {
-        if (server.instance && typeof server.instance.close === 'function') {
-          server.instance.clients.forEach(client => client.terminate()); // Принудительное закрытие клиентских соединений
-          server.instance.close(err => {
-            if (err) {
-              safeWrite(`🛑 ${server.name}: ошибка закрытия - ${err.message}`);
-            } else {
-              safeWrite(`✅ ${server.name}: успешно закрыт`);
-            }
-            resolve();
-          });
-        } else {
-          safeWrite(`ℹ️ ${server.name}: невалидный сервер или уже закрыт`);
-          resolve();
-        }
-      })
-    ));
+    // const wsServers = [
+    //   { name: 'WSSNodeRED', instance: WSSNodeRED },
+    //   // { name: 'WSSNodeRED_OUT', instance: WSSNodeRED_OUT },
+    //   { name: 'WSSDash', instance: WSSDash }
+    // ];
+    // await Promise.all(wsServers.map(server => 
+    //   new Promise(resolve => {
+    //     if (server.instance && typeof server.instance.close === 'function') {
+    //       server.instance.clients.forEach(client => client.terminate()); // Принудительное закрытие клиентских соединений
+    //       server.instance.close(err => {
+    //         if (err) {
+    //           safeWrite(`🛑 ${server.name}: ошибка закрытия - ${err.message}`);
+    //         } else {
+    //           safeWrite(`✅ ${server.name}: успешно закрыт`);
+    //         }
+    //         resolve();
+    //       });
+    //     } else {
+    //       safeWrite(`ℹ️ ${server.name}: невалидный сервер или уже закрыт`);
+    //       resolve();
+    //     }
+    //   })
+    // ));
+    // safeWrite('✅ Все WebSocket-соединения закрыты.');
 
-    safeWrite('✅ Все WebSocket-соединения закрыты.');
+    // 2. Закрываем WebSocket-серверы и их соединения через wsManager
+    safeWrite('🔄 Закрываем WebSocket соединения...');
+
+    try {
+
+      // Очищаем все соединения через wsManager
+      const cleanupResults = [
+        { name: 'Dashboard connections', result: wsManager.cleanup('VUE_connections') },
+        { name: 'NodeRED connections', result: wsManager.cleanup('nRED_connections') }
+      ];
+
+      cleanupResults.forEach(({ name, result }) => {
+        if (result) {
+          safeWrite(`✅ ${name} успешно очищены`);
+        } else {
+          safeWrite(`⚠️ ${name} не были очищены (возможно, уже закрыты)`);
+        }
+      });
+
+      safeWrite('✅ Все WebSocket соединения закрыты через wsManager');
+
+      // Закрываем сами WebSocket серверы
+      const wsServers = [
+        { name: 'WSSNodeRED', instance: WSSNodeRED },
+        { name: 'WSSDash', instance: WSSDash }
+      ];
+      
+      await Promise.all(wsServers.map(server => 
+        new Promise(resolve => {
+          if (server.instance && typeof server.instance.close === 'function' && server.instance._server) {
+            server.instance.close(err => {
+              if (err) {
+                safeWrite(`🛑 ${server.name}: ошибка закрытия - ${err.message}`);
+              } else {
+                safeWrite(`✅ ${server.name}: WebSocket сервер успешно закрыт`);
+              }
+              resolve();
+            });
+          } else {
+            safeWrite(`ℹ️ ${server.name}: сервер уже закрыт или невалиден`);
+            resolve();
+          }
+        })
+      ));
+
+    } catch (error) {
+      safeWrite(`⚠️ Ошибка при закрытии WebSocket соединений: ${error.message}`);
+    };
 
     // 3. Закрываем Express сервер
     if (server && server.listening) {
@@ -185,12 +236,28 @@ const { error } = require('console');
 const WSSNodeRED = new WebSocket.Server ({port:wsRedPORT});
 const WSSDash = new WebSocket.Server ({port:wsDashPORT, host: '0.0.0.0' });
 
+console.log(`WebSocket servers are running on nodeRed ws port:${wsRedPORT} and DashBoard (client) ws port:${wsDashPORT}`);
+
+// ✅ ЗАПУСКАЕМ HEARTBEAT ДЛЯ ВСЕХ WebSocket СОЕДИНЕНИЙ
+wsManager.startHeartbeat('VUE_connections', 180000, 370000); // Для Dashboard соединений
+wsManager.startHeartbeat('nRED_connections', 240000, 500000); // Для NodeRED соединений
+
+console.log('[Serverapp] - Heartbeat monitoring started for all WebSocket connections');
+
 // Запускаем обработчик очередей WebSocket сообщений каждые 5 секунд (можно чаще, например, каждую секунду)
 const QUEUE_PROCESS_INTERVAL = 15000;
 setInterval(async () => {
   try {
-    //console.log('[Serverapp] - Выводим список всех сообщений в очереди:');
-    //getAllQueueMessages();
+    // Логируем статистику соединений (опционально)
+    const vueStats = wsManager.getStats('VUE_connections');
+    const nredStats = wsManager.getStats('nRED_connections');
+    logger.logDevMessage(`[Serverapp] - Connection stats - Dashboard: ${vueStats.activeConnections}/${vueStats.totalConnections} active, NodeRED: ${nredStats.activeConnections}/${nredStats.totalConnections} active`);
+
+    // Обработка очередей
+    logger.logDevMessage('[Serverapp] - Проверяем сообщения в очередях:');
+    const allQueueMessages = getAllQueueMessages();
+    logger.logDevMessage(`[Serverapp] - Сообщений в очередях: ${JSON.stringify(allQueueMessages, null, 2)}`);
+
     await processAllQueues();
   } catch (error) {
     console.error('[Serverapp] - Ошибка обработки очереди:', error);
