@@ -7,6 +7,9 @@ const { Pool } = require('pg');
 const dotenv = require('dotenv');
 dotenv.config({ path: './conf.env' });
 
+const logger = require('./logger.js');
+logger.initLogging();
+
 class DBManager {
   constructor() {
     this.pools = {}; // Хранилище пулов для разных баз данных
@@ -28,8 +31,8 @@ class DBManager {
         password: dbPass || this.dbPass,
         port: this.dbPort || 5432,
       });
-
-      console.log(`[db] - getPool - Создан новый пул для базы данных: ${dbName}`);
+      logger.logDevMessage(`[db] - getPool - Создан новый пул для базы данных: ${dbName}`);
+      //console.log(`[db] - getPool - Создан новый пул для базы данных: ${dbName}`);
     }
 
     return this.pools[key];
@@ -38,7 +41,8 @@ class DBManager {
   async closeAllPools() {
     for (const key of Object.keys(this.pools)) {
       await this.pools[key].end();
-      console.log(`[db] - closeAllPools - Пул для ключа ${key} завершен.`);
+      logger.logDevMessage(`[db] - closeAllPools - Пул для ключа ${key} завершен.`);
+      //console.log(`[db] - closeAllPools - Пул для ключа ${key} завершен.`);
     }
     this.pools = {};
   }
@@ -48,36 +52,42 @@ class DBManager {
     if (this.pools[key]) {
       await this.pools[key].end();
       delete this.pools[key];
-      console.log(`[db] - closePool - Пул для базы данных ${dbName} завершен.`);
+      logger.logDevMessage(`[db] - closePool - Пул для базы данных ${dbName} завершен.`);
+      //console.log(`[db] - closePool - Пул для базы данных ${dbName} завершен.`);
     }
   }
   async query(text, params, dbName, dbUser, dbPass) {
     const Name = dbName || this.dbName;
     const User = dbUser || this.dbUser;
     const Pass = dbPass || this.dbPass;
-      console.log(`[db]- query - [QUERY START] ${text}`);
+    logger.logDevMessage(`[db]- query - Выполнение запроса  ${text} для ${Name}, ${User}, ${Pass}`);
+      //console.log(`[db]- query - [QUERY START] ${text}`);
       //console.log(`[db]- query - Параметры: ${JSON.stringify(params)}`);
 
-    console.log(`[db]- query - Выполнение запроса для ${Name}, ${User}, ${Pass}`);
+    //console.log(`[db]- query - Выполнение запроса для ${Name}, ${User}, ${Pass}`);
     const pool = this.getPool(Name, User, Pass);
     const start = Date.now();
     try {
       const res = await pool.query(text, params);
       const duration = Date.now() - start;
-      console.log(`[db]- query - Подключение к базе данных ${Name} пользователь ${User} выполнено за ${duration} мс`);
+      logger.logDevMessage(`[db]- query - Подключение к базе данных ${Name} пользователь ${User} выполнено за ${duration} мс`);
+      //console.log(`[db]- query - Подключение к базе данных ${Name} пользователь ${User} выполнено за ${duration} мс`);
       //console.log('[db]- query - Результат выполнения запроса:', JSON.stringify(res, null, 2));
   
       return res;
     } catch (error) {
-      console.error('[db]- query - Ошибка при выполнении запроса:', error.message);
+      logger.logErrorMessage(`[db]- query - Ошибка при выполнении запроса: ${error.message}`);
+      //console.error('[db]- query - Ошибка при выполнении запроса:', error.message);
       throw error;
     }
   }
 
     // Проверка существования записи в таблице по условиям
     async checkRecordExists(tableName, param, dbName, dbUser, dbPass) {
+      logger.logDevMessage(`[db]- checkRecordExists - Проверка существования записи в таблице ${tableName} по условиям ${JSON.stringify(param)}`);
       //console.log('[db]- checkRecordExists - Входим в checkRecordExists');
       if (Object.keys(param).length === 0) {
+        logger.logErrorMessage(`[db]- checkRecordExists - Необходимо указать условия для проверки существования записи`);
         throw new Error('db]- checkRecordExists - Необходимо указать условия для проверки существования записи');
       }
     
@@ -110,13 +120,15 @@ class DBManager {
         );
     
         if (result.rows.length > 0) {
-          console.log('db]- checkRecordExists -  - Запись найдена, ID:', result.rows[0].id);
+          logger.logDevMessage(`[db]- checkRecordExists - Запись нашлась, ID: ${result.rows[0].id}`);
+          //console.log('db]- checkRecordExists -  - Запись найдена, ID:', result.rows[0].id);
           return { 
             exists: true, 
             id: result.rows[0].id 
           };
         }
         
+        logger.logErrorMessage(`[db]- checkRecordExists - Запись не нашлась`);
         //console.log('db]- checkRecordExists -  - Запись не найдена');
         return { 
           exists: false, 
@@ -124,7 +136,8 @@ class DBManager {
         };
     
       } catch (error) {
-        console.error(`db]- checkRecordExists - Ошибка проверки записи в таблице ${tableName}:`, error.message);
+        logger.logErrorMessage(`[db]- checkRecordExists - Ошибка проверки записи в таблице ${tableName}: ${error.message}`);
+        //console.error(`db]- checkRecordExists - Ошибка проверки записи в таблице ${tableName}:`, error.message);
         throw error;
       }
     }
@@ -142,13 +155,15 @@ class DBManager {
           const result = await this.query(queryText, [tableName], dbName, dbUser, dbPass);
           return result.rows[0].exists; // Возвращает true, если таблица существует, иначе false
         } catch (error) {
-          console.error(`Ошибка при проверке существования таблицы ${tableName}:`, error.message);
+          logger.logErrorMessage(`[db]- checkTableExists - Ошибка при проверке существования таблицы ${tableName}: ${error.message}`);
+          //console.error(`Ошибка при проверке существования таблицы ${tableName}:`, error.message);
           throw error;
         }
       }
 
       async findUser(username) {
-        console.log(`Поиск пользователя ${username}...`);
+        logger.logDevMessage(`[db]- findUser - Поиск пользователя ${username}`);
+        //console.log(`Поиск пользователя ${username}...`);
         try {
           const queryText = `
             SELECT 
@@ -166,7 +181,8 @@ class DBManager {
           const result = await this.query(queryText, [username]);
           
           if (result.rows.length === 0) {
-            console.log(`Пользователь "${username}" не найден`);
+            logger.logDevMessage(`[db]- findUser - Пользователь "${username}" не нашелся`);
+            //console.log(`Пользователь "${username}" не найден`);
             return null;
           }
       
@@ -202,27 +218,32 @@ class DBManager {
           //console.log('db - fetchUsers Отсортированный список пользователей', users);
           return users; // Возвращаем список объектов с id и username
         } catch (error) {
-          console.error('Ошибка при получении списка пользователей:', error);
+          logger.logErrorMessage(`[db]- fetchUsers - Ошибка при получении списка пользователей: ${error.message}`);
+          //console.error('Ошибка при получении списка пользователей:', error);
           throw error;
         }
       };
 
       // Функция для получения списка источников данных
       async fetchDataSources () {
-        console.log('db - fetch-DataSources Начинаем проверку');
+        logger.logDevMessage(`[db]- fetch-DataSources - Начинаем проверку`);
+        //console.log('db - fetch-DataSources Начинаем проверку');
         try {
           // Выбираем id и did из таблицы DataSources
           const result = await this.query('SELECT id, did FROM datasources');
-          console.log('db - fetch-DataSources Результат запроса', result);
+          logger.logDevMessage(`[db]- fetch-DataSources - Результат запроса`, result);
+          //console.log('db - fetch-DataSources Результат запроса', result);
           // Преобразуем результат в массив объектов с id и did
           const dataSources = result.rows.map(row => ({
             id: row.id,
             did: row.did,
           }));
-          console.log('db - fetch-DataSources Отсортированный список пользователей', dataSources);
+          logger.logDevMessage(`[db]- fetch-DataSources - Отсортированный список пользователей`, dataSources);
+          //console.log('db - fetch-DataSources Отсортированный список пользователей', dataSources);
           return dataSources; // Возвращаем список объектов с id и did
         } catch (error) {
-          console.error('Ошибка при получении списка источников данных:', error);
+          logger.logErrorMessage(`[db]- fetch-DataSources - Ошибка при получении списка источников данных: ${error.message}`);
+          //console.error('Ошибка при получении списка источников данных:', error);
           throw error;
         }
       };

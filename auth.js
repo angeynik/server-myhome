@@ -10,9 +10,11 @@ const DBManager = require('./services/db.js'); // Импортируем DBManag
 // Секретный ключ для JWT
 const dotenv = require('dotenv'); // Подключаем .ENV файл с переменными окружения
 dotenv.config({path: './conf.env'}); // Указываем путь к  файлу .env
-const logger = require('../serverApp/services/logger.js');
 
 const secret = process.env.JWT_SECRET || 'default-poDDysecret-key';
+
+const logger = require('./services/logger.js');
+logger.initLogging();
 
 /**
  * Вход пользователя
@@ -21,7 +23,8 @@ const secret = process.env.JWT_SECRET || 'default-poDDysecret-key';
  * @returns {Object} - Данные пользователя и токен
  */
 const loginUser = async (username, password) => {
-  console.log('-- auth -- loginUser - проверяем пользователя --', username, 'с паролем --', password);
+  logger.logDevMessage(`[auth] - loginUser - проверяем пользователя -- ${username} --`);
+  //console.log('-- auth -- loginUser - проверяем пользователя --', username, 'с паролем --', password);
   try {
     const user = await DBManager.findUser(username);
     
@@ -33,10 +36,8 @@ const loginUser = async (username, password) => {
     if (!isValid) {
       return { error: 'Invalid password', code: 'INVALID_PASSWORD' };
     }
-
     const token = jwt.sign({ id: user.id }, secret, { expiresIn: '1h' });
-    //console.log(`User ${user.username} Login successfull`);
-    logger.logInfoMessage(`User ${user.username} Login successfull`);
+    logger.logDevMessage(`[auth] - loginUser - Login successfull: ${user.username}`);
     logger.logDevMessage(`[auth] - loginUser - User dID: ${user.dID}`);
     return {
       success: true,
@@ -47,7 +48,8 @@ const loginUser = async (username, password) => {
     };
     
   } catch (error) {
-    console.error('Login error:', error);
+    logger.logErrorMessage(`[auth] - loginUser - Login error: ${error.message}`);
+    //console.error('Login error:', error);
     return { error: 'Server error', code: 'SERVER_ERROR' };
   }
 };
@@ -59,9 +61,11 @@ const loginUser = async (username, password) => {
  */
 const verifyToken = (token) => {
   if (!token) {
+    logger.logErrorMessage(`[auth] - verifyToken - No token provided!`);
     throw new Error('No token provided!');
   }
-  console.log('Token verify successfull ');
+  logger.logDevMessage(`[auth] - verifyToken - Token verify successfull`);
+  //console.log('Token verify successfull ');
   return jwt.verify(token, secret);
 };
 

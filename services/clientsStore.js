@@ -1,17 +1,21 @@
 // clientsStore.js
 const WebSocket = require('ws');
 
+const logger = require('./logger.js');
+logger.initLogging();
+
 // Формат Map: clientId → { input: WebSocket|null, output: WebSocket|null }
 const nodeRedClients = new Map();
 
 function registerClient(clientId, ws, connectionType) {
-  //console.log( '[clientStore] - registerClient - Начинаем регистрацию');
+  logger.logDevMessage(`[clientStore] - registerClient - Начинаем регистрацию clientId: ${clientId}, connectionType: ${connectionType}`);
   if (!['input', 'output'].includes(connectionType)) {
     throw new TypeError(`registerClient: invalid connectionType "${connectionType}"`);
   }
 
   // Получаем или создаём контейнер
   const client = nodeRedClients.get(clientId) || { input: null, output: null, meta: {} };
+  logger.logDevMessage(`[clientStore] - registerClient - Получили client: ${JSON.stringify(client, null, 2)}`);
   //console.log( '[clientStore] - - registerClient - Получили client'); 
 
   // Метаданные для отладки
@@ -36,8 +40,8 @@ function registerClient(clientId, ws, connectionType) {
   // сохраняем в нужное поле
   client[connectionType] = ws;
   nodeRedClients.set(clientId, client);
-
-  console.log(`[clientStore] - registerClient — ${connectionType} для ${clientId} зарегистрирован.`);
+  logger.logDevMessage(`[clientStore] - registerClient - Сохраняем client: ${JSON.stringify(client, null, 2)}`);
+  //console.log(`[clientStore] - registerClient — ${connectionType} для ${clientId} зарегистрирован.`);
 }
 
 /**
@@ -63,10 +67,12 @@ function cleanupConnection(clientId, connectionType) {
   // Если оба канала закрыты — полностью удаляем клиента
   if (!client.input && !client.output) {
     nodeRedClients.delete(clientId);
-    console.log(`[clientStore] - 🗑 cleanup — client ${clientId} removed`);
+    logger.logDevMessage(`[clientStore] - 🗑 cleanup — client ${clientId} removed`);
+    //console.log(`[clientStore] - 🗑 cleanup — client ${clientId} removed`);
   } else {
     nodeRedClients.set(clientId, client);
-    console.log(`[clientStore] - 🔄 cleanup — ${connectionType} of ${clientId} set to null`);
+    logger.logDevMessage(`[clientStore] - 🔄 cleanup — ${connectionType} of ${clientId} set to null`);
+    //console.log(`[clientStore] - 🔄 cleanup — ${connectionType} of ${clientId} set to null`);
   }
 }
 
@@ -90,7 +96,8 @@ function startHeartbeat(interval, timeOut) {
 
           // Проверяем, не провалился ли предыдущий PONG
           if (!ws.isAlive || calcTimeOut > timeOut) {
-            console.warn(`[clientStore] - 💀 heartbeat — ${clientId}/${type} dead, cleaning up`);
+            logger.logInfoMessage(`[clientStore] - 💀 heartbeat — ${clientId}/${type} dead, cleaning up`);
+            //console.warn(`[clientStore] - 💀 heartbeat — ${clientId}/${type} dead, cleaning up`);
             cleanupConnection(clientId, type);
             return;
           }
@@ -104,19 +111,22 @@ function startHeartbeat(interval, timeOut) {
           try {
             ws.ping(null, false, (err) => {
               if (err) {
-                console.error(`[clientStore] - Ping error for ${clientId}/${type}:`, err);
+                logger.logErrorMessage(`[clientStore] - Ping error for ${clientId}/${type}:`, err);
+                //console.error(`[clientStore] - Ping error for ${clientId}/${type}:`, err);
                 cleanupConnection(clientId, type);
               }
             });
           } catch (error) {
-            console.error(`[clientStore] - Ping failed for ${clientId}/${type}:`, error);
+            logger.logErrorMessage(`[clientStore] - Ping failed for ${clientId}/${type}:`, error);
+            //console.error(`[clientStore] - Ping failed for ${clientId}/${type}:`, error);
             cleanupConnection(clientId, type);
           }
 
       });
     });
   } catch (err) {
-    console.error('[clientStore] - 🔥 Heartbeat error:', err);
+    logger.logErrorMessage(`[clientStore] - 🔥 Heartbeat error:`, err);
+    //console.error('[clientStore] - 🔥 Heartbeat error:', err);
   }
   }, interval).unref(); // .unref(), чтобы таймер не держал процесс
 }

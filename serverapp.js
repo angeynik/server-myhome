@@ -23,17 +23,6 @@ const DBManager = require('./services/db.js'); // Импортируем DBManag
 // Подключаем функции модуля joi для валидации данных
 const {validType, validConfig, validPost} = require('./validate');
 
-// const logLevel = process.env.LOG_LEVEL || 'info';
-// let logInfo, logDev, logError = false;
-// if (logLevel === 'dev') {
-//   logDev = true;
-//   logInfo = true;
-//   logError = true;
-// } else if (logLevel === 'error') {
-//   logInfo = true;
-//   logError = true;
-// } else (logLevel === 'info') ? logInfo = true : false;
-
 const logger = require('./services/logger.js');
 logger.initLogging();
 
@@ -63,20 +52,21 @@ app.use(bodyParser.json());
 // Инициализация сервера
 const initialize = async () => {
   const envInit = process.env.INIT_DB;
-  console.log('[Serverapp] - envInit - ', envInit);
+  logger.logDevMessage(`[Serverapp] - envInit - инициализация сервера - ${envInit}`);
   if (envInit === 'TRUE') {
-    console.log('[Serverapp] - Переходим к инициализация сервера разрешена', envInit);
     try {
       await initServer(); // Выполняем инициализацию
       await initUsers(); // Проверяем существование таблицы Users
       await initDefaulUser();  // Проверяем наличие пользователя по умолчанию
       await initDB_dID(); // Проверяем есть ли база для пользователя по умолчанию Имя для базы - DEFAULT_USER_DID 
-      console.log('[Serverapp] - Инициализация сервера завершена успешно.');
+      logger.logDevMessage(`[Serverapp] - Инициализация сервера завершена успешно.`);
     } catch (error) {
-      console.error('[Serverapp] - Ошибка при инициализации сервера:', error);
+      logger.logErrorMessage(`[Serverapp] - Ошибка при инициализации сервера: ${error}`);
+      //console.error('[Serverapp] - Ошибка при инициализации сервера:', error);
     }
   } else {
-    console.log('[Serverapp] - Инициализация сервера запрещена INIT_DB - ', envInit);
+    logger.logInfoMessage(`[Serverapp] - Инициализация сервера запрещена INIT_DB - ${envInit}`);
+    //console.log('[Serverapp] - Инициализация сервера запрещена INIT_DB - ', envInit);
   }
 
 
@@ -85,7 +75,8 @@ initialize(); // Выполняем инициализацию сервера
 
   // Запуск сервера
   server.listen(servPORT, () => {
-    console.log(`[Serverapp] - MyHome Server is running on port ${servPORT}`);
+    logger.logInfoMessage(`[Serverapp] - MyHome Server is running on port ${servPORT}`);
+    //console.log(`[Serverapp] - MyHome Server is running on port ${servPORT}`);
   });
 
   // Корректное завершение работы сервера и закрытие соединения с базой данных //////////////////////////////////////////////////////
@@ -236,13 +227,14 @@ const { error } = require('console');
 const WSSNodeRED = new WebSocket.Server ({port:wsRedPORT});
 const WSSDash = new WebSocket.Server ({port:wsDashPORT, host: '0.0.0.0' });
 
-console.log(`WebSocket servers are running on nodeRed ws port:${wsRedPORT} and DashBoard (client) ws port:${wsDashPORT}`);
+logger
+//console.log(`WebSocket servers are running on nodeRed ws port:${wsRedPORT} and DashBoard (client) ws port:${wsDashPORT}`);
 
 // ✅ ЗАПУСКАЕМ HEARTBEAT ДЛЯ ВСЕХ WebSocket СОЕДИНЕНИЙ
 wsManager.startHeartbeat('VUE_connections', 180000, 370000); // Для Dashboard соединений
 wsManager.startHeartbeat('nRED_connections', 240000, 500000); // Для NodeRED соединений
-
-console.log('[Serverapp] - Heartbeat monitoring started for all WebSocket connections');
+logger.logDevMessage('[Serverapp] - Heartbeat monitoring started for all WebSocket  connections');
+// console.log('[Serverapp] - Heartbeat monitoring started for all WebSocket connections');
 
 // Запускаем обработчик очередей WebSocket сообщений каждые 5 секунд (можно чаще, например, каждую секунду)
 const QUEUE_PROCESS_INTERVAL = 15000;
@@ -260,7 +252,8 @@ setInterval(async () => {
 
     await processAllQueues();
   } catch (error) {
-    console.error('[Serverapp] - Ошибка обработки очереди:', error);
+    logger.logErrorMessage(`[Serverapp] - Ошибка обработки очереди: ${error}`);
+    //console.error('[Serverapp] - Ошибка обработки очереди:', error);
   }
 }, QUEUE_PROCESS_INTERVAL).unref();
 
@@ -277,18 +270,17 @@ WSSNodeRED.on('connection', (ws, req) => {
 
   const params = new URLSearchParams(req.url.replace(/^.*\?/, ""));
   const id = params.get("id");
-  console.log(`Подключился клиент: id = ${id}`);
+  logger.logInfoMessage(`[Serverapp] - WSSNodeRED.on - id: ${id}`);
+  //console.log(`Подключился клиент: id = ${id}`);
 
 
 logger.logDevMessage(`Client connected to NodeRED on port ${wsRedPORT}`);
 
 ws.on('message', async (message) => {
-      // console.log(`Starting heartbeat: interval=${pingInterval}ms, timeout=${timeOut}ms`);
-      // startHeartbeat(pingInterval, timeOut);
      
       try {
         const checkInputMessage = checkMessage(message);
-        //logger.logDevMessage(`[Serverapp] - WSSNodeRED - checkInputMessage - ${JSON.stringify(checkInputMessage, null, 2)}`);
+        logger.logDevMessage(`[Serverapp] - WSSNodeRED - checkInputMessage - ${JSON.stringify(checkInputMessage, null, 2)}`);
         if(checkInputMessage.status === 'ok') {
 
           const dID = checkInputMessage.data.name;
@@ -329,22 +321,26 @@ s
 });
 
 ws.on('close', () => {
-  console.log('[Serverapp] - WebSocket connection closed');
+  logger.logInfoMessage(`[Serverapp] - WSSNodeRED - WebSocket connection closed`);
+  //console.log('[Serverapp] - WebSocket connection closed');
 });
 
 ws.on('error', (error) => {
-  console.error(`[Serverapp] - WebSocket error: ${error.message}`);
+  logger.logErrorMessage(`[Serverapp] - WSSNodeRED - WebSocket error: ${error.message}`);
+  //console.error(`[Serverapp] - WebSocket error: ${error.message}`);
 });
 });
 
 // Работаем с Dashboard
 
 WSSDash.on('connection', (ws) => {
-  if (logger.logInfo()) {console.log('[Serverapp] - WSSDash.on - Новое подключение Dashboard (VUE)');}
+  logger.logInfoMessage(`[Serverapp] - WSSDash.on - Новое подключение Dashboard (VUE)`);
   const connectionId = wsManager.registerConnection(ws, 'dashboard', null);
-  if (logger.logInfo()) {console.log(`[Serverapp] - WSSDash.on - VUE соединение зарегистрировано: ${connectionId}`);}
-  // const allClients = wsManager.getAllActiveConnections();
-  // if (logger.logDev()) {console.log(`[Serverapp] - WSSDash.on - Все соединения:`, allClients);}
+
+  logger.logDevMessage(`[Serverapp] - WSSDash.on - VUE соединение зарегистрировано: ${connectionId}`);
+
+  const allClients = wsManager.getAllActiveConnections();
+  logger.logDevMessage(`[Serverapp] - WSSDash.on - Все соединения:`, allClients);
 
   WSSDash.clients.forEach((client) => {
     client.send(
@@ -356,24 +352,23 @@ WSSDash.on('connection', (ws) => {
   });
 
   ws.on('message', (message) => {
-      //console.log (`[Serverapp] - WSSDash получено сообщение ${message}`);
+    logger.logDevMessage(`[Serverapp] - WSSDash.on - Пришло сообщение: ${message}`);
       try {
         const dashData = checkMessage(message);
-        //console.log('[Serverapp] - WSSDash - checkInputMessage - ', dashData.data);
         if(dashData.status === 'ok') {
-          //console.log('[Serverapp] -  WSSDash - checkInputMessage - OK ');
+          logger.logDevMessage(`[Serverapp] - WSSDash - checkInputMessage - OK  - ${JSON.stringify(dashData, null, 2)}`);
           switch (dashData?.data?.type) {
             case 'auth':
                 const auth = dashData.data.payload;
-                console.log('[Serverapp] - -- auth --', auth);
+                logger.logDevMessage(`[Serverapp] - WSSDash - Пришло сообщение auth: ${JSON.stringify(auth, null, 2)}`);
                 handleAuth(connectionId, dashData.data);
                 break;
             case 'get': 
-                //console.log('[Serverapp] - WSSDash - Переходим к проверке сообщения типа get.');
+                logger.logDevMessage(`[Serverapp] - WSSDash - Пришло сообщение get: ${JSON.stringify(dashData.data, null, 2)}`);
                 handleGet(connectionId, dashData.data);
                 break;
             case 'post': 
-                //console.log('[Serverapp] - WSSDash - Переходим к проверке сообщения типа post. ', dashData.data, dashData.data.name);
+            logger.logDevMessage(`[Serverapp] - WSSDash - Пришло сообщение post: ${JSON.stringify(dashData.data, null, 2)}`);
                 handlePost(connectionId, dashData.data);
                 const dID = dashData.data.name;
                 try {
@@ -390,84 +385,31 @@ WSSDash.on('connection', (ws) => {
           }
         }
       } catch (error) {
-        console.error('-[Serverapp] -  Error  -- checkInputMessage -', error);
+        logger.logErrorMessage(`[Serverapp] - WSSDash - Error  -- checkInputMessage - ${error.message}`);
+        //console.error('-[Serverapp] -  Error  -- checkInputMessage -', error);
       }
   });
 
   ws.on('error', (error) => {
-      console.error('[Serverapp] - WebSocket error on Dashboard:', error);
+    logger
+      //console.error('[Serverapp] - WebSocket error on Dashboard:', error);
   });
 
   ws.on('close', () => {
-      console.info('[Serverapp] - Dash WebSocket connection closed');
+    logger.logInfoMessage(`[Serverapp] - WSSDash - WebSocket connection closed`);
+      //console.info('[Serverapp] - Dash WebSocket connection closed');
   });
 });
 
 
 
-console.log(`WebSocket servers are running on nodeRed ws port:${wsRedPORT} and DashBoard (client) ws port:${wsDashPORT}`);
+//console.log(`WebSocket servers are running on nodeRed ws port:${wsRedPORT} and DashBoard (client) ws port:${wsDashPORT}`);
 
 
-
-
-// function broadcast(excludeClientId, dID, data, targets = ['VUE_connections', 'nRED_connections']) {
-//   console.log('[Serverapp] - broadcast: excludeClientId =', excludeClientId, 'dID =', dID, 'targets =', targets, 'data =', data);
-  
-//   // Добавляем временную метку
-//   data.time = new Date().toString();
-  
-//   try {
-//     let totalSent = 0;
-    
-//     targets.forEach(targetType => {
-//       // Получаем все активные соединения указанного типа с нужным dID
-//       const userConnections = wsManager.getUserConnections(targetType, dID);
-      
-//       if (userConnections.length === 0) {
-//         console.log(`[Serverapp] - broadcast - Нет активных соединений типа ${targetType} с dID: ${dID}`);
-//         return;
-//       }
-      
-//       let typeSent = 0;
-      
-//       // Отправляем сообщение каждому соединению с нужным dID, исключая отправителя
-//       userConnections.forEach(({ clientId, connection }) => {
-//         if (clientId === excludeClientId) {
-//           console.log(`[Serverapp] - broadcast - Пропускаем отправителя: ${clientId}`);
-//           return;
-//         }
-        
-//         // Проверяем, что соединение активно
-//         if (connection.ws && connection.ws.readyState === WebSocket.OPEN) {
-//           try {
-//             // Отправляем исходное сообщение в неизменном виде
-//             const messageString = JSON.stringify(data);
-//             connection.ws.send(messageString);
-//             typeSent++;
-//             totalSent++;
-//             console.log(`[Serverapp] - broadcast - Сообщение отправлено клиенту: ${clientId} (${targetType})`);
-//           } catch (error) {
-//             console.error(`[Serverapp] - broadcast - Ошибка отправки клиенту ${clientId}:`, error);
-//           }
-//         }
-//       });
-      
-//       console.log(`[Serverapp] - broadcast - Отправлено ${typeSent}/${userConnections.length} сообщений для ${targetType} с dID: ${dID}`);
-//     });
-    
-//     if (totalSent === 0) {
-//       console.log(`[Serverapp] - broadcast - Нет активных клиентов для рассылки (dID: ${dID}, исключен: ${excludeClientId})`);
-//     } else {
-//       console.log(`[Serverapp] - broadcast - Всего отправлено ${totalSent} сообщений для dID: ${dID}`);
-//     }
-    
-//   } catch (error) {
-//     console.error('[Serverapp] - broadcast - Ошибка рассылки:', error);
-//   }
-// };
 
 function broadcast(excludeClientId, dID, data, targets = ['VUE_connections', 'nRED_connections']) {
-  console.log('[Serverapp] - broadcast: excludeClientId =', excludeClientId, 'dID =', dID, 'targets =', targets, 'data =', data);
+  logger.logDevMessage('[Serverapp] - broadcast - excludeClientId =', excludeClientId, 'dID =', dID, 'targets =', targets, 'data =', data);
+  //console.log('[Serverapp] - broadcast: excludeClientId =', excludeClientId, 'dID =', dID, 'targets =', targets, 'data =', data);
   
   // Добавляем временную метку
   data.time = new Date().toString();
@@ -480,16 +422,18 @@ function broadcast(excludeClientId, dID, data, targets = ['VUE_connections', 'nR
       const userConnections = wsManager.getUserConnections(targetType, dID);
       
       if (userConnections.length === 0) {
-        console.log(`[Serverapp] - broadcast - Нет активных соединений типа ${targetType} с dID: ${dID}`);
+        logger.logDevMessage(`[Serverapp] - broadcast - Нет активных соединений типа ${targetType} с dID: ${dID}`);
+        //console.log(`[Serverapp] - broadcast - Нет активных соединений типа ${targetType} с dID: ${dID}`);
         return;
       }
       
       let typeSent = 0;
-      
+     
       // Отправляем сообщение каждому соединению с нужным dID, исключая отправителя
       userConnections.forEach(({ clientId, connection }) => {
         if (clientId === excludeClientId) {
-          console.log(`[Serverapp] - broadcast - Пропускаем отправителя: ${clientId}`);
+          logger.logDevMessage(`[Serverapp] - broadcast - Пропускаем отправителя: ${clientId}`);
+          //console.log(`[Serverapp] - broadcast - Пропускаем отправителя: ${clientId}`);
           return;
         }
         
@@ -507,18 +451,21 @@ function broadcast(excludeClientId, dID, data, targets = ['VUE_connections', 'nR
           }
         }
       });
-      
-      console.log(`[Serverapp] - broadcast - Отправлено ${typeSent}/${userConnections.length} сообщений для ${targetType} с dID: ${dID}`);
+     logger.logDevMessage(`[Serverapp] - broadcast - Отправлено ${typeSent}/${userConnections.length} сообщений для ${targetType} с dID: ${dID}`);
+      //console.log(`[Serverapp] - broadcast - Отправлено ${typeSent}/${userConnections.length} сообщений для ${targetType} с dID: ${dID}`);
     });
     
     if (totalSent === 0) {
-      console.log(`[Serverapp] - broadcast - Нет активных клиентов для рассылки (dID: ${dID}, исключен: ${excludeClientId})`);
+      logger
+      //console.log(`[Serverapp] - broadcast - Нет активных клиентов для рассылки (dID: ${dID}, исключен: ${excludeClientId})`);
     } else {
-      console.log(`[Serverapp] - broadcast - Всего отправлено ${totalSent} сообщений для dID: ${dID}`);
+      logger.logDevMessage(`[Serverapp] - broadcast - Всего отправлено ${totalSent} сообщений для dID: ${dID}`);
+      //console.log(`[Serverapp] - broadcast - Всего отправлено ${totalSent} сообщений для dID: ${dID}`);
     }
     
   } catch (error) {
-    console.error('[Serverapp] - broadcast - Ошибка рассылки:', error);
+    logger.logErrorMessage(`[Serverapp] - broadcast - Ошибка рассылки: ${error.message}`);
+    //console.error('[Serverapp] - broadcast - Ошибка рассылки:', error);
   }
 };
 
@@ -531,11 +478,11 @@ function stringToJSON(message) {
 // Проверка сообщения и дальнейшая валидация корректности структуры сообщения
 function checkMessage(message) {
   const data = stringToJSON(message); // Преобразуем строку в объект JSON
-
-  //console.log(`[serverApp] - checkMessage получило сообщение: ${message}`);
+  logger.logDevMessage(`[Serverapp] - checkMessage получило сообщение: ${message}`);
   const { error } = validType(data);
   if (error) {
-    console.log(`Некорректный формат полученного сообщения. ${message} Ошибка: Error validType: ${error.message}`);
+    logger.logErrorMessage(`[Serverapp] - checkMessage - Некорректный формат полученного сообщения. ${message} Ошибка: Error validType: ${error.message}`);
+    //console.log(`Некорректный формат полученного сообщения. ${message} Ошибка: Error validType: ${error.message}`);
     return error;
   }
   return {status:'ok', data: data};
@@ -544,8 +491,7 @@ function checkMessage(message) {
 // Работа с GPIO
 const deviceName = process.env.DEVICE_NAME;
 const manageDoor = process.env.MANAGE_DOOR === 'true'; // Преобразуем значение в boolean
-// console.log('[Serverapp] - deviceName:', deviceName);
-// console.log('[Serverapp] - MANAGE_DOOR:', manageDoor);
+logger.logDevMessage(`[Serverapp] - deviceName: ${deviceName} MANAGE_DOOR: ${manageDoor}`);
 
 const GpioManager = require('./gpio.js');
 

@@ -7,6 +7,9 @@ const dotenv = require('dotenv');
 dotenv.config({ path: './conf.env' });
 const dataDir = process.env.DATA_DIR || './configData';
 
+const logger = require('./logger.js');
+logger.initLogging();
+
 // Объявляем кэш файлов
 const fileCache = new Map();
 
@@ -17,7 +20,8 @@ async function ensureDataDir() {
     } catch (err) {
         if (err.code === 'ENOENT') {
             await fs.mkdir(dataDir, { recursive: true });
-            console.log(`[ConfigStore] - 📂 Создана директория: ${dataDir}`);
+            logger.logDevMessage(`[ConfigStore] - 📂 Создана директория: ${dataDir}`);
+            //console.log(`[ConfigStore] - 📂 Создана директория: ${dataDir}`);
         } else {
             throw err;
         }
@@ -63,7 +67,8 @@ async function readFileSafely(dID) {
             fileCache.set(filePath, initData);
             return { data: initData, dataDir, filePath }; // Всегда возвращаем одинаковую структуру
         } else if (error instanceof SyntaxError) {
-            console.error(`[ConfigStore] - Ошибка парсинга файла ${filePath}:`, error);
+            logger.logErrorMessage(`[ConfigStore] - Ошибка парсинга файла ${filePath}: ${error.message}`);
+            //console.error(`[ConfigStore] - Ошибка парсинга файла ${filePath}:`, error);
             const initData = { init: { title: "", dID } };
             fileCache.set(filePath, initData);
             return { data: initData, dataDir, filePath }; // Всегда возвращаем одинаковую структуру

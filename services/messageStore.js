@@ -3,12 +3,26 @@ const messageQueue = new Map();
 const clientLocks = new Map(); // Блокировки для каждого клиента
 let isProcessing = false;
 
+const logger = require('./logger.js');
+logger.initLogging();
+
 /**
  * Добавляет сообщение в очередь для указанного клиента
  * @param {string} clientId - Идентификатор клиента
  * @param {object} message - Сообщение для добавления в очередь
  */
 function addMessageToQueue(clientId, message) {
+  logger.logDevMessage(`[messageStore]- processClientQueue - 📬 Добавление сообщения в очередь для ${clientId}
+    Тип: ${message.type},
+      //   Имя: ${message.name}, 
+    Запрос: ${message.request}, 
+    Комната: ${message.payload.room}, 
+    Датчик: ${message.payload.item_name},
+    Значение: ${message.payload.item_value},
+    Тип: ${message.payload.item_type},
+    Заголовок: ${message.payload.title},
+    Группа: ${message.payload.group}
+    `);
   // console.log(`[messageStore]- processClientQueue - 📬 Добавление сообщения в очередь для ${clientId}. 
   //   Тип: ${message.type}, 
   //   Имя: ${message.name}, 
@@ -35,16 +49,21 @@ function addMessageToQueue(clientId, message) {
       retryCount: 0,
       lastAttempt: 0
     });
+    logger.logDevMessage(`[messageStore]- processClientQueue - 📬 Сообщение добавлено в очередь для ${clientId}. Ключ: ${key}`);
     //console.log(`[messageStore]- processClientQueue - 📬 Сообщение добавлено в очередь для ${clientId}. Ключ: ${key}`);
   } else {
+    logger.logDevMessage(`[messageStore]- processClientQueue - ⚠️  Сообщение уже в очереди. ${clientId} Ключ: ${key}`);
     //console.log(`[messageStore]- processClientQueue - ⚠️  Сообщение уже в очереди. ${clientId} Ключ: ${key}`);
   }
 }
 
 function getAllQueueMessages() {
     messageQueue.forEach((queue, clientId) => {
-    console.log('[messageStore]- processClientQueue - Выводим список всех сообщений в очереди:');
-      console.groupCollapsed(`📂 Client: ${clientId}`);               // Группируем вывод по clientId
+      logger.logDevMessage(`[messageStore]- processClientQueue - Выводим список всех сообщений в очереди:`);
+    //console.log('[messageStore]- processClientQueue - Выводим список всех сообщений в очереди:');
+    logger.logDevMessage(`📂 Client: ${clientId}`);
+
+      //console.groupCollapsed(`📂 Client: ${clientId}`);               // Группируем вывод по clientId
       queue.forEach((entry, key) => {
         console.log(`🔑 ${key}`, {
           message: entry.message,
@@ -53,6 +72,8 @@ function getAllQueueMessages() {
         });
       });
       console.groupEnd();
+      logger.logDevMessage(`📂 Client: ${clientId} - Сообщений в очереди: ${queue.size}`);
+      
     });
 }
 
@@ -68,7 +89,7 @@ async function processClientQueue(clientId) {
         for (const [key, entry] of clientQueue.entries()) {
             // Пропускаем если не прошло 5 секунд с последней попытки
             if (now - entry.lastAttempt < 5000) continue;
-            
+            logger.logDevMessage(`[messageStore]- processClientQueue - 🔁 Обработка сообщения: ${key}`);
             //console.log(`[messageStore] - processClientQueue - 🔁 Обработка сообщения: ${key}`);
             entry.lastAttempt = now;
             
@@ -76,25 +97,28 @@ async function processClientQueue(clientId) {
                 let result = 'error';
                 switch (entry?.message?.type) {
                     case 'post':
-                        console.log(`[messageStore]- processClientQueue - 📤 Обработка сообщения: ${key}`);
                         result = await handlePostNodeRED(clientId, entry.message);
                         break;
                     default:
-                        console.warn(`[messageStore] - processClientQueue- ⚠️ Неизвестный тип сообщения: ${entry.message.type}`);
+                      logger.logErrorMessage(`[messageStore]- processClientQueue - ⚠️ Неизвестный тип сообщения: ${entry.message.type}`);
+                      //console.warn(`[messageStore] - processClientQueue- ⚠️ Неизвестный тип сообщения: ${entry.message.type}`);
                 }
                 
                 if (result === 'ok') {
                     processedKeys.push(key);
-                    console.log(`[messageStore]- processClientQueue - ✅ Сообщение обработано: ${key}`);
+                    logger.logDevMessage(`[messageStore]- processClientQueue - ✅ Сообщение обработано: ${key}`)
+                    //console.log(`[messageStore]- processClientQueue - ✅ Сообщение обработано: ${key}`);
                 } else {
                     entry.retryCount++;
                     if (entry.retryCount > 3) {
                         processedKeys.push(key);
-                        console.warn(`[messageStore]- processClientQueue - ♻️ Сообщение ${key} удалено после 3 неудачных попыток`);
+                        logger.logErrorMessage(`[messageStore]- processClientQueue - ♻️ Сообщение ${key} удалено после 3 неудачных попыток`);
+                        //console.warn(`[messageStore]- processClientQueue - ♻️ Сообщение ${key} удалено после 3 неудачных попыток`);
                     }
                 }
             } catch (error) {
-                console.error(`[messageStore]- processClientQueue - ❌ Ошибка обработки: ${error.message}`);
+              logger.logErrorMessage(`[messageStore]- processClientQueue - ❌ Ошибка обработки: ${error.message}`);
+                //console.error(`[messageStore]- processClientQueue - ❌ Ошибка обработки: ${error.message}`);
                 entry.retryCount++;
             }
         }
@@ -143,7 +167,7 @@ function removeFromQueue(clientId, key) {
     const clientQueue = messageQueue.get(clientId);
     if (clientQueue.has(key)) {
       clientQueue.delete(key);
-      //console.log(`[messageStore]- processClientQueue - ✅ Сообщение удалено из очереди: ${key}`);
+      logger.logDevMessage(`[messageStore]- processClientQueue - ✅ Сообщение удалено из очереди: ${key}`);
       
       // Удаляем пустую очередь клиента
       if (clientQueue.size === 0) {
