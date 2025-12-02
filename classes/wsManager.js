@@ -247,15 +247,15 @@ class WsManager {
           name: name || 'unknown',
           payload: message
         };
-        console.log('[WsManager] - sendToConnection - 📨 Отправляем сообщение:');
-        console.log(`  Тип: ${type}`);
-        console.log(`  Запрос: ${request}`);
-        console.log(`  Имя: ${name}`);
+        // console.log('[WsManager] - sendToConnection - 📨 Отправляем сообщение:');
+        // console.log(`  Тип: ${type}`);
+        // console.log(`  Запрос: ${request}`);
+        // console.log(`  Имя: ${name}`);
         //console.log(`  Данные:`, message);
 
         const messageString = typeof response === 'string' ? response : JSON.stringify(response);
         ws.send(messageString);
-        console.log ('[WsManager] - sendToConnection - Отправлено сообщение', clientId);
+        //console.log ('[WsManager] - sendToConnection - Отправлено сообщение', clientId);
         return true;
       } catch (error) {
         console.error(`[WsManager] - sendToConnection - Error sending to ${clientId}:`, error);
@@ -276,7 +276,7 @@ class WsManager {
       }
     });
 
-    console.log(`[WsManager] - Message sent to ${sentCount}/${userConnections.length} devices of user ${dID}${key ? ` with key ${key}` : ''}`);
+    //console.log(`[WsManager] - Message sent to ${sentCount}/${userConnections.length} devices of user ${dID}${key ? ` with key ${key}` : ''}`);
     return sentCount;
   }
 
@@ -342,7 +342,7 @@ class WsManager {
       }
     }, interval).unref();
 
-    console.log(`[WsManager] - Heartbeat started: interval=${interval}ms, timeout=${timeout}ms`);
+    //console.log(`[WsManager] - Heartbeat started: interval=${interval}ms, timeout=${timeout}ms`);
   }
 
   stopHeartbeat() {

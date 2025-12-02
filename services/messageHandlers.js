@@ -47,7 +47,8 @@ async function handlePostNodeRED(clientId, message) {
     }
 
     // Читаем данные из конфигурационного файла на диске
-    const {data, dataDir, filePath} = await readFileSafely(name);
+    const {data, dataDir, filePath} = await readFileSafely(name, 'config');
+    console.log(` 8888888888 - - - - [messageHandlers] - handlePostNodeRED - Читаем данные из ${filePath}`);
 
     try {
         // Проверяем, существует ли комната
@@ -188,7 +189,7 @@ const handleGet = async (clientId, data) => {
         }
     
         // Читаем конфиг
-        const configData = await readFileSafely(name);
+        const configData = await readFileSafely(name, 'config');
         logger.logDevMessage(`[messageHandlers] - handleGet - configData - ', ${configData}`);
         
         if (!configData) {
@@ -213,6 +214,52 @@ const handleGet = async (clientId, data) => {
         // });
       }
       break;
+            case 'schedules':
+        try {
+          const { name } = data;
+          logger.logDevMessage(`[messageHandlers] - handleGet - Request - schedules -- dID - ', ${name}`);
+
+          const schedulesData = await readFileSafely(name, 'schedules');
+          logger.logDevMessage(`[messageHandlers] - handleGet - configData - ', ${schedulesData}`);
+          
+          if (!schedulesData) {
+            throw new Error('[messageHandlers] - Failed to read schedules configuration file');
+          }
+          logger.logDevMessage(`[messageHandlers] -  Sending config to ${name}`);
+          wsManager.sendToConnection('VUE_connections', clientId, 'response', 'schedules', data.name, schedulesData.data);
+
+        } catch (error) {
+          logger.logErrorMessage('[messageHandlers] - Ошибка получения конфига:', error);
+          wsManager.sendToConnection('VUE_connections', clientId, 'error', 'schedulesConfigExistsError', dID, {
+          message: error.message,
+          code: error.code || 'schedulesConfig_read_error'
+          });
+        }
+        break;
+      case 'notifications':
+        try {
+          const { name } = data;
+          logger.logDevMessage(`[messageHandlers] - handleGet - Request - notifications -- dID - ', ${name}`);
+
+          const notificationsData = await readFileSafely(name, 'notifications');
+          logger.logDevMessage(`[messageHandlers] - handleGet - configData - ', ${notificationsData}`);
+          
+          if (!notificationsData) {
+            throw new Error('[messageHandlers] - Failed to read notifications configuration file');
+          }
+        } catch (error) {
+          logger.logErrorMessage('[messageHandlers] - Ошибка получения конфига:', error);
+          wsManager.sendToConnection('VUE_connections', clientId, 'error', 'notificationsConfigExistsError', dID, {
+          message: error.message,
+          code: error.code || 'notificationsConfig_read_error'
+          });
+        }
+        break;
+
+
+
+
+
     default:
       break;
   }
@@ -381,7 +428,7 @@ const handlePost = async (clientId, data) => {
         logger.logDevMessage(`[messageHandlers] - handlePost - Получены данные:', ${data}, 'dID -', ${dID}`);
         
         // Читаем данные из конфигурационного файла на диске
-        const { data: configData, filePath } = await readFileSafely(dID);
+        const { data: configData, filePath } = await readFileSafely(dID, 'config');
 
         // Обновляем значение setpoint
         if (configData[room] && configData[room].setpoints) {

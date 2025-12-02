@@ -36,11 +36,27 @@ async function writeFileSafely(filePath, content) {
     fileCache.set(filePath, JSON.parse(content));
 }
 
-
-async function readFileSafely(dID) {
+async function readFileSafely(dID, typeConfig) {
+    //console.log(`# # # # # # # # # # # # # # # [ConfigStore] - readFileSafely - # начинаем`);
     await ensureDataDir();
-    const filePath = path.join(dataDir, `${dID}.json`);
+    let filePath = '';
     
+    switch (typeConfig) {
+        case 'config':
+            filePath = path.join(dataDir, `${dID}.json`);
+            break;
+        case 'schedules':
+            filePath = path.join(dataDir, `${dID}_${typeConfig}.json`);
+            break;
+        case 'notifications':
+            filePath = path.join(dataDir, `${dID}_${typeConfig}.json`);
+            break;
+        default:
+            // filePath = path.join(dataDir, `${dID}.json`);// По умолчанию основной конфиг
+    }
+    console.log(`[ConfigStore] - readFileSafely - 📂 Читаем данные из ${filePath}`);
+
+    // Проверяем кэш
     if (fileCache.has(filePath)) {
         const data = fileCache.get(filePath);
         return { data, dataDir, filePath };
@@ -52,31 +68,144 @@ async function readFileSafely(dID) {
         fileCache.set(filePath, data);
         return { data, dataDir, filePath };
     } catch (error) {
+        let initData;
+        
         if (error.code === 'ENOENT') {
-            const initData = { 
-                init: { 
-                    title: "", 
-                    dID, 
-                    limits: { 
-                        Default: { low: 14, high: 30, step: 1 }, 
-                        Temp: { low: 8, high: 36, step: 0.5 }, 
-                        Hum: { low: 14, high: 60, step: 1 }
-                    }
-                } 
-            };
+            // Файл не существует - создаем новый
+            if (typeConfig === 'config') {
+                initData = { 
+                    init: { 
+                        title: "", 
+                        dID, 
+                        limits: { 
+                            Default: { low: 14, high: 30, step: 1 }, 
+                            Temp: { low: 8, high: 36, step: 0.5 }, 
+                            Hum: { low: 14, high: 60, step: 1 }
+                        }
+                    } 
+                };
+            } else if (typeConfig === 'schedules') {
+                initData = {};
+            } else if (typeConfig === 'notifications') {
+                initData = {};
+            }
+            
+            console.log(`[ConfigStore] - readFileSafely - 📂 Создаем новый файл ${filePath}`);
+            console.log(`[ConfigStore] - readFileSafely - 📂 Данные: ${JSON.stringify(initData)}`);
+
+            // ВАЖНО: Записываем файл на диск!
+            await writeFileSafely(filePath, JSON.stringify(initData, null, 2));
+            
             fileCache.set(filePath, initData);
-            return { data: initData, dataDir, filePath }; // Всегда возвращаем одинаковую структуру
+            return { data: initData, dataDir, filePath };
+            
         } else if (error instanceof SyntaxError) {
+            // Ошибка парсинга JSON
             logger.logErrorMessage(`[ConfigStore] - Ошибка парсинга файла ${filePath}: ${error.message}`);
-            //console.error(`[ConfigStore] - Ошибка парсинга файла ${filePath}:`, error);
-            const initData = { init: { title: "", dID } };
+            
+            if (typeConfig === 'config') {
+                initData = { init: { title: "", dID } };
+            } else if (typeConfig === 'schedules') {
+                initData = {};
+            } else if (typeConfig === 'notifications') {
+                initData = {};
+            }
+            
+            console.log(`[ConfigStore] - readFileSafely - 📂 Восстанавливаем поврежденный файл ${filePath}`);
+            
+            // ВАЖНО: Записываем исправленный файл на диск!
+            await writeFileSafely(filePath, JSON.stringify(initData, null, 2));
+            
             fileCache.set(filePath, initData);
-            return { data: initData, dataDir, filePath }; // Всегда возвращаем одинаковую структуру
+            return { data: initData, dataDir, filePath };
         } else {
             throw error;
         }
     }
 };
+
+// async function readFileSafely(dID, typeConfig) {
+//     //console.log(`# # # # # # # # # # # # # # # [ConfigStore] - readFileSafely - # начинаем`);
+//     await ensureDataDir();
+//     let filePath = '';
+    
+//     switch (typeConfig) {
+//         case 'config':
+//             filePath = path.join(dataDir, `${dID}.json`);
+//             break;
+//         case 'schedules':
+//             filePath =path.join(dataDir,  `schedules_${dID}.json`);
+//             break;
+//         case 'notifications':
+//             filePath = path.join(dataDir, `notifications_${dID}.json`);
+//             break;
+//         default:
+//             // filePath = path.join(dataDir, `${dID}.json`);// По умолчанию основной конфиг
+//     }
+//     console.log(`[ConfigStore] - readFileSafely - 📂 Читаем данные из ${filePath}`);
+
+//     //const filePath = path.join(dataDir, `${dID}.json`);
+   
+//     if (fileCache.has(filePath)) {
+//         const data = fileCache.get(filePath);
+//         return { data, dataDir, filePath };
+//     }
+
+//     try {
+//         const fileData = await fs.readFile(filePath, 'utf8');
+//         const data = JSON.parse(fileData);
+//         fileCache.set(filePath, data);
+//         return { data, dataDir, filePath };
+//     } catch (error) {
+//         let initData;
+//         if (error.code === 'ENOENT') {
+//             if (typeConfig === 'config') {
+//                initData = { 
+//                 init: { 
+//                     title: "", 
+//                     dID, 
+//                     limits: { 
+//                         Default: { low: 14, high: 30, step: 1 }, 
+//                         Temp: { low: 8, high: 36, step: 0.5 }, 
+//                         Hum: { low: 14, high: 60, step: 1 }
+//                     }
+//                 } 
+//             };
+//             } else if (typeConfig === 'schedules') {
+//                initData = {};
+//             } else if (typeConfig === 'notifications') {
+//                initData = {};
+//             }
+// console.log(`[ConfigStore] - readFileSafely - 📂 Создаем новый файл ${filePath}`);
+// console.log(`[ConfigStore] - readFileSafely - 📂 Создаем новый файл ${JSON.stringify(initData)}`);
+
+
+
+
+//             // const initData = { 
+//             //     init: { 
+//             //         title: "", 
+//             //         dID, 
+//             //         limits: { 
+//             //             Default: { low: 14, high: 30, step: 1 }, 
+//             //             Temp: { low: 8, high: 36, step: 0.5 }, 
+//             //             Hum: { low: 14, high: 60, step: 1 }
+//             //         }
+//             //     } 
+//             // };
+//             fileCache.set(filePath, initData);
+//             return { data: initData, dataDir, filePath }; // Всегда возвращаем одинаковую структуру
+//         } else if (error instanceof SyntaxError) {
+//             logger.logErrorMessage(`[ConfigStore] - Ошибка парсинга файла ${filePath}: ${error.message}`);
+//             //console.error(`[ConfigStore] - Ошибка парсинга файла ${filePath}:`, error);
+//             const initData = { init: { title: "", dID } };
+//             fileCache.set(filePath, initData);
+//             return { data: initData, dataDir, filePath }; // Всегда возвращаем одинаковую структуру
+//         } else {
+//             throw error;
+//         }
+//     }
+// };
 
 module.exports = {
   writeFileSafely,
