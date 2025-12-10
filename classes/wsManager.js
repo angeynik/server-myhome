@@ -237,6 +237,7 @@ class WsManager {
   }
 
   sendToConnection(connections, clientId, type, request, name, message) {
+    console.log('[WsManager] - sendToConnection - 📨 Отправляем сообщение - request:', request);
     const ws = this.getConnection(connections, clientId);
     
     if (ws && ws.readyState === WebSocket.OPEN) {
@@ -255,7 +256,7 @@ class WsManager {
 
         const messageString = typeof response === 'string' ? response : JSON.stringify(response);
         ws.send(messageString);
-        //console.log ('[WsManager] - sendToConnection - Отправлено сообщение', clientId);
+        console.log ('[WsManager] - sendToConnection - Отправлено сообщение', response);
         return true;
       } catch (error) {
         console.error(`[WsManager] - sendToConnection - Error sending to ${clientId}:`, error);

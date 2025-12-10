@@ -140,10 +140,12 @@ const handleAuth = async (clientId, data) => {
 };
 
 const handleGet = async (clientId, data) => {
-    logger.logDevMessage('[messageHandlers] - handleGet - Переходим к проверке сообщения типа get');
+  console.log('[messageHandlers] - handleGet - Request - ', data?.request);
+
+    logger.logDevMessage('[messageHandlers] - handleGet - Переходим к проверке сообщения типа get', data?.request);
     const dID = data.name;
   switch (data?.request) {
-    case 'fetchUsers':
+      case 'fetchUsers':
       try {
         const users = await DBManager.fetchUsers();
         wsManager.sendToConnection('VUE_connections', clientId, 'response', 'fetchUsersSuccess', data.name, {
@@ -161,7 +163,7 @@ const handleGet = async (clientId, data) => {
         // });
       }
       break;
-    case 'fetchDataSources':
+      case 'fetchDataSources':
       try {
         const dataSources = await DBManager.fetchDataSources();
           wsManager.sendToConnection('VUE_connections', clientId, 'error', 'fetchDataSourcesSuccess', data.name, {
@@ -180,10 +182,9 @@ const handleGet = async (clientId, data) => {
       }
       break;
 
-    case 'config':
+      case 'config':
       try {
-        const { name } = data;
-        logger.logDevMessage(`[messageHandlers] - handleGet - Request - config -- dID - ', ${name}`);
+        const name  = data.name;
         if (!name) {
           throw new Error('[messageHandlers] - Не указано имя конфига в запросе');
         }
@@ -196,7 +197,7 @@ const handleGet = async (clientId, data) => {
           throw new Error('[messageHandlers] - Failed to read configuration file');
         }
        
-        logger.logDevMessage(`[messageHandlers] -  Sending config to ${name}`);
+        //logger.logDevMessage(`[messageHandlers] -  Sending config to ${name}`);
         wsManager.sendToConnection('VUE_connections', clientId, 'response', 'config', data.name, configData.data);
         // sendSuccess(ws, 'config', name, configData.data);
 
@@ -214,18 +215,18 @@ const handleGet = async (clientId, data) => {
         // });
       }
       break;
-            case 'schedules':
+      case 'schedules':
         try {
           const { name } = data;
-          logger.logDevMessage(`[messageHandlers] - handleGet - Request - schedules -- dID - ', ${name}`);
-
+          //logger.logDevMessage(`[messageHandlers] - handleGet - Request - schedules -- dID - ', ${name}`);
           const schedulesData = await readFileSafely(name, 'schedules');
           logger.logDevMessage(`[messageHandlers] - handleGet - configData - ', ${schedulesData}`);
           
           if (!schedulesData) {
-            throw new Error('[messageHandlers] - Failed to read schedules configuration file');
+            throw new Error('[messageHandlers] - handleGet - Failed to read schedules configuration file');
           }
-          logger.logDevMessage(`[messageHandlers] -  Sending config to ${name}`);
+          logger.logDevMessage(`[messageHandlers] -  handleGet - Sending config to ${name}`);
+          console.log(`[messageHandlers] -  handleGet - Конфиигурация Расписания успешно получена ${schedulesData}`);
           wsManager.sendToConnection('VUE_connections', clientId, 'response', 'schedules', data.name, schedulesData.data);
 
         } catch (error) {

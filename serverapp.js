@@ -21,7 +21,7 @@ dotenv.config({path: './conf.env'}); // Указываем путь к  файл
 const DBManager = require('./services/db.js'); // Импортируем DBManager
 
 // Подключаем функции модуля joi для валидации данных
-const {validType, validConfig, validPost} = require('./validate');
+const {validType} = require('./validate');
 
 const logger = require('./services/logger.js');
 logger.initLogging();
