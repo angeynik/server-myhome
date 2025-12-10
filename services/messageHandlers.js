@@ -197,7 +197,7 @@ const handleGet = async (clientId, data) => {
           throw new Error('[messageHandlers] - Failed to read configuration file');
         }
        
-        //logger.logDevMessage(`[messageHandlers] -  Sending config to ${name}`);
+        logger.logDevMessage(`[messageHandlers] -  Sending config to ${name}`);
         wsManager.sendToConnection('VUE_connections', clientId, 'response', 'config', data.name, configData.data);
         // sendSuccess(ws, 'config', name, configData.data);
 
@@ -238,13 +238,15 @@ const handleGet = async (clientId, data) => {
         }
         break;
       case 'notifications':
+        console.log(`[messageHandlers] - handleGet -  Notifications -- `);
         try {
           const { name } = data;
           logger.logDevMessage(`[messageHandlers] - handleGet - Request - notifications -- dID - ', ${name}`);
 
           const notificationsData = await readFileSafely(name, 'notifications');
           logger.logDevMessage(`[messageHandlers] - handleGet - configData - ', ${notificationsData}`);
-          
+          wsManager.sendToConnection('VUE_connections', clientId, 'response', 'notifications', name, notificationsData.data);
+         
           if (!notificationsData) {
             throw new Error('[messageHandlers] - Failed to read notifications configuration file');
           }

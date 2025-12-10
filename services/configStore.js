@@ -37,7 +37,7 @@ async function writeFileSafely(filePath, content) {
 }
 
 async function readFileSafely(dID, typeConfig) {
-    //console.log(`# # # # # # # # # # # # # # # [ConfigStore] - readFileSafely - # начинаем`);
+    console.log(`# # # # # # # # # # # # # # # [ConfigStore] - readFileSafely - # начинаем для ${typeConfig}`);
     await ensureDataDir();
     let filePath = '';
     
@@ -50,6 +50,7 @@ async function readFileSafely(dID, typeConfig) {
             break;
         case 'notifications':
             filePath = path.join(dataDir, `${dID}_${typeConfig}.json`);
+            //console.log(`[ConfigStore] - readFileSafely - 📂 Читаем данные для NOTIFICATIONS  из ${filePath}`);
             break;
         default:
             // filePath = path.join(dataDir, `${dID}.json`);// По умолчанию основной конфиг
