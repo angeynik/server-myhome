@@ -1,1 +1,86 @@
-{}
+{
+  "room06": {
+    "sTemp": [
+      {
+        "paramTitle": "",
+        "unit": "",
+        "value": 0,
+        "valueType": "absolute",
+        "startTime": "00:00",
+        "endTime": "23:59",
+        "createdAt": "2025-12-29T09:05:46.134Z"
+      },
+      {
+        "paramTitle": "",
+        "unit": "",
+        "value": 0,
+        "valueType": "absolute",
+        "startTime": "00:00",
+        "endTime": "23:59",
+        "createdAt": "2025-12-29T09:26:49.801Z"
+      }
+    ]
+  },
+  "room03": {
+    "sTemp": [
+      {
+        "paramTitle": "",
+        "unit": "",
+        "value": 0,
+        "valueType": "absolute",
+        "startTime": "00:00",
+        "endTime": "23:59",
+        "createdAt": "2025-12-29T09:27:37.735Z"
+      },
+      {
+        "paramTitle": "",
+        "unit": "",
+        "value": 0,
+        "valueType": "absolute",
+        "startTime": "00:00",
+        "endTime": "23:59",
+        "createdAt": "2025-12-30T11:36:07.242Z"
+      },
+      {
+        "paramTitle": "",
+        "unit": "",
+        "value": 0,
+        "valueType": "absolute",
+        "startTime": "00:00",
+        "endTime": "23:59",
+        "createdAt": "2025-12-30T12:44:01.127Z"
+      }
+    ]
+  },
+  "room02": {
+    "sTemp": [
+      {
+        "paramTitle": "",
+        "unit": "",
+        "value": 0,
+        "valueType": "absolute",
+        "startTime": "00:00",
+        "endTime": "23:59",
+        "createdAt": "2025-12-30T12:44:10.549Z"
+      },
+      {
+        "paramTitle": "",
+        "unit": "",
+        "value": 0,
+        "valueType": "absolute",
+        "startTime": "00:00",
+        "endTime": "23:59",
+        "createdAt": "2025-12-30T13:01:41.422Z"
+      },
+      {
+        "paramTitle": "",
+        "unit": "",
+        "value": 0,
+        "valueType": "absolute",
+        "startTime": "00:00",
+        "endTime": "23:59",
+        "createdAt": "2025-12-30T13:21:33.343Z"
+      }
+    ]
+  }
+}

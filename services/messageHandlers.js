@@ -226,7 +226,7 @@ const handleGet = async (clientId, data) => {
             throw new Error('[messageHandlers] - handleGet - Failed to read schedules configuration file');
           }
           logger.logDevMessage(`[messageHandlers] -  handleGet - Sending config to ${name}`);
-          console.log(`[messageHandlers] -  handleGet - Конфиигурация Расписания успешно получена ${schedulesData}`);
+          console.log(`[messageHandlers] -  handleGet - Конфигурация Расписания успешно получена ${schedulesData}`);
           wsManager.sendToConnection('VUE_connections', clientId, 'response', 'schedules', data.name, schedulesData.data);
 
         } catch (error) {
@@ -456,7 +456,43 @@ const handlePost = async (clientId, data) => {
             // });
         }
     break;
+    case 'addSchedule':
+      console.log(`[messageHandlers] - handlePost - Request - addSchedule`);
+      //logger.logDevMessage(`[messageHandlers] - handlePost - Request - addSchedule`);
+      const { name} = data;
+      const { roomKey, paramKey } = data.payload;
+      // Читаем данные из конфигурационного файла на диске
+      const schedulesData = await readFileSafely(name, 'schedules');
+      console.log(`[messageHandlers] - handlePost - Читаем конфигурацию из хранилища  schedulesData:`, schedulesData.data);
+      const scheduleItem = {
+                paramTitle: data.paramTitle || '',
+                unit: data.unit || '',
+                value: data.value || 0,
+                valueType: data.valueType || 'absolute',
+                startTime: data.startTime || '00:00',
+                endTime: data.endTime || '23:59',
+                createdAt: data.createdAt || new Date().toISOString()
+            };
+          console.log(`[messageHandlers] - handlePost - scheduleItem:`, scheduleItem);
+        // Создаем или обновляем структуру в store
+        if (!schedulesData.data[roomKey]) {
+            schedulesData.data[roomKey] = {};
+        }
+        if (!schedulesData.data[roomKey][paramKey]) {
+            schedulesData.data[roomKey][paramKey] = [];
+        }
+        
+        // Добавляем новое расписание
+        schedulesData.data[roomKey][paramKey].push(scheduleItem);
+        console.log(`[messageHandlers] - handlePost - Обновленное расписание schedulesData:`, schedulesData.data);
+        
+        // Сохраняем обновленный конфиг
+        const dataString = JSON.stringify(schedulesData.data, null, 2);
+        await writeFileSafely(schedulesData.filePath, dataString);
 
+        // Отправляем обновленные данные клиенту
+        wsManager.sendToConnection('VUE_connections', clientId, 'response', 'schedules', data.name, schedulesData.data);
+    break;
 
     case 'sensors':
         logger.logDevMessage(`[messageHandlers] - handlePost - Request - sensor`);
