@@ -29,6 +29,7 @@ async function ensureDataDir() {
 }
 
 async function writeFileSafely(filePath, content) {
+    console.log(`[ConfigStore] - writeFileSafely - 📂 Записываем данные в ${filePath}`);
     await ensureDataDir(); 
     const tempPath = `${filePath}.tmp`;
     await fs.writeFile(tempPath, content);
@@ -83,15 +84,14 @@ async function readFileSafely(dID, typeConfig) {
                             Temp: { low: 8, high: 36, step: 0.5 }, 
                             Hum: { low: 14, high: 60, step: 1 }
                         }
-                    } 
+                    }
                 };
             } else if (typeConfig === 'schedules') {
                 initData = {};
             } else if (typeConfig === 'notifications') {
                 initData = {};
             }
-            
-            console.log(`[ConfigStore] - readFileSafely - 📂 Создаем новый файл ${filePath}`);
+            console.log(`[ConfigStore] - readFileSafely - 📂 Конфигурация ${typeConfig} отсутствует Создаем новый файл ${filePath}`);
             console.log(`[ConfigStore] - readFileSafely - 📂 Данные: ${JSON.stringify(initData)}`);
 
             // ВАЖНО: Записываем файл на диск!
