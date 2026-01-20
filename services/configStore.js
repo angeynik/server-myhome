@@ -38,21 +38,25 @@ async function writeFileSafely(filePath, content) {
 }
 
 async function readFileSafely(dID, typeConfig) {
-    console.log(`# # # # # # # # # # # # # # # [ConfigStore] - readFileSafely - # начинаем для ${typeConfig}`);
+    console.log(` [ConfigStore] - readFileSafely - # начинаем для ${typeConfig}`);
     await ensureDataDir();
     let filePath = '';
     
     switch (typeConfig) {
         case 'config':
             filePath = path.join(dataDir, `${dID}.json`);
-            break;
+        break;
         case 'schedules':
             filePath = path.join(dataDir, `${dID}_${typeConfig}.json`);
-            break;
+        break;
         case 'notifications':
             filePath = path.join(dataDir, `${dID}_${typeConfig}.json`);
             //console.log(`[ConfigStore] - readFileSafely - 📂 Читаем данные для NOTIFICATIONS  из ${filePath}`);
-            break;
+        break;
+        case 'statistics':
+            filePath = path.join(dataDir, `${dID}_${typeConfig}.json`);
+            //console.log(`[ConfigStore] - readFileSafely - 📂 Читаем данные для NOTIFICATIONS  из ${filePath}`);
+        break;
         default:
             // filePath = path.join(dataDir, `${dID}.json`);// По умолчанию основной конфиг
     }
@@ -86,9 +90,7 @@ async function readFileSafely(dID, typeConfig) {
                         }
                     }
                 };
-            } else if (typeConfig === 'schedules') {
-                initData = {};
-            } else if (typeConfig === 'notifications') {
+            } else {
                 initData = {};
             }
             console.log(`[ConfigStore] - readFileSafely - 📂 Конфигурация ${typeConfig} отсутствует Создаем новый файл ${filePath}`);

@@ -238,7 +238,7 @@ const handleGet = async (clientId, data) => {
         }
         break;
       case 'notifications':
-        console.log(`[messageHandlers] - handleGet -  Notifications -- `);
+        //console.log(`[messageHandlers] - handleGet -  Notifications -- `);
         try {
           const { name } = data;
           logger.logDevMessage(`[messageHandlers] - handleGet - Request - notifications -- dID - ', ${name}`);
@@ -258,7 +258,26 @@ const handleGet = async (clientId, data) => {
           });
         }
         break;
+      case 'statistics':
+          try {
+            const { name } = data;
+          logger.logDevMessage(`[messageHandlers] - handleGet - Request - statistics -- dID - ', ${name}`);
 
+          const statisticsData = await readFileSafely(name, 'statistics');
+          logger.logDevMessage(`[messageHandlers] - handleGet - configData - ', ${statisticsData}`);
+          wsManager.sendToConnection('VUE_connections', clientId, 'response', 'statistics', name, statisticsData.data);
+         
+          if (!statisticsData) {
+            throw new Error('[messageHandlers] - Failed to read notifications configuration file');
+          }
+          } catch (error) {
+            logger.logErrorMessage('[messageHandlers] - Ошибка получения конфига:', error);
+            wsManager.sendToConnection('VUE_connections', clientId, 'error', 'statisticsConfigExistsError', dID, {
+            message: error.message,
+            code: error.code || 'statisticsConfig_read_error'
+            });
+          }
+        break;
 
 
 
