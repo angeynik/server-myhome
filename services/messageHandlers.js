@@ -216,12 +216,13 @@ const handleGet = async (clientId, data) => {
       }
       break;
       case 'schedules':
+        console.log('[messageHandlers] - handleGet - Request - schedules');
         try {
           const { name } = data;
           //logger.logDevMessage(`[messageHandlers] - handleGet - Request - schedules -- dID - ', ${name}`);
           const schedulesData = await readFileSafely(name, 'schedules');
           logger.logDevMessage(`[messageHandlers] - handleGet - configData - ', ${schedulesData}`);
-          
+         
           if (!schedulesData) {
             throw new Error('[messageHandlers] - handleGet - Failed to read schedules configuration file');
           }
@@ -513,6 +514,10 @@ const handlePost = async (clientId, data) => {
         wsManager.sendToConnection('VUE_connections', clientId, 'response', 'schedules', data.name, schedulesData.data);
     break;
 
+    case 'delSchedule':
+        console.log(`[messageHandlers] - handlePost - Request - delSchedule`);
+
+        break;
     case 'sensors':
         logger.logDevMessage(`[messageHandlers] - handlePost - Request - sensor`);
         try {

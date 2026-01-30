@@ -368,7 +368,7 @@ WSSDash.on('connection', (ws) => {
                 handleGet(connectionId, dashData.data);
                 break;
             case 'post':
-              //console.log(`[Serverapp] - WSSDash - Пришло сообщение post: ${JSON.stringify(dashData.data, null, 2)}`);
+              console.log(`[Serverapp] - WSSDash - Пришло сообщение post: ${JSON.stringify(dashData.data, null, 2)}`);
             //logger.logDevMessage(`[Serverapp] - WSSDash - Пришло сообщение post: ${JSON.stringify(dashData.data, null, 2)}`);
                 handlePost(connectionId, dashData.data);
                 const dID = dashData.data.name;

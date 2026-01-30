@@ -43,9 +43,9 @@
     },
     "setpoints": {
       "sTemp": {
-        "value": 20,
+        "value": 19.5,
         "type": "num",
-        "lastUpdate": "Thu Nov 13 2025 16:00:12 GMT+0300 (Москва, стандартное время)"
+        "lastUpdate": "Thu Jan 22 2026 14:25:09 GMT+0300 (Москва, стандартное время)"
       }
     }
   },
