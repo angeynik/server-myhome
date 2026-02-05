@@ -1,90 +1,43 @@
 {
-  "room01": {
-    "sTemp": [
-      {
-        "paramTitle": "",
-        "unit": "",
-        "value": 0,
-        "valueType": "absolute",
-        "startTime": "00:00",
-        "endTime": "23:59",
-        "createdAt": "2026-01-30T12:58:34.420Z"
-      },
-      {
-        "paramTitle": "",
-        "unit": "",
-        "value": 0,
-        "valueType": "absolute",
-        "startTime": "00:00",
-        "endTime": "23:59",
-        "createdAt": "2026-01-30T12:58:59.303Z"
-      },
-      {
-        "paramTitle": "",
-        "unit": "",
-        "value": 0,
-        "valueType": "absolute",
-        "startTime": "00:00",
-        "endTime": "23:59",
-        "createdAt": "2026-01-30T13:05:46.159Z"
-      },
-      {
-        "paramTitle": "",
-        "unit": "",
-        "value": 0,
-        "valueType": "absolute",
-        "startTime": "00:00",
-        "endTime": "23:59",
-        "createdAt": "2026-01-30T13:07:37.069Z"
-      },
-      {
-        "paramTitle": "",
-        "unit": "",
-        "value": 0,
-        "valueType": "absolute",
-        "startTime": "00:00",
-        "endTime": "23:59",
-        "createdAt": "2026-01-30T13:31:50.252Z"
-      },
-      {
-        "paramTitle": "",
-        "unit": "",
-        "value": 0,
-        "valueType": "absolute",
-        "startTime": "00:00",
-        "endTime": "23:59",
-        "createdAt": "2026-01-30T13:34:57.215Z"
-      }
-    ]
-  },
   "room06": {
     "sTemp": [
       {
-        "paramTitle": "",
+        "id": 1,
+        "roomKey": "room06",
+        "paramKey": "sTemp",
         "unit": "",
         "value": 0,
         "valueType": "absolute",
-        "startTime": "00:00",
-        "endTime": "23:59",
-        "createdAt": "2026-01-30T13:35:08.545Z"
+        "startTime": "15:32",
+        "endTime": "16:32",
+        "createdAt": "2026-02-05T12:32:01.480Z",
+        "updatedAt": "2026-02-05T12:32:01.480Z",
+        "days": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
       },
       {
-        "paramTitle": "",
+        "id": 2,
+        "roomKey": "room06",
+        "paramKey": "sTemp",
         "unit": "",
         "value": 0,
         "valueType": "absolute",
-        "startTime": "00:00",
-        "endTime": "23:59",
-        "createdAt": "2026-01-30T13:35:11.554Z"
-      },
-      {
-        "paramTitle": "",
-        "unit": "",
-        "value": 0,
-        "valueType": "absolute",
-        "startTime": "00:00",
-        "endTime": "23:59",
-        "createdAt": "2026-01-30T13:35:14.594Z"
+        "startTime": "16:33",
+        "endTime": "16:43",
+        "createdAt": "2026-02-05T12:32:30.078Z",
+        "updatedAt": "2026-02-05T12:32:30.078Z",
+        "days": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
       }
     ]
   }

@@ -480,18 +480,23 @@ const handlePost = async (clientId, data) => {
       console.log(`[messageHandlers] - handlePost - Request - addSchedule`);
       //logger.logDevMessage(`[messageHandlers] - handlePost - Request - addSchedule`);
       const { name} = data;
+      console.log(`[messageHandlers] - handlePost - Получены данные:', ${JSON.stringify(data.payload.schedules, null, 2)}, 'name -', ${name}`);
       const { roomKey, paramKey } = data.payload;
       // Читаем данные из конфигурационного файла на диске
       const schedulesData = await readFileSafely(name, 'schedules');
-      console.log(`[messageHandlers] - handlePost - Читаем конфигурацию из хранилища  schedulesData:`, schedulesData.data);
+      console.log(`[messageHandlers] - handlePost - Читаем конфигурацию из хранилища  schedulesData:`, JSON.stringify(schedulesData.data, null, 2));
       const scheduleItem = {
-                paramTitle: data.paramTitle || '',
-                unit: data.unit || '',
-                value: data.value || 0,
-                valueType: data.valueType || 'absolute',
-                startTime: data.startTime || '00:00',
-                endTime: data.endTime || '23:59',
-                createdAt: data.createdAt || new Date().toISOString()
+                id: data.payload.schedules.id,
+                roomKey: data.payload.schedules.roomKey || '',
+                paramKey: data.payload.schedules.paramKey || '',
+                unit: data.payload.schedules.unit || '',
+                value: data.payload.schedules.value || 0,
+                valueType: data.payload.schedules.valueType || 'absolute',
+                startTime: data.payload.schedules.startTime || '00:00',
+                endTime: data.payload.schedules.endTime || '00:05',
+                createdAt: data.payload.schedules.createdAt || new Date().toISOString(),
+                updatedAt: data.payload.schedules.updatedAt || new Date().toISOString(),
+                days: data.payload.schedules.days || [],
             };
           console.log(`[messageHandlers] - handlePost - scheduleItem:`, scheduleItem);
         // Создаем или обновляем структуру в store
