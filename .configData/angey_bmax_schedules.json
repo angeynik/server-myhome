@@ -40,5 +40,85 @@
         ]
       }
     ]
+  },
+  "room02": {
+    "sHum": [
+      {
+        "id": 7,
+        "startTime": "22:10",
+        "endTime": "22:20",
+        "value": 0,
+        "valueType": "absolute",
+        "unit": "",
+        "roomKey": "room02",
+        "paramKey": "sHum",
+        "createdAt": "2026-02-05T17:33:57.965Z",
+        "updatedAt": "2026-02-05T17:33:57.965Z",
+        "days": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      {
+        "id": 9,
+        "startTime": "22:21",
+        "endTime": "22:31",
+        "value": 0,
+        "valueType": "absolute",
+        "unit": "",
+        "roomKey": "room02",
+        "paramKey": "sHum",
+        "createdAt": "2026-02-05T17:34:17.931Z",
+        "updatedAt": "2026-02-05T17:34:17.931Z",
+        "days": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      {
+        "id": 11,
+        "startTime": "22:43",
+        "endTime": "22:53",
+        "value": 0,
+        "valueType": "absolute",
+        "unit": "",
+        "roomKey": "room02",
+        "paramKey": "sHum",
+        "createdAt": "2026-02-05T17:34:18.334Z",
+        "updatedAt": "2026-02-05T17:34:18.334Z",
+        "days": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      {
+        "id": 13,
+        "startTime": "23:05",
+        "endTime": "23:15",
+        "value": 0,
+        "valueType": "absolute",
+        "unit": "",
+        "roomKey": "room02",
+        "paramKey": "sHum",
+        "createdAt": "2026-02-05T17:34:18.793Z",
+        "updatedAt": "2026-02-05T17:34:18.793Z",
+        "days": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      }
+    ]
   }
 }
