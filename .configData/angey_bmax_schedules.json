@@ -63,25 +63,6 @@
         ]
       },
       {
-        "id": 9,
-        "startTime": "22:21",
-        "endTime": "22:31",
-        "value": 0,
-        "valueType": "absolute",
-        "unit": "",
-        "roomKey": "room02",
-        "paramKey": "sHum",
-        "createdAt": "2026-02-05T17:34:17.931Z",
-        "updatedAt": "2026-02-05T17:34:17.931Z",
-        "days": [
-          1,
-          2,
-          3,
-          4,
-          5
-        ]
-      },
-      {
         "id": 11,
         "startTime": "22:43",
         "endTime": "22:53",
@@ -99,18 +80,20 @@
           4,
           5
         ]
-      },
+      }
+    ],
+    "sTemp": [
       {
-        "id": 13,
-        "startTime": "23:05",
-        "endTime": "23:15",
+        "id": 1,
+        "startTime": "12:57",
+        "endTime": "13:57",
         "value": 0,
         "valueType": "absolute",
         "unit": "",
         "roomKey": "room02",
-        "paramKey": "sHum",
-        "createdAt": "2026-02-05T17:34:18.793Z",
-        "updatedAt": "2026-02-05T17:34:18.793Z",
+        "paramKey": "sTemp",
+        "createdAt": "2026-02-06T09:57:39.498Z",
+        "updatedAt": "2026-02-06T09:57:39.498Z",
         "days": [
           1,
           2,

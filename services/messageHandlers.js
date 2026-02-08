@@ -616,6 +616,10 @@ const handlePost = async (clientId, data) => {
             });
         }
         break;
+    case 'updateSchedule':
+        console.log(`[messageHandlers] - handlePost - Request - updateSchedule`);
+
+        break;
 
 
 

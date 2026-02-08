@@ -4,18 +4,38 @@
     "dID": "angey_bmax",
     "limits": {
       "Default": {
-        "low": 14,
+        "low": 4,
         "high": 30,
         "step": 1
       },
-      "Temp": {
+      "sTemp": {
         "low": 8,
         "high": 36,
+        "step": 0.25
+      },
+      "sHum": {
+        "low": 12,
+        "high": 60,
         "step": 0.5
       },
-      "Hum": {
-        "low": 14,
-        "high": 60,
+      "sActuator": {
+        "low": 0,
+        "high": 100,
+        "step": 0.1
+      },
+      "sBool": {
+        "low": 0,
+        "high": 1,
+        "step": 1
+      },
+      "Hours": {
+        "low": 0,
+        "high": 23,
+        "step": 1
+      },
+      "Minutes": {
+        "low": 0,
+        "high": 59,
         "step": 1
       }
     }
@@ -142,14 +162,14 @@
     "group": "Родители",
     "setpoints": {
       "sHum": {
-        "value": 41,
+        "value": 18.5,
         "type": "num",
-        "lastUpdate": "Mon Nov 17 2025 15:04:49 GMT+0300 (Москва, стандартное время)"
+        "lastUpdate": "Sun Feb 08 2026 17:23:01 GMT+0300 (Москва, стандартное время)"
       },
       "sTemp": {
-        "value": 23,
+        "value": 18.5,
         "type": "num",
-        "lastUpdate": "Sat Nov 15 2025 06:11:54 GMT+0300 (Москва, стандартное время)"
+        "lastUpdate": "Sun Feb 08 2026 17:22:54 GMT+0300 (Москва, стандартное время)"
       },
       "dCurSetpoint": {
         "value": 24.5,
