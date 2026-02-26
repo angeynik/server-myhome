@@ -37,11 +37,6 @@
         "low": 0,
         "high": 59,
         "step": 1
-      },
-      "deviation": {
-        "low": 0,
-        "high": 12,
-        "step": 0.1
       }
     }
   },
@@ -68,9 +63,9 @@
     },
     "setpoints": {
       "sTemp": {
-        "value": 18,
+        "value": 17.25,
         "type": "num",
-        "lastUpdate": "Wed Feb 25 2026 14:20:45 GMT+0300 (Москва, стандартное время)"
+        "lastUpdate": "Thu Feb 26 2026 10:14:04 GMT+0300 (Москва, стандартное время)"
       }
     }
   },

@@ -57,6 +57,25 @@
           4,
           5
         ]
+      },
+      {
+        "id": 4,
+        "startTime": "11:12",
+        "endTime": "12:12",
+        "value": 0,
+        "valueType": "absolute",
+        "unit": "",
+        "roomKey": "room06",
+        "paramKey": "sTemp",
+        "createdAt": "2026-02-26T08:12:28.910Z",
+        "updatedAt": "2026-02-26T08:12:28.910Z",
+        "days": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
       }
     ],
     "sHum": [
@@ -321,6 +340,25 @@
         "paramKey": "sTemp",
         "createdAt": "2026-02-23T11:59:12.004Z",
         "updatedAt": "2026-02-23T11:59:12.004Z",
+        "days": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      {
+        "id": 4,
+        "startTime": "10:22",
+        "endTime": "11:22",
+        "value": 0,
+        "valueType": "absolute",
+        "unit": "",
+        "roomKey": "room01",
+        "paramKey": "sTemp",
+        "createdAt": "2026-02-26T07:22:32.608Z",
+        "updatedAt": "2026-02-26T07:22:32.608Z",
         "days": [
           1,
           2,

@@ -89,8 +89,8 @@ async function readFileSafely(dID, typeConfig) {
                             sHum: { low: 14, high: 60, step: 1 },
                             sActuator: { low: 0, high: 100, step: 0.1 },
                             sBool: { low: 0, high: 1, step: 1 },
-                            Hours: { low: 0, high: 23, step: 1 },
-                            Minutes: { low: 0, high: 59, step: 1 },
+                            hours: { low: 0, high: 23, step: 1 },
+                            minutes: { low: 0, high: 59, step: 1 },
 
                         }
                     }
