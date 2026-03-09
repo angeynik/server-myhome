@@ -49,7 +49,7 @@ async function handlePostNodeRED(clientId, message) {
 
     // Читаем данные из конфигурационного файла на диске
     const {data, dataDir, filePath} = await readFileSafely(name, 'config');
-    console.log(` 8888888888 - - - - [messageHandlers] - handlePostNodeRED - Читаем данные из ${filePath}`);
+    console.log(`[messageHandlers] - handlePostNodeRED - Читаем данные из ${filePath}`);
 
     try {
         // Проверяем, существует ли комната
@@ -529,35 +529,35 @@ const handlePost = async (clientId, data) => {
         console.log(`[messageHandlers] - handlePost - Request - delSchedule`);
         
         try {
-            const { name } = data;
-            const { roomKey, paramKey, scheduleIds } = data.payload;
+            // const { name } = data;
+            const { scheduleIds } = data.payload;
             
             console.log(`[messageHandlers] - handlePost - Получены данные для удаления расписания:`, {
-                name,
-                roomKey,
-                paramKey,
+                dID,
+                room,
+                param,
                 scheduleIds
             });
             
             // Проверяем обязательные поля
-            if (!roomKey || !paramKey || !scheduleIds || !Array.isArray(scheduleIds)) {
+            if (!room || !param || !scheduleIds || !Array.isArray(scheduleIds)) {
                 throw new Error('Отсутствуют обязательные поля: roomKey, paramKey или scheduleIds (должен быть массив)');
             }
             
             // Читаем данные из конфигурационного файла на диске
-            const schedulesData = await readFileSafely(name, 'schedules');
+            const schedulesData = await readFileSafely(dID, 'schedules');
             console.log(`[messageHandlers] - handlePost - Читаем конфигурацию из хранилища schedulesData:`, JSON.stringify(schedulesData.data, null, 2));
             
             // Проверяем существование комнаты и параметра
-            if (!schedulesData.data[roomKey]) {
-                throw new Error(`Комната ${roomKey} не найдена в расписаниях`);
+            if (!schedulesData.data[room]) {
+                throw new Error(`Комната ${room} не найдена в расписаниях`);
             }
             
-            if (!schedulesData.data[roomKey][paramKey]) {
-                throw new Error(`Параметр ${paramKey} не найден в комнате ${roomKey}`);
+            if (!schedulesData.data[room][param]) {
+                throw new Error(`Параметр ${param} не найден в комнате ${room}`);
             }
             
-            const currentSchedules = schedulesData.data[roomKey][paramKey];
+            const currentSchedules = schedulesData.data[room][param];
             
             // Фильтруем расписания, оставляем только те, у которых id НЕ входит в массив scheduleIds
             const filteredSchedules = currentSchedules.filter(schedule => {
@@ -574,8 +574,8 @@ const handlePost = async (clientId, data) => {
                 // Отдельное сообщение о том, что элементы не найдены
                 wsManager.sendToConnection('VUE_connections', clientId, 'response', 'delScheduleNoMatch', data.name, {
                     message: `Не найдено расписаний с указанными id: ${scheduleIds.join(', ')}`,
-                    roomKey,
-                    paramKey,
+                    room,
+                    param,
                     scheduleIds,
                     removedCount: 0
                 });
@@ -584,18 +584,18 @@ const handlePost = async (clientId, data) => {
             }
             
             // Обновляем данные
-            schedulesData.data[roomKey][paramKey] = filteredSchedules;
+            schedulesData.data[room][param] = filteredSchedules;
             
             // Подсчитываем количество удаленных элементов
             const removedCount = currentSchedules.length - filteredSchedules.length;
             
             // Если после удаления массив стал пустым, можно удалить сам параметр или комнату
             if (filteredSchedules.length === 0) {
-                delete schedulesData.data[roomKey][paramKey];
+                delete schedulesData.data[room][param];
                 
                 // Если в комнате больше нет параметров, удаляем комнату
-                if (Object.keys(schedulesData.data[roomKey]).length === 0) {
-                    delete schedulesData.data[roomKey];
+                if (Object.keys(schedulesData.data[room]).length === 0) {
+                    delete schedulesData.data[room];
                 }
             }
             
@@ -611,14 +611,14 @@ const handlePost = async (clientId, data) => {
             // Дополнительно отправляем подтверждение об удалении
             wsManager.sendToConnection('VUE_connections', clientId, 'response', 'delScheduleSuccess', data.name, {
                 message: `Успешно удалено ${removedCount} элементов расписания`,
-                roomKey,
-                paramKey,
+                room,
+                param,
                 scheduleIds,
                 removedCount
             });
             
-            console.log(`[messageHandlers] - handlePost - Удалено ${removedCount} элементов расписания из комнаты "${roomKey}", параметр "${paramKey}"`);
-            logger.logInfoMessage(`[messageHandlers] - handlePost - Удалено ${removedCount} элементов расписания для пользователя ${name}, комната ${roomKey}, параметр ${paramKey}`);
+            console.log(`[messageHandlers] - handlePost - Удалено ${removedCount} элементов расписания из комнаты "${room}", параметр "${param}"`);
+            logger.logInfoMessage(`[messageHandlers] - handlePost - Удалено ${removedCount} элементов расписания для пользователя ${dID}, комната ${room}, параметр ${param}`);
             
         } catch (error) {
             console.error(`[messageHandlers] - handlePost - Ошибка при удалении расписания:`, error);
@@ -630,14 +630,9 @@ const handlePost = async (clientId, data) => {
             });
         }
         break;
-    case 'schedules':
+    case 'updateSchedules':
         //Запрос на обновление расписания
         console.log(`[messageHandlers] - handlePost - Получены данные:', ${JSON.stringify(data.payload.schedules, null, 2)}, 'name -', ${dID}`);
-        // const room = data?.payload?.room;
-        // const param = data?.payload?.param;
-        // const id = data?.payload?.id;
-        // const value_name = data?.payload?.value_name;
-        // const value = data?.payload?.value;
         // Читаем данные из конфигурационного файла на диске
         const schedulesData2 = await readFileSafely(dID, 'schedules');
        //console.log(`[messageHandlers] - handlePost - Читаем конфигурацию из хранилища  schedulesData:`, JSON.stringify(schedulesData2.data, null, 2));
