@@ -66,6 +66,11 @@
         "value": 17.25,
         "type": "num",
         "lastUpdate": "Thu Feb 26 2026 10:14:04 GMT+0300 (Москва, стандартное время)"
+      },
+      "dTemp": {
+        "value": 23.4,
+        "type": "number",
+        "lastUpdate": "Wed Mar 04 2026 13:53:40 GMT+0300 (Москва, стандартное время)"
       }
     }
   },
@@ -75,9 +80,9 @@
     "group": "Дети",
     "setpoints": {
       "sTemp": {
-        "value": 23.5,
+        "value": 22.6,
         "type": "num",
-        "lastUpdate": "Wed Feb 25 2026 14:05:47 GMT+0300 (Москва, стандартное время)"
+        "lastUpdate": "Fri Feb 27 2026 10:57:39 GMT+0300 (Москва, стандартное время)"
       },
       "dCurSetpoint": {
         "value": 24,
@@ -85,9 +90,19 @@
         "lastUpdate": "Sun Dec 21 2025 22:29:14 GMT+0300 (Москва, стандартное время)"
       },
       "sHum": {
-        "value": 53,
+        "value": 45,
         "type": "num",
-        "lastUpdate": "Wed Feb 25 2026 14:06:08 GMT+0300 (Москва, стандартное время)"
+        "lastUpdate": "Fri Feb 27 2026 10:57:48 GMT+0300 (Москва, стандартное время)"
+      },
+      "dHum": {
+        "value": 46,
+        "type": "number",
+        "lastUpdate": "Thu Mar 05 2026 11:47:15 GMT+0300 (Москва, стандартное время)"
+      },
+      "dTemp": {
+        "value": 21.6,
+        "type": "number",
+        "lastUpdate": "Wed Mar 04 2026 13:54:17 GMT+0300 (Москва, стандартное время)"
       }
     },
     "sensors": {
@@ -161,19 +176,29 @@
     "group": "Родители",
     "setpoints": {
       "sHum": {
-        "value": 20.5,
+        "value": null,
         "type": "num",
-        "lastUpdate": "Wed Feb 25 2026 14:07:39 GMT+0300 (Москва, стандартное время)"
+        "lastUpdate": "Fri Feb 27 2026 13:33:39 GMT+0300 (Москва, стандартное время)"
       },
       "sTemp": {
-        "value": 21.5,
+        "value": null,
         "type": "num",
-        "lastUpdate": "Wed Feb 25 2026 14:06:30 GMT+0300 (Москва, стандартное время)"
+        "lastUpdate": "Fri Feb 27 2026 13:33:53 GMT+0300 (Москва, стандартное время)"
       },
       "dCurSetpoint": {
         "value": 24.5,
         "type": "num",
         "lastUpdate": "Sun Dec 21 2025 22:35:14 GMT+0300 (Москва, стандартное время)"
+      },
+      "dTemp": {
+        "value": null,
+        "type": "number",
+        "lastUpdate": "Fri Feb 27 2026 13:31:44 GMT+0300 (Москва, стандартное время)"
+      },
+      "dHum": {
+        "value": null,
+        "type": "number",
+        "lastUpdate": "Fri Feb 27 2026 13:37:14 GMT+0300 (Москва, стандартное время)"
       }
     },
     "switches": {
@@ -265,6 +290,16 @@
         "value": 50.5,
         "type": "num",
         "lastUpdate": "Wed Feb 25 2026 14:11:03 GMT+0300 (Москва, стандартное время)"
+      },
+      "dHum": {
+        "value": "52.5",
+        "type": "number",
+        "lastUpdate": "Mon Mar 09 2026 11:17:31 GMT+0300 (Москва, стандартное время)"
+      },
+      "dTemp": {
+        "value": "19.9",
+        "type": "number",
+        "lastUpdate": "Mon Mar 09 2026 13:22:04 GMT+0300 (Москва, стандартное время)"
       }
     }
   },

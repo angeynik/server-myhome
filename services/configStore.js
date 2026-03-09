@@ -30,6 +30,8 @@ async function ensureDataDir() {
 
 async function writeFileSafely(filePath, content) {
     console.log(`[ConfigStore] - writeFileSafely - 📂 Записываем данные в ${filePath}`);
+    //console.log(`[ConfigStore] - writeFileSafely - 📂 Данные в ${content}`);
+
     await ensureDataDir(); 
     const tempPath = `${filePath}.tmp`;
     await fs.writeFile(tempPath, content);
@@ -65,6 +67,7 @@ async function readFileSafely(dID, typeConfig) {
     // Проверяем кэш
     if (fileCache.has(filePath)) {
         const data = fileCache.get(filePath);
+        console.log(`[ConfigStore] - readFileSafely - 📂 Возвращаем данные из кэша ${filePath}, ${data}`);
         return { data, dataDir, filePath };
     }
 
@@ -72,6 +75,7 @@ async function readFileSafely(dID, typeConfig) {
         const fileData = await fs.readFile(filePath, 'utf8');
         const data = JSON.parse(fileData);
         fileCache.set(filePath, data);
+        console.log(`[ConfigStore] - readFileSafely - 📂 Получаем данные из хранилища ${data}`);
         return { data, dataDir, filePath };
     } catch (error) {
         let initData;

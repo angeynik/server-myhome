@@ -193,6 +193,7 @@ const handleGet = async (clientId, data) => {
         // Читаем конфиг
         const configData = await readFileSafely(name, 'config');
         logger.logDevMessage(`[messageHandlers] - handleGet - configData - ', ${configData}`);
+        console.log('[messageHandlers] - handleGet - configData - ', configData);
         
         if (!configData) {
           throw new Error('[messageHandlers] - Failed to read configuration file');
@@ -291,6 +292,9 @@ const handleGet = async (clientId, data) => {
 
 const handlePost = async (clientId, data) => {
     logger.logDevMessage(`[messageHandlers] - handlePost - Переходим к проверке сообщения типа post, request - ', ${data.request}`);
+    console.log('[messageHandlers] - handlePost - Request - ', data?.request);
+    let dID = data.name;
+    let { room, param, value, value_name, id } = data.payload;
   switch (data?.request) {
     case 'createUser':
         logger.logDevMessage(`[messageHandlers] - handlePost - Request - createUser`);
@@ -360,7 +364,6 @@ const handlePost = async (clientId, data) => {
       break;
     case 'init_dID':
         logger.logInfoMessage(`[messageHandlers] - handlePost - request - init_dID :', ${data.name}`);
-        const dID = data.name;
         try {
           logger.logDevMessage(`Получены данные:', ${data}`);
           logger.logDevMessage(`[messageHandlers] - handlePost - Начинаем проверку наличия БД с именем - ', ${dID}`);
@@ -374,7 +377,7 @@ const handlePost = async (clientId, data) => {
           } else {
             logger.logDevMessage(`[messageHandlers] - handlePost - База данных "${dID}" существует.`);
 
-                          // Проверяем существование таблиц config и data в базе dID
+        // Проверяем существование таблиц config и data в базе dID
           const tablesToCheck = ['config', 'data'];
           let allTablesExist = true;
 
@@ -445,14 +448,16 @@ const handlePost = async (clientId, data) => {
         }
     break;
     case 'setpoints':
-      logger.logDevMessage(`[messageHandlers] - handlePost - Request - setpoint`);
+      logger.logDevMessage(`[messageHandlers] - handlePost - Request - setpoint`); 
       try {
-        const dID = data.name;
-        const { room, param, value } = data.payload;
+        //const { room, param, value } = data.payload;
         logger.logDevMessage(`[messageHandlers] - handlePost - Получены данные:', ${data}, 'dID -', ${dID}`);
         
         // Читаем данные из конфигурационного файла на диске
         const { data: configData, filePath } = await readFileSafely(dID, 'config');
+        // const printData = JSON.parse(configData);
+        // console.log(`[messageHandlers] - handlePost - Читаем данные ${printData}`);
+        console.log(`[messageHandlers] - handlePost - Читаем данные из ${filePath}`);
 
         // Обновляем значение setpoint
         if (configData[room] && configData[room].setpoints) {
@@ -461,15 +466,27 @@ const handlePost = async (clientId, data) => {
             type: configData[room].setpoints[param]?.type || 'number',
             lastUpdate: new Date().toString()
           };
+          const updatedData = configData[room].setpoints[param];
+          console.log(`[messageHandlers] - handlePost - Обновляем значение setpoint:`, updatedData);
         }
           // Сохраняем обновленный конфиг
           const dataString = JSON.stringify(configData, null, 2);
           await writeFileSafely(filePath, dataString);
+        
+        // ✅ ОТПРАВЛЯЕМ ОБНОВЛЕННУЮ КОНФИГУРАЦИЮ КЛИЕНТУ
+        wsManager.sendToConnection(
+          'VUE_connections',
+          clientId,
+          'response',
+          'config',  // отправляем как обновление конфига
+          dID,
+          configData  // отправляем весь обновленный конфиг
+        );
 
 
         } catch (error) {
             logger.logErrorMessage(`[messageHandlers] - handlePost - Ошибка обработки setpoint:', ${error}`);
-          wsManager.sendToConnection(clientId, 'error', 'setpointError', data.name, {
+          wsManager.sendToConnection('VUE_connections', clientId, 'error', 'setpointError', data.name, {
             message: error.message
           });
             // sendError(ws, 'setpointError', data.name, {
@@ -478,13 +495,10 @@ const handlePost = async (clientId, data) => {
         }
     break;
     case 'addSchedule':
-      console.log(`[messageHandlers] - handlePost - Request - addSchedule`);
-      //logger.logDevMessage(`[messageHandlers] - handlePost - Request - addSchedule`);
-      const { name} = data;
-      console.log(`[messageHandlers] - handlePost - Получены данные:', ${JSON.stringify(data.payload.schedules, null, 2)}, 'name -', ${name}`);
-      const { roomKey, paramKey } = data.payload;
+      console.log(`[messageHandlers] - handlePost - Получены данные:', ${JSON.stringify(data.payload.schedules, null, 2)}, 'name -', ${dID}`);
+      //const { roomKey, paramKey } = data.payload;
       // Читаем данные из конфигурационного файла на диске
-      const schedulesData = await readFileSafely(name, 'schedules');
+      const schedulesData = await readFileSafely(dID, 'schedules');
       console.log(`[messageHandlers] - handlePost - Читаем конфигурацию из хранилища  schedulesData:`, JSON.stringify(schedulesData.data, null, 2));
 
       const scheduleItem = {
@@ -492,15 +506,15 @@ const handlePost = async (clientId, data) => {
       };
           console.log(`[messageHandlers] - handlePost - scheduleItem:`, scheduleItem);
         // Создаем или обновляем структуру в store
-        if (!schedulesData.data[roomKey]) {
-            schedulesData.data[roomKey] = {};
+        if (!schedulesData.data[room]) {
+            schedulesData.data[room] = {};
         }
-        if (!schedulesData.data[roomKey][paramKey]) {
-            schedulesData.data[roomKey][paramKey] = [];
+        if (!schedulesData.data[room][param]) {
+            schedulesData.data[room][param] = [];
         }
         
         // Добавляем новое расписание
-        schedulesData.data[roomKey][paramKey].push(scheduleItem);
+        schedulesData.data[room][param].push(scheduleItem);
         console.log(`[messageHandlers] - handlePost - Обновленное расписание schedulesData:`, schedulesData.data);
         
         // Сохраняем обновленный конфиг
@@ -616,9 +630,34 @@ const handlePost = async (clientId, data) => {
             });
         }
         break;
-    case 'updateSchedule':
-        console.log(`[messageHandlers] - handlePost - Request - updateSchedule`);
+    case 'schedules':
+        //Запрос на обновление расписания
+        console.log(`[messageHandlers] - handlePost - Получены данные:', ${JSON.stringify(data.payload.schedules, null, 2)}, 'name -', ${dID}`);
+        // const room = data?.payload?.room;
+        // const param = data?.payload?.param;
+        // const id = data?.payload?.id;
+        // const value_name = data?.payload?.value_name;
+        // const value = data?.payload?.value;
+        // Читаем данные из конфигурационного файла на диске
+        const schedulesData2 = await readFileSafely(dID, 'schedules');
+       //console.log(`[messageHandlers] - handlePost - Читаем конфигурацию из хранилища  schedulesData:`, JSON.stringify(schedulesData2.data, null, 2));
 
+        if(!schedulesData2.data[room][param]) {
+            console.log(`[messageHandlers] - handlePost - Ошибка параметр ${param} отсутствует в конфигурации комнаты ${room}`);
+        } 
+        // Находим расписание по ID в массиве
+        const scheduleIndex = schedulesData2.data[room][param].findIndex(s => s.id === id);
+        if (scheduleIndex === -1) {
+            console.error(`[messageHandlers] - handlePost - Расписание с ID ${id} не найдено`);
+            wsManager.sendToConnection('VUE_connections', clientId, 'error', 'updateScheduleError', dID, {
+                message: `Расписание с ID ${id} не найдено`
+            });
+            break;
+        }
+        console.log(`[messageHandlers] - handlePost - Находим расписание по ID в массиве:`, JSON.stringify(schedulesData2.data[room][param][scheduleIndex], null, 2));
+
+        schedulesData2.data[room][param][scheduleIndex][value_name] = value;
+        console.log(`[messageHandlers] - handlePost - Обновили значение переменной ${value_name} в расписании комнаты ${room} параметра ${param}:`, JSON.stringify(schedulesData2.data[room][param], null, 2));
         break;
 
 

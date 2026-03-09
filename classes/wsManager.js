@@ -256,7 +256,8 @@ class WsManager {
 
         const messageString = typeof response === 'string' ? response : JSON.stringify(response);
         ws.send(messageString);
-        console.log ('[WsManager] - sendToConnection - Отправлено сообщение', response);
+        //console.log ('[WsManager] - sendToConnection - Отправлено сообщение', response);
+        console.log ('[WsManager] - sendToConnection - Отправлено сообщение', response.type, response.request, response.name);
         return true;
       } catch (error) {
         console.error(`[WsManager] - sendToConnection - Error sending to ${clientId}:`, error);
