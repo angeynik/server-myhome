@@ -294,7 +294,7 @@ const handlePost = async (clientId, data) => {
     logger.logDevMessage(`[messageHandlers] - handlePost - Переходим к проверке сообщения типа post, request - ', ${data.request}`);
     console.log('[messageHandlers] - handlePost - Request - ', data?.request);
     let dID = data.name;
-    let { room, param, value, value_name, id } = data.payload;
+    let { room, param, value, value_name, id, value_type } = data.payload;
   switch (data?.request) {
     case 'createUser':
         logger.logDevMessage(`[messageHandlers] - handlePost - Request - createUser`);
@@ -652,7 +652,8 @@ const handlePost = async (clientId, data) => {
         console.log(`[messageHandlers] - handlePost - Находим расписание по ID в массиве:`, JSON.stringify(schedulesData2.data[room][param][scheduleIndex], null, 2));
 
         schedulesData2.data[room][param][scheduleIndex][value_name] = value;
-        console.log(`[messageHandlers] - handlePost - Обновили значение переменной ${value_name} в расписании комнаты ${room} параметра ${param}:`, JSON.stringify(schedulesData2.data[room][param], null, 2));
+        schedulesData2.data[room][param][scheduleIndex].value_type = value_type;
+        console.log(`[messageHandlers] - handlePost - Обновили значение переменной ${value_name} с типом ${value_type} в расписании комнаты ${room} параметра ${param}:`, JSON.stringify(schedulesData2.data[room][param], null, 2));
         break;
 
 
