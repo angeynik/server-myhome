@@ -40,7 +40,7 @@ async function writeFileSafely(filePath, content) {
 }
 
 async function readFileSafely(dID, typeConfig) {
-    console.log(` [ConfigStore] - readFileSafely - # начинаем для ${typeConfig}`);
+    console.log(` [ConfigStore] - readFileSafely - Читаем конфигурацию для ${typeConfig}`);
     await ensureDataDir();
     let filePath = '';
     

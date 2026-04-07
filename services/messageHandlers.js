@@ -294,7 +294,7 @@ const handlePost = async (clientId, data) => {
     logger.logDevMessage(`[messageHandlers] - handlePost - Переходим к проверке сообщения типа post, request - ', ${data.request}`);
     console.log('[messageHandlers] - handlePost - Request - ', data?.request);
     let dID = data.name;
-    let { room, param, value, value_name, id, value_type } = data.payload;
+    let { room, param, value, value_name, id, value_type, setpointKey } = data.payload;
   switch (data?.request) {
     case 'createUser':
         logger.logDevMessage(`[messageHandlers] - handlePost - Request - createUser`);
@@ -460,13 +460,14 @@ const handlePost = async (clientId, data) => {
         console.log(`[messageHandlers] - handlePost - Читаем данные из ${filePath}`);
 
         // Обновляем значение setpoint
+        console.log(`[messageHandlers] - handlePost - param ${param} setpointKey ${setpointKey}`);
         if (configData[room] && configData[room].setpoints) {
-          configData[room].setpoints[param] = {
+          configData[room].setpoints[setpointKey] = {
             value: value,
-            type: configData[room].setpoints[param]?.type || 'number',
+            type: configData[room].setpoints[setpointKey]?.type || 'number',
             lastUpdate: new Date().toString()
           };
-          const updatedData = configData[room].setpoints[param];
+          const updatedData = configData[room].setpoints[setpointKey];
           console.log(`[messageHandlers] - handlePost - Обновляем значение setpoint:`, updatedData);
         }
           // Сохраняем обновленный конфиг
