@@ -8,22 +8,22 @@
         "high": 30,
         "step": 1
       },
-      "sTemp": {
+      "dTemp": {
         "low": 8,
         "high": 36,
         "step": 0.25
       },
-      "sHum": {
+      "dHum": {
         "low": 12,
         "high": 60,
         "step": 0.5
       },
-      "sActuator": {
+      "dActuator": {
         "low": 0,
         "high": 100,
         "step": 0.1
       },
-      "sBool": {
+      "dBool": {
         "low": 0,
         "high": 1,
         "step": 1
@@ -63,9 +63,9 @@
     },
     "setpoints": {
       "sTemp": {
-        "value": "16.4",
+        "value": "23.4",
         "type": "num",
-        "lastUpdate": "Tue Apr 07 2026 21:37:03 GMT+0300 (Moscow Standard Time)"
+        "lastUpdate": "Wed Apr 08 2026 10:22:36 GMT+0300 (Moscow Standard Time)"
       },
       "dTemp": {
         "value": "17.0",
@@ -80,9 +80,9 @@
     "group": "Дети",
     "setpoints": {
       "sTemp": {
-        "value": 22.6,
+        "value": "23.4",
         "type": "num",
-        "lastUpdate": "Fri Feb 27 2026 10:57:39 GMT+0300 (Москва, стандартное время)"
+        "lastUpdate": "Wed Apr 08 2026 10:22:45 GMT+0300 (Moscow Standard Time)"
       },
       "dCurSetpoint": {
         "value": 24,
@@ -90,9 +90,9 @@
         "lastUpdate": "Sun Dec 21 2025 22:29:14 GMT+0300 (Москва, стандартное время)"
       },
       "sHum": {
-        "value": 45,
+        "value": "43.5",
         "type": "num",
-        "lastUpdate": "Fri Feb 27 2026 10:57:48 GMT+0300 (Москва, стандартное время)"
+        "lastUpdate": "Wed Apr 08 2026 10:22:51 GMT+0300 (Moscow Standard Time)"
       },
       "dHum": {
         "value": 46,
@@ -282,14 +282,14 @@
     },
     "setpoints": {
       "sTemp": {
-        "value": 20.5,
+        "value": "19.1",
         "type": "num",
-        "lastUpdate": "Wed Feb 25 2026 14:10:38 GMT+0300 (Москва, стандартное время)"
+        "lastUpdate": "Wed Apr 08 2026 10:27:03 GMT+0300 (Moscow Standard Time)"
       },
       "sHum": {
-        "value": 50.5,
+        "value": "47.5",
         "type": "num",
-        "lastUpdate": "Wed Feb 25 2026 14:11:03 GMT+0300 (Москва, стандартное время)"
+        "lastUpdate": "Wed Apr 08 2026 10:26:51 GMT+0300 (Moscow Standard Time)"
       },
       "dHum": {
         "value": "52.5",

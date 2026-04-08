@@ -74,7 +74,7 @@ async function handlePostNodeRED(clientId, message) {
         data[room][request][item_name] = {
             value: item_value,
             type: item_type,
-            lastUpdate: new Date().toString()
+            lastUpdate: new Date().toLocaleString('ru-RU', { timeZone: 'Europe/Moscow' })
         };
 
         logger.logDevMessage(`[messageHandlers] - handlePostNodeRED - Добавлен ${request}: ${item_name} в объект ${request}`);
@@ -465,7 +465,7 @@ const handlePost = async (clientId, data) => {
           configData[room].setpoints[setpointKey] = {
             value: value,
             type: configData[room].setpoints[setpointKey]?.type || 'number',
-            lastUpdate: new Date().toString()
+            lastUpdate: new Date().toLocaleString('ru-RU', { timeZone: 'Europe/Moscow' })
           };
           const updatedData = configData[room].setpoints[setpointKey];
           console.log(`[messageHandlers] - handlePost - Обновляем значение setpoint:`, updatedData);
@@ -525,10 +525,9 @@ const handlePost = async (clientId, data) => {
         // Отправляем обновленные данные клиенту
         wsManager.sendToConnection('VUE_connections', clientId, 'response', 'schedules', data.name, schedulesData.data);
     break;
-
     case 'delSchedule':
-        console.log(`[messageHandlers] - handlePost - Request - delSchedule`);
-        
+        console.log(`530 - [messageHandlers] - handlePost - Request - delSchedule - ${data.payload}`);
+
         try {
             // const { name } = data;
             const { scheduleIds } = data.payload;
@@ -656,7 +655,72 @@ const handlePost = async (clientId, data) => {
         schedulesData2.data[room][param][scheduleIndex].value_type = value_type;
         console.log(`[messageHandlers] - handlePost - Обновили значение переменной ${value_name} с типом ${value_type} в расписании комнаты ${room} параметра ${param}:`, JSON.stringify(schedulesData2.data[room][param], null, 2));
         break;
-
+    case 'addNotifications':
+        //logger.logDevMessage(`[messageHandlers] - handlePost - addNotifications`);
+        console.log(`[messageHandlers] - handlePost - addNotifications`);
+        try {
+          //logger.logDevMessage(`[messageHandlers] - handlePost - Получены данные:', ${data.payload}`);
+          console.log(`[messageHandlers] - handlePost - Получены данные:', ${data.payload}`);
+        } catch (error) {
+          //logger.logErrorMessage(`[messageHandlers] - handlePost - Ошибка обработки addNotifications:', ${error}`);
+          console.error(`[messageHandlers] - handlePost - Ошибка обработки addNotifications:', ${error}`);
+        }
+        break;
+    case 'delNotifications':
+        //logger.logDevMessage(`[messageHandlers] - handlePost - delNotifications`);
+        console.log(`[messageHandlers] - handlePost - delNotifications`);
+        try {
+          //logger.logDevMessage(`[messageHandlers] - handlePost - Получены данные:', ${data.payload}`);
+          console.log(`[messageHandlers] - handlePost - Получены данные:', ${data.payload}`);
+        } catch (error) {
+          //logger.logErrorMessage(`[messageHandlers] - handlePost - Ошибка обработки delNotifications:', ${error}`);
+          console.error(`[messageHandlers] - handlePost - Ошибка обработки delNotifications:', ${error}`);
+        }
+        break;
+    case 'updateNotifications':
+        //logger.logDevMessage(`[messageHandlers] - handlePost - updateNotifications`);
+        console.log(`[messageHandlers] - handlePost - updateNotifications`);
+        try {
+          //logger.logDevMessage(`[messageHandlers] - handlePost - Получены данные:', ${data.payload}`);
+          console.log(`[messageHandlers] - handlePost - Получены данные:', ${data.payload}`);
+        } catch (error) {
+          //logger.logErrorMessage(`[messageHandlers] - handlePost - Ошибка обработки Notifications:', ${error}`);
+          console.error(`[messageHandlers] - handlePost - Ошибка обработки Notifications:', ${error}`);
+        }
+        break;
+    case 'addStatistics':
+        //logger.logDevMessage(`[messageHandlers] - handlePost - addStatistics`);
+        console.log(`[messageHandlers] - handlePost - addStatistics`);
+        try {
+          //logger.logDevMessage(`[messageHandlers] - handlePost - Получены данные:', ${data.payload}`);
+          console.log(`[messageHandlers] - handlePost - Получены данные:', ${data.payload}`);
+        } catch (error) {
+          //logger.logErrorMessage(`[messageHandlers] - handlePost - Ошибка обработки notifications:', ${error}`);
+          console.error(`[messageHandlers] - handlePost - Ошибка обработки Statistics:', ${error}`);
+        }
+        break;
+    case 'delStatistics':
+        //logger.logDevMessage(`[messageHandlers] - handlePost - delStatistics`);
+        console.log(`[messageHandlers] - handlePost - delStatistics`);
+        try {
+          //logger.logDevMessage(`[messageHandlers] - handlePost - Получены данные:', ${data.payload}`);
+          console.log(`[messageHandlers] - handlePost - Получены данные:', ${data.payload}`);
+        } catch (error) {
+          //logger.logErrorMessage(`[messageHandlers] - handlePost - Ошибка обработки notifications:', ${error}`);
+          console.error(`[messageHandlers] - handlePost - Ошибка обработки Statistics:', ${error}`);
+        }
+        break;
+    case 'updateStatistics':
+        //logger.logDevMessage(`[messageHandlers] - handlePost - updateStatistics`);
+        console.log(`[messageHandlers] - handlePost - updateStatistics`);
+        try {
+          //logger.logDevMessage(`[messageHandlers] - handlePost - Получены данные:', ${data.payload}`);
+          console.log(`[messageHandlers] - handlePost - Получены данные:', ${data.payload}`);
+        } catch (error) {
+          //logger.logErrorMessage(`[messageHandlers] - handlePost - Ошибка обработки notifications:', ${error}`);
+          console.error(`[messageHandlers] - handlePost - Ошибка обработки Statistics:', ${error}`);
+        }
+        break;
 
 
         
@@ -715,7 +779,7 @@ const handleResponse = async (clientId, data) => {
                     //continue;
                 };
                   // 3. Создание новой записи
-                  const currentDate = new Date().toISOString();
+                  const currentDate = new Date().toLocaleString('ru-RU', { timeZone: 'Europe/Moscow' });
                   const result = await DBManager.query(
                       `INSERT INTO config (name, file, update_date)
                        VALUES ($1, $2, $3)
