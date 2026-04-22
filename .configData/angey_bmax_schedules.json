@@ -26,8 +26,8 @@
     "dTemp": [
       {
         "id": 1,
-        "startTime": "19:9",
-        "endTime": "15:19",
+        "startTime": "18:18",
+        "endTime": "18:19",
         "value": "-0.3",
         "unit": "",
         "room": "room06",
@@ -47,8 +47,7 @@
         "id": 2,
         "startTime": "15:20",
         "endTime": "15:30",
-        "value": 0,
-        "value_type": "absolute",
+        "value": "-0.3",
         "unit": "",
         "room": "room06",
         "param": "dTemp",
@@ -66,8 +65,7 @@
         "id": 3,
         "startTime": "15:43",
         "endTime": "15:53",
-        "value": 22.6,
-        "value_type": "absolute",
+        "value": "26.1",
         "unit": "",
         "room": "room06",
         "param": "dTemp",
@@ -85,8 +83,7 @@
         "id": 4,
         "startTime": "15:54",
         "endTime": "16:04",
-        "value": 0,
-        "value_type": "absolute",
+        "value": "8.1",
         "unit": "",
         "room": "room06",
         "param": "dTemp",
@@ -104,13 +101,31 @@
         "id": 5,
         "startTime": "14:26",
         "endTime": "14:36",
-        "value": "17:20",
-        "value_type": "absolute",
+        "value": "18.4",
         "unit": "",
         "room": "room06",
         "param": "dTemp",
         "createdAt": "25.03.2026, 14:25:39",
         "updatedAt": "25.03.2026, 14:25:39",
+        "days": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      {
+        "id": 6,
+        "startTime": "15:05",
+        "endTime": "15:15",
+        "value": "23.6",
+        "value_type": "absolute",
+        "unit": "",
+        "room": "room06",
+        "param": "dTemp",
+        "createdAt": "22.04.2026, 15:04:18",
+        "updatedAt": "22.04.2026, 15:04:18",
         "days": [
           1,
           2,
@@ -168,7 +183,6 @@
         "startTime": "15:16",
         "endTime": "15:26",
         "value": 50.5,
-        "value_type": "absolute",
         "unit": "",
         "room": "room07",
         "param": "dHum",
@@ -183,16 +197,15 @@
         ]
       },
       {
-        "id": 3,
-        "startTime": "16:05",
-        "endTime": "16:15",
-        "value": 47.5,
-        "value_type": "absolute",
+        "id": 6,
+        "startTime": "22:44",
+        "endTime": "22:46",
+        "value": "47.0",
         "unit": "",
         "room": "room07",
         "param": "dHum",
-        "createdAt": "08.04.2026, 16:04:00",
-        "updatedAt": "08.04.2026, 16:04:00",
+        "createdAt": "22.04.2026, 22:34:07",
+        "updatedAt": "22.04.2026, 22:34:07",
         "days": [
           1,
           2,
@@ -202,16 +215,16 @@
         ]
       },
       {
-        "id": 4,
-        "startTime": "16:17",
-        "endTime": "16:27",
-        "value": 0,
-        "value_type": "absolute",
+        "id": 7,
+        "startTime": "22:46",
+        "endTime": "22:56",
+        "value": "0.650",
+        "value_type": "deviation",
         "unit": "",
         "room": "room07",
         "param": "dHum",
-        "createdAt": "08.04.2026, 16:16:27",
-        "updatedAt": "08.04.2026, 16:16:27",
+        "createdAt": "22.04.2026, 22:34:21",
+        "updatedAt": "22.04.2026, 22:34:21",
         "days": [
           1,
           2,
@@ -259,63 +272,6 @@
           4,
           5
         ]
-      },
-      {
-        "id": 4,
-        "startTime": "15:50",
-        "endTime": "16:00",
-        "value": 0,
-        "value_type": "absolute",
-        "unit": "",
-        "room": "room07",
-        "param": "dTemp",
-        "createdAt": "08.04.2026, 15:49:47",
-        "updatedAt": "08.04.2026, 15:49:47",
-        "days": [
-          1,
-          2,
-          3,
-          4,
-          5
-        ]
-      },
-      {
-        "id": 5,
-        "startTime": "15:50",
-        "endTime": "16:00",
-        "value": 0,
-        "value_type": "absolute",
-        "unit": "",
-        "room": "room07",
-        "param": "dTemp",
-        "createdAt": "08.04.2026, 15:49:50",
-        "updatedAt": "08.04.2026, 15:49:50",
-        "days": [
-          1,
-          2,
-          3,
-          4,
-          5
-        ]
-      },
-      {
-        "id": 6,
-        "startTime": "16:04",
-        "endTime": "16:14",
-        "value": 0,
-        "value_type": "absolute",
-        "unit": "",
-        "room": "room07",
-        "param": "dTemp",
-        "createdAt": "08.04.2026, 16:03:48",
-        "updatedAt": "08.04.2026, 16:03:48",
-        "days": [
-          1,
-          2,
-          3,
-          4,
-          5
-        ]
       }
     ]
   },
@@ -324,7 +280,7 @@
       {
         "id": 1,
         "startTime": "17:47",
-        "endTime": "18:57",
+        "endTime": "20:21",
         "value": "18.3",
         "unit": "",
         "room": "room01",
