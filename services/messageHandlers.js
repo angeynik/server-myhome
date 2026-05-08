@@ -294,7 +294,8 @@ const handlePost = async (clientId, data) => {
     logger.logDevMessage(`[messageHandlers] - handlePost - Переходим к проверке сообщения типа post, request - ', ${data.request}`);
     console.log('[messageHandlers] - handlePost - Request - ', data?.request);
     let dID = data.name;
-    let { room, param, value, value_name, id, value_type, setpointKey } = data.payload;
+    let { room, param, value, value_name, id, value_type, setKey } = data.payload;
+    console.log('[messageHandlers] - handlePost - setpointKey', setKey);
     
     let fileUpdateNeeded = false;
     let filePath = '';
@@ -517,12 +518,12 @@ const handlePost = async (clientId, data) => {
                 console.log(`[messageHandlers] - handlePost - Читаем данные из ${cfgPath}`);
 
                 if (configData[room] && configData[room].setpoints) {
-                    configData[room].setpoints[setpointKey] = {
+                    configData[room].setpoints[setKey] = {
                         value: value,
-                        type: configData[room].setpoints[setpointKey]?.type || 'number',
+                        type: configData[room].setpoints[setKey]?.type || 'number',
                         lastUpdate: new Date().toLocaleString('ru-RU', { timeZone: 'Europe/Moscow' })
                     };
-                    console.log(`[messageHandlers] - handlePost - Обновляем значение setpoint:`, configData[room].setpoints[setpointKey]);
+                    console.log(`[messageHandlers] - handlePost - Обновляем значение setpoint:`, configData[room].setpoints[setKey]);
                 }
 
                 // Подготавливаем отложенную запись и отправку

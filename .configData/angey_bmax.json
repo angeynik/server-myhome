@@ -63,14 +63,19 @@
     },
     "setpoints": {
       "sTemp": {
-        "value": "23.4",
+        "value": "25.4",
         "type": "num",
-        "lastUpdate": "Wed Apr 08 2026 10:22:36 GMT+0300 (Moscow Standard Time)"
+        "lastUpdate": "08.05.2026, 11:25:54"
       },
       "dTemp": {
         "value": "17.0",
         "type": "number",
         "lastUpdate": "Tue Apr 07 2026 21:35:08 GMT+0300 (Moscow Standard Time)"
+      },
+      "undefined": {
+        "value": "23.6",
+        "type": "number",
+        "lastUpdate": "08.05.2026, 11:24:30"
       }
     }
   },
@@ -105,9 +110,9 @@
         "lastUpdate": "Wed Mar 04 2026 13:54:17 GMT+0300 (Москва, стандартное время)"
       },
       "undefined": {
-        "value": "23.1",
+        "value": "23.6",
         "type": "number",
-        "lastUpdate": "22.04.2026, 16:18:28"
+        "lastUpdate": "23.04.2026, 09:24:07"
       }
     },
     "sensors": {
