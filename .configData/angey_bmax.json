@@ -63,9 +63,9 @@
     },
     "setpoints": {
       "sTemp": {
-        "value": "25.4",
+        "value": "27.150",
         "type": "num",
-        "lastUpdate": "08.05.2026, 11:25:54"
+        "lastUpdate": "13.05.2026, 20:48:44"
       },
       "dTemp": {
         "value": "17.0",
@@ -85,9 +85,9 @@
     "group": "Дети",
     "setpoints": {
       "sTemp": {
-        "value": "23.4",
+        "value": "25.150",
         "type": "num",
-        "lastUpdate": "Wed Apr 08 2026 10:22:45 GMT+0300 (Moscow Standard Time)"
+        "lastUpdate": "13.05.2026, 20:56:37"
       },
       "dCurSetpoint": {
         "value": 24,
