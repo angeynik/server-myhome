@@ -18,6 +18,7 @@ const { writeFileSafely, readFileSafely  } = require('./configStore');
 const { nodeRedClients  } = require('./clientsStore');
 //const { sendSuccess, sendError, sendRequest} = require('./wsHelpers');
 const { type } = require('os');
+const { error } = require('console');
 // Получаем список имен конфигов из переменной окружения
 const configNames = JSON.parse(process.env.DB_CONFIG_NAMES || '[]');
 
@@ -294,8 +295,9 @@ const handlePost = async (clientId, data) => {
     logger.logDevMessage(`[messageHandlers] - handlePost - Переходим к проверке сообщения типа post, request - ', ${data.request}`);
     console.log('[messageHandlers] - handlePost - Request - ', data?.request);
     let dID = data.name;
-    let { room, param, value, value_name, id, value_type, setKey } = data.payload;
-    console.log('[messageHandlers] - handlePost - setpointKey', setKey);
+    let { room, param, value, value_name, id, value_type, setKey, updated } = data.payload;
+    console.log ('[messageHandlers] - handlePost - value_type - ', value_type);
+    
     
     let fileUpdateNeeded = false;
     let filePath = '';
@@ -456,64 +458,14 @@ const handlePost = async (clientId, data) => {
           
         }
     break;
-    // case 'setpoints':
-    //   logger.logDevMessage(`[messageHandlers] - handlePost - Request - setpoint`); 
-    //   try {
-    //     //const { room, param, value } = data.payload;
-    //     logger.logDevMessage(`[messageHandlers] - handlePost - Получены данные:', ${data}, 'dID -', ${dID}`);
-        
-    //     // Читаем данные из конфигурационного файла на диске
-    //     const { data: configData, filePath } = await readFileSafely(dID, 'config');
-    //     // const printData = JSON.parse(configData);
-    //     // console.log(`[messageHandlers] - handlePost - Читаем данные ${printData}`);
-    //     console.log(`[messageHandlers] - handlePost - Читаем данные из ${filePath}`);
-
-    //     // Обновляем значение setpoint
-    //     console.log(`[messageHandlers] - handlePost - param ${param} setpointKey ${setpointKey}`);
-    //     if (configData[room] && configData[room].setpoints) {
-    //       configData[room].setpoints[setpointKey] = {
-    //         value: value,
-    //         type: configData[room].setpoints[setpointKey]?.type || 'number',
-    //         lastUpdate: new Date().toLocaleString('ru-RU', { timeZone: 'Europe/Moscow' })
-    //       };
-    //       // const updatedData = configData[room].setpoints[setpointKey];
-    //       // console.log(`[messageHandlers] - handlePost - Обновляем значение setpoint:`, updatedData);
-    //       console.log(`[messageHandlers] - handlePost - Обновляем значение setpoint:`, configData[room].setpoints[setpointKey]);
-    //     }
-    //     // Подготавливаем отложенную запись и отправку
-    //             fileUpdateNeeded = true;
-    //             filePath = cfgPath;
-    //             dataToWrite = JSON.stringify(configData, null, 2);
-    //             responseType = 'response';
-    //             responseRequest = 'config';
-    //             responsePayload = configData;
-
-    //       // Сохраняем обновленный конфиг
-    //       // const dataString = JSON.stringify(configData, null, 2);
-    //       // await writeFileSafely(filePath, dataString);
-        
-    //     // ✅ ОТПРАВЛЯЕМ ОБНОВЛЕННУЮ КОНФИГУРАЦИЮ КЛИЕНТУ
-    //     // wsManager.sendToConnection(
-    //     //   'VUE_connections',
-    //     //   clientId,
-    //     //   'response',
-    //     //   'config',  // отправляем как обновление конфига
-    //     //   dID,
-    //     //   configData  // отправляем весь обновленный конфиг
-    //     // );
-
-
-    //     } catch (error) {
-    //         logger.logErrorMessage(`[messageHandlers] - handlePost - Ошибка обработки setpoint:', ${error}`);
-    //       wsManager.sendToConnection('VUE_connections', clientId, 'error', 'setpointError', data.name, {
-    //         message: error.message
-    //       });
-
-    //     }
-    // break;
     case 'setpoints':
             logger.logDevMessage(`[messageHandlers] - handlePost - Request - setpoint`);
+            console.log('[messageHandlers] - handlePost - case Setpoints - setpointKey', setKey);
+
             try {
+              if (!setKey) {
+                throw new Error(`[messageHandlers] - handlePost - Параметр setKey - ${setKey}`);
+              }
                 const { data: configData, filePath: cfgPath } = await readFileSafely(dID, 'config');
                 console.log(`[messageHandlers] - handlePost - Читаем данные из ${cfgPath}`);
 
@@ -536,146 +488,12 @@ const handlePost = async (clientId, data) => {
 
             } catch (error) {
                 logger.logErrorMessage(`[messageHandlers] - handlePost - Ошибка обработки setpoint: ${error}`);
+                // ✅ ОТПРАВЛЯЕМ ОБНОВЛЕННУЮ КОНФИГУРАЦИЮ КЛИЕНТУ
                 wsManager.sendToConnection('VUE_connections', clientId, 'error', 'setpointError', data.name, {
                     message: error.message
                 });
             }
             break;
-    // case 'addSchedule':
-    //   console.log(`[messageHandlers] - handlePost - Получены данные:', ${JSON.stringify(data.payload.schedules, null, 2)}, 'name -', ${dID}`);
-    //   //const { roomKey, paramKey } = data.payload;
-    //   // Читаем данные из конфигурационного файла на диске
-    //   const schedulesData = await readFileSafely(dID, 'schedules');
-    //   console.log(`[messageHandlers] - handlePost - Читаем конфигурацию из хранилища  schedulesData:`, JSON.stringify(schedulesData.data, null, 2));
-
-    //   const scheduleItem = {
-    //       ...data.payload.schedules // берем структуру данных из полученного запроса на создание элемента расписания
-    //   };
-    //       console.log(`[messageHandlers] - handlePost - scheduleItem:`, scheduleItem);
-    //     // Создаем или обновляем структуру в store
-    //     if (!schedulesData.data[room]) {
-    //         schedulesData.data[room] = {};
-    //     }
-    //     if (!schedulesData.data[room][param]) {
-    //         schedulesData.data[room][param] = [];
-    //     }
-        
-    //     // Добавляем новое расписание
-    //     schedulesData.data[room][param].push(scheduleItem);
-    //     console.log(`[messageHandlers] - handlePost - Обновленное расписание schedulesData:`, schedulesData.data);
-        
-    //     // Сохраняем обновленный конфиг
-    //     const dataString = JSON.stringify(schedulesData.data, null, 2);
-    //     await writeFileSafely(schedulesData.filePath, dataString);
-
-    //     // Отправляем обновленные данные клиенту
-    //     wsManager.sendToConnection('VUE_connections', clientId, 'response', 'schedules', data.name, schedulesData.data);
-    // break;
-    // case 'delSchedule':
-    //     console.log(`530 - [messageHandlers] - handlePost - Request - delSchedule - ${data.payload}`);
-
-    //     try {
-    //         // const { name } = data;
-    //         const { scheduleIds } = data.payload;
-            
-    //         console.log(`[messageHandlers] - handlePost - Получены данные для удаления расписания:`, {
-    //             dID,
-    //             room,
-    //             param,
-    //             scheduleIds
-    //         });
-            
-    //         // Проверяем обязательные поля
-    //         if (!room || !param || !scheduleIds || !Array.isArray(scheduleIds)) {
-    //             throw new Error('Отсутствуют обязательные поля: roomKey, paramKey или scheduleIds (должен быть массив)');
-    //         }
-            
-    //         // Читаем данные из конфигурационного файла на диске
-    //         const schedulesData = await readFileSafely(dID, 'schedules');
-    //         console.log(`[messageHandlers] - handlePost - Читаем конфигурацию из хранилища schedulesData:`, JSON.stringify(schedulesData.data, null, 2));
-            
-    //         // Проверяем существование комнаты и параметра
-    //         if (!schedulesData.data[room]) {
-    //             throw new Error(`Комната ${room} не найдена в расписаниях`);
-    //         }
-            
-    //         if (!schedulesData.data[room][param]) {
-    //             throw new Error(`Параметр ${param} не найден в комнате ${room}`);
-    //         }
-            
-    //         const currentSchedules = schedulesData.data[room][param];
-            
-    //         // Фильтруем расписания, оставляем только те, у которых id НЕ входит в массив scheduleIds
-    //         const filteredSchedules = currentSchedules.filter(schedule => {
-    //             return !(schedule.id !== undefined && scheduleIds.includes(schedule.id));
-    //         });
-            
-    //         // Проверяем, что были найдены и удалены элементы
-    //         if (filteredSchedules.length === currentSchedules.length) {
-    //             console.log(`[messageHandlers] - handlePost - Не найдено расписаний с указанными id для удаления:`, scheduleIds);
-                
-    //             // Все равно отправляем текущие данные клиенту (без изменений)
-    //             wsManager.sendToConnection('VUE_connections', clientId, 'response', 'schedules', data.name, schedulesData.data);
-                
-    //             // Отдельное сообщение о том, что элементы не найдены
-    //             wsManager.sendToConnection('VUE_connections', clientId, 'response', 'delScheduleNoMatch', data.name, {
-    //                 message: `Не найдено расписаний с указанными id: ${scheduleIds.join(', ')}`,
-    //                 room,
-    //                 param,
-    //                 scheduleIds,
-    //                 removedCount: 0
-    //             });
-                
-    //             break;
-    //         }
-            
-    //         // Обновляем данные
-    //         schedulesData.data[room][param] = filteredSchedules;
-            
-    //         // Подсчитываем количество удаленных элементов
-    //         const removedCount = currentSchedules.length - filteredSchedules.length;
-            
-    //         // Если после удаления массив стал пустым, можно удалить сам параметр или комнату
-    //         if (filteredSchedules.length === 0) {
-    //             delete schedulesData.data[room][param];
-                
-    //             // Если в комнате больше нет параметров, удаляем комнату
-    //             if (Object.keys(schedulesData.data[room]).length === 0) {
-    //                 delete schedulesData.data[room];
-    //             }
-    //         }
-            
-    //         console.log(`[messageHandlers] - handlePost - Обновленное расписание schedulesData после удаления:`, schedulesData.data);
-            
-    //         // Сохраняем обновленный конфиг
-    //         const dataString = JSON.stringify(schedulesData.data, null, 2);
-    //         await writeFileSafely(schedulesData.filePath, dataString);
-            
-    //         // Отправляем обновленные данные клиенту
-    //         wsManager.sendToConnection('VUE_connections', clientId, 'response', 'schedules', data.name, schedulesData.data);
-            
-    //         // Дополнительно отправляем подтверждение об удалении
-    //         wsManager.sendToConnection('VUE_connections', clientId, 'response', 'delScheduleSuccess', data.name, {
-    //             message: `Успешно удалено ${removedCount} элементов расписания`,
-    //             room,
-    //             param,
-    //             scheduleIds,
-    //             removedCount
-    //         });
-            
-    //         console.log(`[messageHandlers] - handlePost - Удалено ${removedCount} элементов расписания из комнаты "${room}", параметр "${param}"`);
-    //         logger.logInfoMessage(`[messageHandlers] - handlePost - Удалено ${removedCount} элементов расписания для пользователя ${dID}, комната ${room}, параметр ${param}`);
-            
-    //     } catch (error) {
-    //         console.error(`[messageHandlers] - handlePost - Ошибка при удалении расписания:`, error);
-    //         logger.logErrorMessage(`[messageHandlers] - handlePost - Ошибка при удалении расписания: ${error.message}`);
-            
-    //         wsManager.sendToConnection('VUE_connections', clientId, 'error', 'delScheduleError', data.name, {
-    //             message: error.message,
-    //             code: 'DEL_SCHEDULE_ERROR'
-    //         });
-    //     }
-    //     break;
     case 'addSchedule':
             console.log(`[messageHandlers] - handlePost - Получены данные:`, JSON.stringify(data.payload.schedules, null, 2));
             try {
@@ -776,7 +594,11 @@ const handlePost = async (clientId, data) => {
 
                 // Обновляем нужное поле
                 schedulesData.data[room][param][scheduleIndex][value_name] = value;
-                schedulesData.data[room][param][scheduleIndex].value_type = value_type;
+                schedulesData.data[room][param][scheduleIndex].updatedAt = updated;
+                if (value_type !== undefined) {
+                    schedulesData.data[room][param][scheduleIndex].value_type = value_type;
+                }
+                
 
                 // Подготовка к отложенной записи
                 fileUpdateNeeded = true;
