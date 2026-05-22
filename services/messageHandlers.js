@@ -522,10 +522,11 @@ const handlePost = async (clientId, data) => {
             break;
 
         // ---------- УДАЛЕНИЕ РАСПИСАНИЯ ----------
-        case 'delSchedule':
-            console.log(`530 - [messageHandlers] - handlePost - Request - delSchedule - ${data.payload}`);
+    case 'delschedules':
+            console.log('Запрос на Удаление - [messageHandlers] - handlePost - Request - delschedules - ', JSON.stringify(data.payload, null, 2));
             try {
                 const { scheduleIds } = data.payload;
+                console.log(`Запрос на Удаление - [messageHandlers] - handlePost - Request - delschedules - Номер удаляемого элемента - ${scheduleIds}`);
                 if (!room || !param || !scheduleIds || !Array.isArray(scheduleIds)) {
                     throw new Error('Отсутствуют обязательные поля: roomKey, paramKey или scheduleIds (должен быть массив)');
                 }
@@ -617,7 +618,7 @@ const handlePost = async (clientId, data) => {
             break;
 
     // ---------- NOTIFICATIONS (аналогично addSchedule) ----------
-case 'addNotifications':
+  case 'addNotifications':
     console.log(`[messageHandlers] - handlePost - addNotifications`);
     try {
         const { notification } = data.payload; // ожидаем объект уведомления с полями room, param, id и др.
@@ -649,10 +650,11 @@ case 'addNotifications':
     }
     break;
 
-case 'delNotifications':
-    console.log(`[messageHandlers] - handlePost - delNotifications`);
+  case 'delnotifications':
+    console.log(`Запрос на Удаление - [messageHandlers] - handlePost - delNotifications`);
     try {
         const { room, param, ids } = data.payload; // ids - массив id уведомлений для удаления
+        console.log('[messageHandlers] - handlePost - delNotifications room:', room, 'param:',param, 'IDs:', ids);
         if (!room || !param || !ids || !Array.isArray(ids)) {
             throw new Error('Missing room, param or ids array');
         }
