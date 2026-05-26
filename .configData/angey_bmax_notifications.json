@@ -3,16 +3,31 @@
     "dTemp": [
       {
         "id": 1,
+        "condition": "equal",
+        "value": 23.9,
+        "notificationСhannel": 2,
+        "frequency": 1,
+        "permission": false,
+        "status": false,
+        "startTime": "21:01",
+        "endTime": "21:11",
+        "createdAt": "26.05.2026, 21:00:52",
+        "updatedAt": "26.05.2026, 21:07:21",
+        "room": "room06",
+        "param": "dTemp"
+      },
+      {
+        "id": 2,
         "condition": "greater_than",
-        "value": "4.9",
+        "value": 23.9,
         "notificationСhannel": 0,
-        "frequency": "5.0",
+        "frequency": 0,
         "permission": true,
         "status": false,
-        "startTime": "16:54",
-        "endTime": "17:04",
-        "createdAt": "26.05.2026, 16:53:25",
-        "updatedAt": "26.05.2026, 16:54:03",
+        "startTime": "21:12",
+        "endTime": "21:22",
+        "createdAt": "26.05.2026, 21:00:53",
+        "updatedAt": "26.05.2026, 21:00:53",
         "room": "room06",
         "param": "dTemp"
       }
