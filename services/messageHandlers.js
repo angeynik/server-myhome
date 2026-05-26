@@ -495,12 +495,13 @@ const handlePost = async (clientId, data) => {
             }
             break;
     case 'addschedules':
-            console.log(`[messageHandlers] - handlePost - Получены данные:`, JSON.stringify(data.payload.schedules, null, 2));
+            console.log(`[messageHandlers] - handlePost - Получены данные:`, JSON.stringify(data.payload.configData, null, 2));
             try {
-                const schedulesData = await readFileSafely(dID, 'schedules');
+              const configName = 'schedules';
+                const schedulesData = await readFileSafely(dID, configName);
                 //console.log(`[messageHandlers] - handlePost - Читаем конфигурацию из хранилища:`, JSON.stringify(schedulesData.data, null, 2));
 
-                const scheduleItem = { ...data.payload.schedules };
+                const scheduleItem = { ...data.payload.configData };
                 if (!schedulesData.data[room]) schedulesData.data[room] = {};
                 if (!schedulesData.data[room][param]) schedulesData.data[room][param] = [];
                 schedulesData.data[room][param].push(scheduleItem);
@@ -510,7 +511,7 @@ const handlePost = async (clientId, data) => {
                 filePath = schedulesData.filePath;
                 dataToWrite = JSON.stringify(schedulesData.data, null, 2);
                 responseType = 'response';
-                responseRequest = 'schedules';
+                responseRequest = configName;
                 responsePayload = schedulesData.data;
 
             } catch (error) {
@@ -525,10 +526,10 @@ const handlePost = async (clientId, data) => {
     case 'delschedules':
             console.log('Запрос на Удаление - [messageHandlers] - handlePost - Request - delschedules - ', JSON.stringify(data.payload, null, 2));
             try {
-                const { scheduleIds } = data.payload;
-                console.log(`Запрос на Удаление - [messageHandlers] - handlePost - Request - delschedules - Номер удаляемого элемента - ${scheduleIds}`);
-                if (!room || !param || !scheduleIds || !Array.isArray(scheduleIds)) {
-                    throw new Error('Отсутствуют обязательные поля: roomKey, paramKey или scheduleIds (должен быть массив)');
+                const { Ids } = data.payload;
+                console.log(`Запрос на Удаление - [messageHandlers] - handlePost - Request - delschedules - Номер удаляемого элемента - ${Ids}`);
+                if (!room || !param || !Ids || !Array.isArray(Ids)) {
+                    throw new Error('Отсутствуют обязательные поля: roomKey, paramKey или Ids (должен быть массив)');
                 }
 
                 const schedulesData = await readFileSafely(dID, 'schedules');
@@ -537,17 +538,17 @@ const handlePost = async (clientId, data) => {
 
                 const currentSchedules = schedulesData.data[room][param];
                 const filteredSchedules = currentSchedules.filter(schedule =>
-                    !(schedule.id !== undefined && scheduleIds.includes(schedule.id))
+                    !(schedule.id !== undefined && Ids.includes(schedule.id))
                 );
 
                 const removedCount = currentSchedules.length - filteredSchedules.length;
                 if (removedCount === 0) {
                     // Нет совпадений – отправляем уведомление, но файл не трогаем
-                    wsManager.sendToConnection('VUE_connections', clientId, 'response', 'delScheduleNoMatch', data.name, {
-                        message: `Не найдено расписаний с указанными id: ${scheduleIds.join(', ')}`,
-                        room, param, scheduleIds, removedCount: 0
-                    });
-                    break; // выходим из case, файл не обновляется
+                  wsManager.sendToConnection('VUE_connections', clientId, 'response', 'delScheduleNoMatch', data.name, {
+                    message: `Не найдено расписаний с указанными id: ${Ids.join(', ')}`,
+                    room, param, Ids, removedCount: 0
+                  });
+                  break; // выходим из case, файл не обновляется
                 }
 
                 // Обновляем структуру
@@ -570,7 +571,7 @@ const handlePost = async (clientId, data) => {
                 // Дополнительно отправляем подтверждение об удалении (сразу, не откладывая)
                 wsManager.sendToConnection('VUE_connections', clientId, 'response', 'delScheduleSuccess', data.name, {
                     message: `Успешно удалено ${removedCount} элементов расписания`,
-                    room, param, scheduleIds, removedCount
+                    room, param, Ids, removedCount
                 });
 
             } catch (error) {
@@ -619,14 +620,14 @@ const handlePost = async (clientId, data) => {
 
     // ---------- NOTIFICATIONS (аналогично addSchedule) ----------
   case 'addnotifications':
-     console.log(`[messageHandlers] - handlePost - Получены данные:`, JSON.stringify(data.payload.schedules, null, 2));
+     console.log(`[messageHandlers] - handlePost - Получены данные:`, JSON.stringify(data.payload.configData, null, 2));
      
             try {
               const configName = 'notifications';
                 const configData = await readFileSafely(dID, configName);
                 //console.log(`[messageHandlers] - handlePost - Читаем конфигурацию из хранилища:`, JSON.stringify(schedulesData.data, null, 2));
 
-                const configItem = { ...data.payload.schedules };
+                const configItem = { ...data.payload.configData };
                 if (!configData.data[room]) configData.data[room] = {};
                 if (!configData.data[room][param]) configData.data[room][param] = [];
                 configData.data[room][param].push(configItem);
@@ -679,57 +680,113 @@ const handlePost = async (clientId, data) => {
   case 'delnotifications':
     console.log(`Запрос на Удаление - [messageHandlers] - handlePost - delNotifications`);
     try {
-        const { room, param, ids } = data.payload; // ids - массив id уведомлений для удаления
-        console.log('[messageHandlers] - handlePost - delNotifications room:', room, 'param:',param, 'IDs:', ids);
-        if (!room || !param || !ids || !Array.isArray(ids)) {
-            throw new Error('Missing room, param or ids array');
-        }
+      const configName = 'notifications';
+        const { Ids } = data.payload;
+        console.log(`Запрос на Удаление - [messageHandlers] - handlePost - Request - delnotifications - Номер удаляемого элемента - ${Ids}`);
+                if (!room || !param || !Ids || !Array.isArray(Ids)) {
+                    throw new Error('Отсутствуют обязательные поля: roomKey, paramKey или Ids (должен быть массив)');
+                }
 
-        const notifData = await readFileSafely(dID, 'notifications');
-        if (!notifData.data[room]?.[param]) {
-            throw new Error(`Notifications for room ${room}, param ${param} not found`);
-        }
+                const configData = await readFileSafely(dID, configName);
+                if (!configData.data[room]) throw new Error(`Комната ${room} не найдена`);
+                if (!configData.data[room][param]) throw new Error(`Параметр ${param} не найден`);
 
-        const currentArray = notifData.data[room][param];
-        const originalLength = currentArray.length;
-        const filtered = currentArray.filter(item => !ids.includes(item.id));
-        const removedCount = originalLength - filtered.length;
+                const currentData = configData.data[room][param];
+                const filteredData = currentData.filter(schedule =>
+                    !(schedule.id !== undefined && Ids.includes(schedule.id))
+                );
 
-        if (removedCount === 0) {
-            wsManager.sendToConnection('VUE_connections', clientId, 'response', 'delNotificationsNoMatch', data.name, {
-                message: `Не найдено уведомлений с указанными id: ${ids.join(', ')}`,
-                room, param, ids, removedCount: 0
-            });
-            break;
-        }
+                const removedCount = currentData.length - filteredData.length;
+                if (removedCount === 0) {
+                    // Нет совпадений – отправляем уведомление, но файл не трогаем
+                  wsManager.sendToConnection('VUE_connections', clientId, 'response', 'delNotificationsNoMatch', data.name, {
+                    message: `Не найдено Уведомлений с указанными id: ${Ids.join(', ')}`,
+                    room, param, Ids, removedCount: 0
+                  });
+                  break; // выходим из case, файл не обновляется
+                }
 
-        // Обновляем массив
-        notifData.data[room][param] = filtered;
-        if (filtered.length === 0) {
-            delete notifData.data[room][param];
-            if (Object.keys(notifData.data[room]).length === 0) {
-                delete notifData.data[room];
+                // Обновляем структуру
+                configData.data[room][param] = filteredData;
+                if (filteredData.length === 0) {
+                    delete configData.data[room][param];
+                    if (Object.keys(configData.data[room]).length === 0) {
+                        delete configData.data[room];
+                    }
+                }
+
+                // Подготовка к отложенной записи и отправке основного обновления
+                fileUpdateNeeded = true;
+                filePath = configData.filePath;
+                dataToWrite = JSON.stringify(configData.data, null, 2);
+                responseType = 'response';
+                responseRequest = configName;
+                responsePayload = configData.data;
+
+                // Дополнительно отправляем подтверждение об удалении (сразу, не откладывая)
+                wsManager.sendToConnection('VUE_connections', clientId, 'response', 'delScheduleSuccess', data.name, {
+                    message: `Успешно удалено ${removedCount} элементов расписания`,
+                    room, param, Ids, removedCount
+                });
+
+            } catch (error) {
+                console.error(`[messageHandlers] - handlePost - Ошибка при удалении расписания:`, error);
+                wsManager.sendToConnection('VUE_connections', clientId, 'error', 'delScheduleError', data.name, {
+                    message: error.message, code: 'DEL_SCHEDULE_ERROR'
+                });
             }
-        }
+    // try {
+    //     const { room, param, ids } = data.payload; // ids - массив id уведомлений для удаления
+    //     console.log('[messageHandlers] - handlePost - delNotifications room:', room, 'param:',param, 'IDs:', ids);
+    //     if (!room || !param || !ids || !Array.isArray(ids)) {
+    //         throw new Error('Missing room, param or ids array');
+    //     }
 
-        fileUpdateNeeded = true;
-        filePath = notifData.filePath;
-        dataToWrite = JSON.stringify(notifData.data, null, 2);
-        responseType = 'response';
-        responseRequest = 'notifications';
-        responsePayload = notifData.data;
+    //     const notifData = await readFileSafely(dID, 'notifications');
+    //     if (!notifData.data[room]?.[param]) {
+    //         throw new Error(`Notifications for room ${room}, param ${param} not found`);
+    //     }
 
-        wsManager.sendToConnection('VUE_connections', clientId, 'response', 'delNotificationsSuccess', data.name, {
-            message: `Успешно удалено ${removedCount} уведомлений`,
-            room, param, ids, removedCount
-        });
+    //     const currentArray = notifData.data[room][param];
+    //     const originalLength = currentArray.length;
+    //     const filtered = currentArray.filter(item => !ids.includes(item.id));
+    //     const removedCount = originalLength - filtered.length;
 
-    } catch (error) {
-        console.error(`[messageHandlers] - handlePost - Ошибка delNotifications:`, error);
-        wsManager.sendToConnection('VUE_connections', clientId, 'error', 'delNotificationsError', data.name, {
-            message: error.message
-        });
-    }
+    //     if (removedCount === 0) {
+    //         wsManager.sendToConnection('VUE_connections', clientId, 'response', 'delNotificationsNoMatch', data.name, {
+    //             message: `Не найдено уведомлений с указанными id: ${ids.join(', ')}`,
+    //             room, param, ids, removedCount: 0
+    //         });
+    //         break;
+    //     }
+
+    //     // Обновляем массив
+    //     notifData.data[room][param] = filtered;
+    //     if (filtered.length === 0) {
+    //         delete notifData.data[room][param];
+    //         if (Object.keys(notifData.data[room]).length === 0) {
+    //             delete notifData.data[room];
+    //         }
+    //     }
+
+    //     fileUpdateNeeded = true;
+    //     filePath = notifData.filePath;
+    //     dataToWrite = JSON.stringify(notifData.data, null, 2);
+    //     responseType = 'response';
+    //     responseRequest = 'notifications';
+    //     responsePayload = notifData.data;
+
+    //     wsManager.sendToConnection('VUE_connections', clientId, 'response', 'delNotificationsSuccess', data.name, {
+    //         message: `Успешно удалено ${removedCount} уведомлений`,
+    //         room, param, ids, removedCount
+    //     });
+
+    // } catch (error) {
+    //     console.error(`[messageHandlers] - handlePost - Ошибка delNotifications:`, error);
+    //     wsManager.sendToConnection('VUE_connections', clientId, 'error', 'delNotificationsError', data.name, {
+    //         message: error.message
+    //     });
+    // }
     break;
 
 case 'updateNotifications':
