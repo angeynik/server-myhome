@@ -194,7 +194,7 @@ const handleGet = async (clientId, data) => {
         // Читаем конфиг
         const configData = await readFileSafely(name, 'config');
         logger.logDevMessage(`[messageHandlers] - handleGet - configData - ', ${configData}`);
-        console.log('[messageHandlers] - handleGet - configData - ', configData);
+        //console.log('[messageHandlers] - handleGet - configData - ', configData);
         
         if (!configData) {
           throw new Error('[messageHandlers] - Failed to read configuration file');
@@ -494,11 +494,11 @@ const handlePost = async (clientId, data) => {
                 });
             }
             break;
-    case 'addSchedule':
+    case 'addschedules':
             console.log(`[messageHandlers] - handlePost - Получены данные:`, JSON.stringify(data.payload.schedules, null, 2));
             try {
                 const schedulesData = await readFileSafely(dID, 'schedules');
-                console.log(`[messageHandlers] - handlePost - Читаем конфигурацию из хранилища:`, JSON.stringify(schedulesData.data, null, 2));
+                //console.log(`[messageHandlers] - handlePost - Читаем конфигурацию из хранилища:`, JSON.stringify(schedulesData.data, null, 2));
 
                 const scheduleItem = { ...data.payload.schedules };
                 if (!schedulesData.data[room]) schedulesData.data[room] = {};
@@ -618,36 +618,62 @@ const handlePost = async (clientId, data) => {
             break;
 
     // ---------- NOTIFICATIONS (аналогично addSchedule) ----------
-  case 'addNotifications':
-    console.log(`[messageHandlers] - handlePost - addNotifications`);
-    try {
-        const { notification } = data.payload; // ожидаем объект уведомления с полями room, param, id и др.
-        if (!notification) throw new Error('Missing notification object');
-        const { room, param } = notification;
-        if (!room || !param) throw new Error('Missing room or param in notification');
+  case 'addnotifications':
+     console.log(`[messageHandlers] - handlePost - Получены данные:`, JSON.stringify(data.payload.schedules, null, 2));
+     
+            try {
+              const configName = 'notifications';
+                const configData = await readFileSafely(dID, configName);
+                //console.log(`[messageHandlers] - handlePost - Читаем конфигурацию из хранилища:`, JSON.stringify(schedulesData.data, null, 2));
 
-        const notifData = await readFileSafely(dID, 'notifications');
-        // Гарантируем структуру
-        if (!notifData.data[room]) notifData.data[room] = {};
-        if (!notifData.data[room][param]) notifData.data[room][param] = [];
+                const configItem = { ...data.payload.schedules };
+                if (!configData.data[room]) configData.data[room] = {};
+                if (!configData.data[room][param]) configData.data[room][param] = [];
+                configData.data[room][param].push(configItem);
 
-        // Добавляем уведомление (клиент должен предоставить id)
-        notifData.data[room][param].push(notification);
+                // Подготовка к отложенной записи
+                fileUpdateNeeded = true;
+                filePath = configData.filePath;
+                dataToWrite = JSON.stringify(configData.data, null, 2);
+                responseType = configName;
+                responseRequest = 'schedules';
+                responsePayload = configData.data;
 
-        fileUpdateNeeded = true;
-        filePath = notifData.filePath;
-        dataToWrite = JSON.stringify(notifData.data, null, 2);
-        responseType = 'response';
-        responseRequest = 'notifications';
-        responsePayload = notifData.data;
+            } catch (error) {
+                console.error(`[messageHandlers] - handlePost - Ошибка добавления расписания:`, error);
+                wsManager.sendToConnection('VUE_connections', clientId, 'error', 'addScheduleError', data.name, {
+                    message: error.message
+                });
+            }
+    // console.log(`[messageHandlers] - handlePost - addNotifications`);
+    // try {
+    //     const { notification } = data.payload; // ожидаем объект уведомления с полями room, param, id и др.
+    //     if (!notification) throw new Error('Missing notification object');
+    //     const { room, param } = notification;
+    //     if (!room || !param) throw new Error('Missing room or param in notification');
 
-        console.log(`[messageHandlers] - handlePost - Уведомление добавлено в ${room}/${param}`);
-    } catch (error) {
-        console.error(`[messageHandlers] - handlePost - Ошибка addNotifications:`, error);
-        wsManager.sendToConnection('VUE_connections', clientId, 'error', 'addNotificationsError', data.name, {
-            message: error.message
-        });
-    }
+    //     const notifData = await readFileSafely(dID, 'notifications');
+    //     // Гарантируем структуру
+    //     if (!notifData.data[room]) notifData.data[room] = {};
+    //     if (!notifData.data[room][param]) notifData.data[room][param] = [];
+
+    //     // Добавляем уведомление (клиент должен предоставить id)
+    //     notifData.data[room][param].push(notification);
+
+    //     fileUpdateNeeded = true;
+    //     filePath = notifData.filePath;
+    //     dataToWrite = JSON.stringify(notifData.data, null, 2);
+    //     responseType = 'response';
+    //     responseRequest = 'notifications';
+    //     responsePayload = notifData.data;
+
+    //     console.log(`[messageHandlers] - handlePost - Уведомление добавлено в ${room}/${param}`);
+    // } catch (error) {
+    //     console.error(`[messageHandlers] - handlePost - Ошибка addNotifications:`, error);
+    //     wsManager.sendToConnection('VUE_connections', clientId, 'error', 'addNotificationsError', data.name, {
+    //         message: error.message
+    //     });
+    // }
     break;
 
   case 'delnotifications':
@@ -889,6 +915,9 @@ case 'updateStatistics':
             // Отправляем обновлённые данные клиенту
             if (responseType && responseRequest && responsePayload) {
                 wsManager.sendToConnection('VUE_connections', clientId, responseType, responseRequest, data.name, responsePayload);
+                console.log('[messageHandlers] - handlePost - Обновленные данные отправлены через wsManager.sendToConnection: responseType',
+                  responseType, ' responseRequest - ', responseRequest, ' dID - ', data.name
+                );
                 logger.logDevMessage(`[messageHandlers] - handlePost - Отправлен ответ ${responseRequest} клиенту ${clientId}`);
             }
         } catch (err) {
