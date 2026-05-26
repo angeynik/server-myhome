@@ -3,66 +3,17 @@
     "dTemp": [
       {
         "id": 1,
-        "value_type": "greater_than",
-        "value": 23.9,
+        "condition": "greater_than",
+        "value": "4.9",
         "notificationСhannel": 0,
-        "frequency": 0,
+        "frequency": "5.0",
         "permission": true,
         "status": false,
-        "startTime": "13:25",
-        "endTime": "13:35",
-        "createdAt": "26.05.2026, 13:24:20",
-        "updatedAt": "26.05.2026, 13:24:20",
+        "startTime": "16:54",
+        "endTime": "17:04",
+        "createdAt": "26.05.2026, 16:53:25",
+        "updatedAt": "26.05.2026, 16:54:03",
         "room": "room06",
-        "param": "dTemp"
-      },
-      {
-        "id": 3,
-        "value_type": "greater_than",
-        "value": 0,
-        "notificationСhannel": 0,
-        "frequency": 0,
-        "permission": true,
-        "status": false,
-        "startTime": "13:47",
-        "endTime": "13:57",
-        "createdAt": "26.05.2026, 13:24:29",
-        "updatedAt": "26.05.2026, 13:24:29",
-        "room": "room06",
-        "param": "dTemp"
-      }
-    ]
-  },
-  "room01": {
-    "dTemp": [
-      {
-        "id": 1,
-        "value_type": "greater_than",
-        "value": 26.65,
-        "notificationСhannel": 0,
-        "frequency": 0,
-        "permission": true,
-        "status": false,
-        "startTime": "13:26",
-        "endTime": "13:36",
-        "createdAt": "26.05.2026, 13:25:53",
-        "updatedAt": "26.05.2026, 13:25:53",
-        "room": "room01",
-        "param": "dTemp"
-      },
-      {
-        "id": 2,
-        "value_type": "greater_than",
-        "value": 26.65,
-        "notificationСhannel": 0,
-        "frequency": 0,
-        "permission": true,
-        "status": false,
-        "startTime": "13:37",
-        "endTime": "13:47",
-        "createdAt": "26.05.2026, 13:25:56",
-        "updatedAt": "26.05.2026, 13:25:56",
-        "room": "room01",
         "param": "dTemp"
       }
     ]

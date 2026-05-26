@@ -306,6 +306,7 @@ const handlePost = async (clientId, data) => {
     let responseRequest = '';         // request ('config', 'schedules', ...)
     let responsePayload = null;       // данные для отправки клиенту
 
+    console.log(`[messageHandlers] - handlePost - `,data?.request, ' : ', JSON.stringify(data.payload, null, 2));
   switch (data?.request) {
     case 'createUser':
         logger.logDevMessage(`[messageHandlers] - handlePost - Request - createUser`);
@@ -495,7 +496,7 @@ const handlePost = async (clientId, data) => {
             }
             break;
     case 'addschedules':
-            console.log(`[messageHandlers] - handlePost - Получены данные:`, JSON.stringify(data.payload.configData, null, 2));
+            //console.log(`[messageHandlers] - handlePost - Получены данные:`, JSON.stringify(data.payload.configData, null, 2));
             try {
               const configName = 'schedules';
                 const schedulesData = await readFileSafely(dID, configName);
@@ -524,7 +525,7 @@ const handlePost = async (clientId, data) => {
 
         // ---------- УДАЛЕНИЕ РАСПИСАНИЯ ----------
     case 'delschedules':
-            console.log('Запрос на Удаление - [messageHandlers] - handlePost - Request - delschedules - ', JSON.stringify(data.payload, null, 2));
+            //console.log('Запрос на Удаление - [messageHandlers] - handlePost - Request - delschedules - ', JSON.stringify(data.payload, null, 2));
             try {
                 const { Ids } = data.payload;
                 console.log(`Запрос на Удаление - [messageHandlers] - handlePost - Request - delschedules - Номер удаляемого элемента - ${Ids}`);
@@ -581,34 +582,35 @@ const handlePost = async (clientId, data) => {
                 });
             }
             break;
-    case 'updateSchedules':
-            console.log(`[messageHandlers] - handlePost - updateSchedules:`, JSON.stringify(data.payload, null, 2));
+    case 'updateschedules':
+            //console.log(`[messageHandlers] - handlePost - updateSchedules:`, JSON.stringify(data.payload, null, 2));
             try {
-                const schedulesData = await readFileSafely(dID, 'schedules');
-                if (!schedulesData.data[room]?.[param]) {
+              const configName = 'schedules';
+                const configData = await readFileSafely(dID, configName);
+                if (!configData.data[room]?.[param]) {
                     throw new Error(`Параметр ${param} отсутствует в комнате ${room}`);
                 }
 
-                const scheduleIndex = schedulesData.data[room][param].findIndex(s => s.id === id);
-                if (scheduleIndex === -1) {
+                const configIndex = configData.data[room][param].findIndex(s => s.id === id);
+                if (configIndex === -1) {
                     throw new Error(`Расписание с ID ${id} не найдено`);
                 }
 
                 // Обновляем нужное поле
-                schedulesData.data[room][param][scheduleIndex][value_name] = value;
-                schedulesData.data[room][param][scheduleIndex].updatedAt = updated;
+                configData.data[room][param][configIndex][value_name] = value;
+                configData.data[room][param][configIndex].updatedAt = updated;
                 if (value_type !== undefined) {
-                    schedulesData.data[room][param][scheduleIndex].value_type = value_type;
+                    configData.data[room][param][configIndex].value_type = value_type;
                 }
                 
 
                 // Подготовка к отложенной записи
                 fileUpdateNeeded = true;
-                filePath = schedulesData.filePath;            // исправлено: используем filePath из schedulesData
-                dataToWrite = JSON.stringify(schedulesData.data, null, 2);
+                filePath = configData.filePath;            // исправлено: используем filePath из configData
+                dataToWrite = JSON.stringify(configData.data, null, 2);
                 responseType = 'response';
-                responseRequest = 'schedules';
-                responsePayload = schedulesData.data;
+                responseRequest = configName;
+                responsePayload = configData.data;
 
             } catch (error) {
                 console.error(`[messageHandlers] - handlePost - Ошибка обновления расписания:`, error);
@@ -620,7 +622,7 @@ const handlePost = async (clientId, data) => {
 
     // ---------- NOTIFICATIONS (аналогично addSchedule) ----------
   case 'addnotifications':
-     console.log(`[messageHandlers] - handlePost - Получены данные:`, JSON.stringify(data.payload.configData, null, 2));
+     //console.log(`[messageHandlers] - handlePost - Получены данные:`, JSON.stringify(data.payload.configData, null, 2));
      
             try {
               const configName = 'notifications';
@@ -678,7 +680,7 @@ const handlePost = async (clientId, data) => {
     break;
 
   case 'delnotifications':
-    console.log(`Запрос на Удаление - [messageHandlers] - handlePost - delNotifications`);
+    //console.log(`Запрос на Удаление - [messageHandlers] - handlePost - delNotifications`);
     try {
       const configName = 'notifications';
         const { Ids } = data.payload;
@@ -789,43 +791,45 @@ const handlePost = async (clientId, data) => {
     // }
     break;
 
-case 'updateNotifications':
-    console.log(`[messageHandlers] - handlePost - updateNotifications`);
-    try {
-        const { room, param, id, updates } = data.payload; // id уведомления, updates - объект с изменениями
-        if (!room || !param || !id || !updates) {
-            throw new Error('Missing room, param, id or updates');
-        }
+case 'updatenotifications':
+    //console.log(`[messageHandlers] - handlePost - updateNotifications`, JSON.stringify(data.payload, null, 2));
+      try {
+              const configName = 'notifications';
+                const configData = await readFileSafely(dID, configName);
+                if (!configData.data[room]?.[param]) {
+                    throw new Error(`Параметр ${param} отсутствует в комнате ${room}`);
+                }
 
-        const notifData = await readFileSafely(dID, 'notifications');
-        if (!notifData.data[room]?.[param]) {
-            throw new Error(`Notifications for room ${room}, param ${param} not found`);
-        }
+                const configIndex = configData.data[room][param].findIndex(s => s.id === id);
+                if (configIndex === -1) {
+                    throw new Error(`Расписание с ID ${id} не найдено`);
+                }
+  console.log('[messageHandlers] - handlePost - updateNotifications - Значение параметра ', 
+  configData.data[room][param][configIndex].value_type ,' в кофигурации: ', 
+  configData.data[room][param][configIndex][value_name]);
+                // Обновляем нужное поле
+                configData.data[room][param][configIndex][value_name] = value;
+                configData.data[room][param][configIndex].updatedAt = updated;
+                // if (value_type !== undefined) {
+                //     configData.data[room][param][configIndex].value_type = value_type;
+                // }
+                
 
-        const index = notifData.data[room][param].findIndex(item => item.id === id);
-        if (index === -1) throw new Error(`Notification with id ${id} not found`);
+                // Подготовка к отложенной записи
+                fileUpdateNeeded = true;
+                filePath = configData.filePath;            // исправлено: используем filePath из configData
+                dataToWrite = JSON.stringify(configData.data, null, 2);
+                responseType = 'response';
+                responseRequest = configName;
+                responsePayload = configData.data;
 
-        // Обновляем, сохраняя остальные поля
-        notifData.data[room][param][index] = {
-            ...notifData.data[room][param][index],
-            ...updates,
-            updatedAt: new Date().toISOString()
-        };
-
-        fileUpdateNeeded = true;
-        filePath = notifData.filePath;
-        dataToWrite = JSON.stringify(notifData.data, null, 2);
-        responseType = 'response';
-        responseRequest = 'notifications';
-        responsePayload = notifData.data;
-
-    } catch (error) {
-        console.error(`[messageHandlers] - handlePost - Ошибка updateNotifications:`, error);
-        wsManager.sendToConnection('VUE_connections', clientId, 'error', 'updateNotificationsError', data.name, {
-            message: error.message
-        });
-    }
-    break;
+            } catch (error) {
+                console.error(`[messageHandlers] - handlePost - Ошибка обновления расписания:`, error);
+                wsManager.sendToConnection('VUE_connections', clientId, 'error', 'updateScheduleError', dID, {
+                    message: error.message
+                });
+            }
+            break;
 
 // ---------- STATISTICS (аналогично addSchedule) ----------
 case 'addStatistics':
