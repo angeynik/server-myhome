@@ -1372,31 +1372,31 @@ const handlePost = async (clientId, data) => {
  
     case 'delstatistics': {
       try {
-        const { room: r, param: p, ids } = data.payload;
-        if (!r || !p || !Array.isArray(ids)) {
-          throw new Error('Отсутствуют обязательные поля: room, param или ids (массив)');
+        const { Ids } = data.payload;
+        if (!room || !param || !Array.isArray(Ids)) {
+          throw new Error('Отсутствуют обязательные поля: room, param или Ids (массив)');
         }
         const { data: cfgData, filePath: cfgPath, removedCount } =
-          await deleteConfigItems(dID, 'statistics', r, p, ids);
+          await deleteConfigItems(dID, 'statistics', room, param, Ids);
  
         if (removedCount === 0) {
-          sendResponse('delStatisticsNoMatch', {
-            message: `Не найдено элементов с id: ${ids.join(', ')}`,
-            room: r, param: p, ids, removedCount: 0,
+          sendResponse('delNotificationsNoMatch', {
+            message: `Не найдено уведомлений с id: ${Ids.join(', ')}`,
+            room, param, Ids, removedCount: 0,
           });
           break;
         }
  
-        sendResponse('delStatisticsSuccess', {
-          message: `Успешно удалено ${removedCount} элементов статистики`,
-          room: r, param: p, ids, removedCount,
+        sendResponse('delNotificationsSuccess', {
+          message: `Успешно удалено ${removedCount} уведомлений`,
+          room, param, Ids, removedCount,
         });
         ({ fileUpdateNeeded, filePath, dataToWrite, responseType, responseRequest, responsePayload }
           = buildFileResponse(cfgData, cfgPath, 'response', 'statistics'));
  
       } catch (error) {
-        console.error('[messageHandlers] - handlePost - Ошибка delStatistics:', error);
-        sendError('delStatisticsError', error.message);
+        console.error('[messageHandlers] - handlePost - Ошибка delstatistics:', error);
+        sendError('delStatisticsError', error.message, { code: 'DEL_STATISTIC_ERROR' });
       }
       break;
     }

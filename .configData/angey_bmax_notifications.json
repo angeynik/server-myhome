@@ -12,9 +12,10 @@
         "startTime": "09:42",
         "endTime": "09:52",
         "createdAt": "29.05.2026, 09:41:15",
-        "updatedAt": "29.05.2026, 11:37:49",
+        "updatedAt": "29.05.2026, 11:59:35",
         "room": "room06",
-        "param": "dTemp"
+        "param": "dTemp",
+        "sensityRate": 30
       },
       {
         "id": 2,

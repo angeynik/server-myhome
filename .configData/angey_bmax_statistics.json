@@ -8,11 +8,26 @@
         "devSetpoint": false,
         "changeSeason": true,
         "savePeriod": 15,
-        "sensityRate": 0.5,
+        "sensityRate": 4.8,
         "createdAt": "29.05.2026, 11:33:30",
-        "updatedAt": "29.05.2026, 11:37:09",
+        "updatedAt": "29.05.2026, 12:13:19",
         "room": "room06",
         "param": "dTemp"
+      }
+    ],
+    "dHum": [
+      {
+        "id": 1,
+        "value": true,
+        "setpoint": false,
+        "devSetpoint": false,
+        "changeSeason": false,
+        "savePeriod": 0,
+        "sensityRate": 0.5,
+        "createdAt": "29.05.2026, 12:18:28",
+        "updatedAt": "29.05.2026, 12:18:28",
+        "room": "room06",
+        "param": "dHum"
       }
     ]
   }
