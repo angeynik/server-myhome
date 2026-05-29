@@ -32,6 +32,7 @@ function getValue(value) {
  * Используется в: addschedules, addnotifications
  */
 async function addConfigItem(dID, configName, room, param, item) {
+  console.log('[messageHandlers] - addConfigItem - Готовим конфигурацию ', configName, ' для обновления');
   const { data, filePath } = await readFileSafely(dID, configName);
   if (!data[room])        data[room]        = {};
   if (!data[room][param]) data[room][param] = [];
@@ -1284,8 +1285,6 @@ const handlePost = async (clientId, data) => {
     }
  
     // ── NOTIFICATIONS ─────────────────────────────────────────────────────
-    // ИСПРАВЛЕНО: addnotifications — было responseType = 'notifications', responseRequest = 'schedules'
-    // ИСПРАВЛЕНО: delnotifications — было sendResponse('delScheduleSuccess', ...)
  
     case 'addnotifications': {
       try {
@@ -1351,17 +1350,18 @@ const handlePost = async (clientId, data) => {
  
     // ── STATISTICS ────────────────────────────────────────────────────────
  
-    case 'addStatistics': {
+    case 'addstatistics': {
       try {
-        const { statistics } = data.payload;
-        if (!statistics?.room || !statistics?.param) {
-          throw new Error('Отсутствует объект statistics или поля room/param');
+        const { room, param, configData } = data.payload;
+        if (!room || !param || !configData) {
+          throw new Error('Отсутствуют обязательные поля: room, param или configData');
         }
         const { data: cfgData, filePath: cfgPath } =
-          await addConfigItem(dID, 'statistics', statistics.room, statistics.param, statistics);
+          await addConfigItem(dID, 'statistics', room, param, configData);
  
         ({ fileUpdateNeeded, filePath, dataToWrite, responseType, responseRequest, responsePayload }
           = buildFileResponse(cfgData, cfgPath, 'response', 'statistics'));
+        console.log('[messageHandlers] - handlePost - сase addStatistics Определили cfgPath ', cfgPath);
  
       } catch (error) {
         console.error('[messageHandlers] - handlePost - Ошибка addStatistics:', error);
@@ -1370,7 +1370,7 @@ const handlePost = async (clientId, data) => {
       break;
     }
  
-    case 'delStatistics': {
+    case 'delstatistics': {
       try {
         const { room: r, param: p, ids } = data.payload;
         if (!r || !p || !Array.isArray(ids)) {
@@ -1401,25 +1401,11 @@ const handlePost = async (clientId, data) => {
       break;
     }
  
-    case 'updateStatistics': {
-      try {
-        const { room: r, param: p, id: itemId, updates } = data.payload;
-        if (!r || !p || !itemId || !updates) {
-          throw new Error('Отсутствуют обязательные поля: room, param, id или updates');
-        }
- 
-        const { data: cfgData, filePath: cfgPath } = await readFileSafely(dID, 'statistics');
-        if (!cfgData[r]?.[p]) throw new Error(`Данные статистики ${r}/${p} не найдены`);
- 
-        const index = cfgData[r][p].findIndex(item => item.id === itemId);
-        if (index === -1) throw new Error(`Элемент с id ${itemId} не найден`);
- 
-        // Для statistics обновляем пачку полей через spread (в отличие от schedules/notifications)
-        cfgData[r][p][index] = {
-          ...cfgData[r][p][index],
-          ...updates,
-          updatedAt: new Date().toISOString(),
-        };
+    case 'updatestatistics': {
+        try {
+        // value_type не передаём — для statistics поле не обновляется
+        const { data: cfgData, filePath: cfgPath } =
+          await updateConfigItem(dID, 'statistics', room, param, { id, value_name, value, updated });
  
         ({ fileUpdateNeeded, filePath, dataToWrite, responseType, responseRequest, responsePayload }
           = buildFileResponse(cfgData, cfgPath, 'response', 'statistics'));

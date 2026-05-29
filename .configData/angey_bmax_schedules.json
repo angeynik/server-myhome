@@ -239,6 +239,25 @@
           4,
           5
         ]
+      },
+      {
+        "id": 5,
+        "startTime": "11:29",
+        "endTime": "11:39",
+        "value": 0,
+        "value_type": "absolute",
+        "unit": "",
+        "room": "room06",
+        "param": "dTemp",
+        "createdAt": "29.05.2026, 11:28:16",
+        "updatedAt": "29.05.2026, 11:28:16",
+        "days": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
       }
     ]
   },
