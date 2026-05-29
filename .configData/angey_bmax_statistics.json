@@ -1,21 +1,21 @@
 {
-  "room06": {
-    "dTemp": [
+  "room07": {
+    "dHum": [
       {
         "id": 1,
-        "value": false,
+        "value": true,
         "setpoint": true,
         "devSetpoint": false,
-        "changeSeason": true,
-        "savePeriod": 15,
-        "sensityRate": 4.8,
-        "createdAt": "29.05.2026, 11:33:30",
-        "updatedAt": "29.05.2026, 12:13:19",
-        "room": "room06",
-        "param": "dTemp"
+        "changeSeason": false,
+        "savePeriod": 30,
+        "sensityRate": 1.5,
+        "createdAt": "29.05.2026, 13:31:19",
+        "updatedAt": "29.05.2026, 13:31:33",
+        "room": "room07",
+        "param": "dHum"
       }
     ],
-    "dHum": [
+    "dTemp": [
       {
         "id": 1,
         "value": true,
@@ -24,10 +24,44 @@
         "changeSeason": false,
         "savePeriod": 0,
         "sensityRate": 0.5,
-        "createdAt": "29.05.2026, 12:18:28",
-        "updatedAt": "29.05.2026, 12:18:28",
-        "room": "room06",
-        "param": "dHum"
+        "createdAt": "29.05.2026, 13:34:40",
+        "updatedAt": "29.05.2026, 13:34:40",
+        "room": "room07",
+        "param": "dTemp"
+      }
+    ]
+  },
+  "room04": {
+    "dActuator": [
+      {
+        "id": 1,
+        "value": true,
+        "setpoint": true,
+        "devSetpoint": false,
+        "changeSeason": false,
+        "savePeriod": 720,
+        "sensityRate": 1,
+        "createdAt": "29.05.2026, 13:35:14",
+        "updatedAt": "29.05.2026, 13:35:30",
+        "room": "room04",
+        "param": "dActuator"
+      }
+    ]
+  },
+  "room01": {
+    "dTemp": [
+      {
+        "id": 1,
+        "value": true,
+        "setpoint": false,
+        "devSetpoint": false,
+        "changeSeason": false,
+        "savePeriod": 0,
+        "sensityRate": 0.5,
+        "createdAt": "29.05.2026, 13:36:00",
+        "updatedAt": "29.05.2026, 13:36:00",
+        "room": "room01",
+        "param": "dTemp"
       }
     ]
   }
