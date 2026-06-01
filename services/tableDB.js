@@ -66,15 +66,15 @@ const findUser = async (username) => {
 
   // Регистрация нового пользователя
 const registerUser = async (username, password, level, dID, sourceName = null, sourceDescription = null, email = null) => {
-    console.log('registerUser - Начинаем регистрацию: username - ', username, 'password - ', password, 'level', level, 'dID', dID, 'sourceName', sourceName, 'email - ', email);
+    console.log('[tableDB] - registerUser - Начинаем регистрацию: username - ', username, 'password - ', password, 'level', level, 'dID', dID, 'sourceName', sourceName, 'email - ', email);
     if (!username || !password || !level || !dID) {
-      throw new Error('Username, password, dID and level are required');
+      throw new Error('[tableDB] - registerUser -Username, password, dID and level are required');
     }
   
     const hashedPassword = await bcrypt.hash(password, 10); // Хешируем пароль
-    console.log ('Хеширование пароля выполнено');
+    console.log ('[tableDB] - registerUser -Хеширование пароля выполнено');
     try {
-        console.log ('Начинаем подготовку транзации - BEGIN');
+        console.log ('[tableDB] - registerUser -Начинаем подготовку транзации - BEGIN');
       await DBManager.query('BEGIN'); // Начинаем транзакцию
         
       // Регистрация пользователя
@@ -95,7 +95,7 @@ const registerUser = async (username, password, level, dID, sourceName = null, s
       if (existingDataSource.rows.length > 0) {
         // Если источник данных уже существует, используем его
         dataSourceId = existingDataSource.rows[0].id;
-        console.log('Источник данных уже существует:', dataSourceId);
+        console.log('[tableDB] - registerUser - Источник данных уже существует:', dataSourceId);
       } else {
         // Если источник данных не существует, создаем новый
         const dataSource = await DBManager.query(
@@ -103,7 +103,7 @@ const registerUser = async (username, password, level, dID, sourceName = null, s
           [dID, sourceName, sourceDescription]
         );
         dataSourceId = dataSource.rows[0].id;
-        console.log('Создан новый источник данных:', dataSourceId);
+        console.log('[tableDB] - registerUser - Создан новый источник данных:', dataSourceId);
       }
   
       // Связывание пользователя с источником данных
@@ -128,17 +128,17 @@ const registerUser = async (username, password, level, dID, sourceName = null, s
       };
     } catch (error) {
       await DBManager.query('ROLLBACK'); // Откатываем транзакцию в случае ошибки
-      console.error('Откат транзации ROLLBACK -Ошибка при регистрации пользователя:', error);
+      console.error('[tableDB] - registerUser - Откат транзации ROLLBACK -Ошибка при регистрации пользователя:', error);
       throw error;
     }
   };
 
 // Регистрация пользователя (упрощенная версия)
 const register = async (username, password, email = null) => {
-  console.log('Начинаем регистрацию: username - ', username, 'password - ', password, 'email - ', email);
+  console.log('[tableDB] - register - Начинаем регистрацию: username - ', username, 'password - ', password, 'email - ', email);
 
   if (!username || !password) {
-    throw new Error('Username and password are required');
+    throw new Error('[tableDB] - register - Username and password are required');
   }
 
   const hashedPassword = await bcrypt.hash(password, 10); // Асинхронное хеширование
@@ -153,7 +153,7 @@ const register = async (username, password, email = null) => {
     return { message: 'User registered successfully!', user };
   } catch (error) {
     if (error.code === '23505') { // Ошибка уникальности (дублирование username или email)
-      throw new Error('Username or email already exists');
+      throw new Error('[tableDB] - register - Username or email already exists');
     }
     throw error; // Пробрасываем другие ошибки
   }

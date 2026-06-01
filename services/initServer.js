@@ -50,13 +50,43 @@ const initUsers = async () => {
 const initDefaulUser = async () => {
   logger.logDevMessage(`[initServer] - initDefaulUser - Проверка наличия пользователя по умолчанию...`);
   console.log('[initServer] - initDefaulUser - Проверка наличия пользователя по умолчанию...');
+
+  const defaultUsername = process.env.DEFAULT_USER_NAME || 'poddy';
+  const defaultPassword = process.env.DEFAULT_USER_PASSWORD || 'poddyPASS';
+  const defaultLevel = parseInt(process.env.DEFAULT_USER_LEVEL) || 3;
+  const defaultDID = process.env.DEFAULT_USER_DID || 'poddy_base';
+  const defaultSourceName = process.env.DEFAULT_USER_SOURCE || 'PoddyBase';
+  const defaultSourceDescription = 'Auto-created default data source';
+
+  // Проверяем обязательные параметры
+  if (!defaultUsername || !defaultPassword || !defaultDID) {
+    const errorMsg = '[initServer] - initDefaulUser - Отсутствуют обязательные переменные окружения для создания пользователя по умолчанию (DEFAULT_USER_NAME, DEFAULT_USER_PASSWORD, DEFAULT_USER_DID)';
+    logger.logErrorMessage(errorMsg);
+    console.error(errorMsg);
+    throw new Error(errorMsg);
+  }
+
   try {
-    const defaultUser = await DBManager.findUser(process.env.DEFAULT_USER_NAME);
-    if (!defaultUser) {
+    const existingUser = await DBManager.findUser(process.env.DEFAULT_USER_NAME);
+    if (!existingUser) {
       throw new Error(`[initServer] - initDefaulUser - Пользователь по умолчанию "${process.env.DEFAULT_USER_NAME}" отсутствует`);
     }
-    logger.logDevMessage(`[initServer] - initDefaulUser - Пользователь по умолчанию - ${process.env.DEFAULT_USER_NAME} - найден`);
-    console.log(`[initServer] - initDefaulUser - Пользователь ${process.env.DEFAULT_USER_NAME} найден`);
+    // Пользователя нет – создаём через tableDB.registerUser
+    logger.logDevMessage(`[initServer] - initDefaulUser - Пользователь "${defaultUsername}" не найден. Создаём...`);
+    console.log(`[initServer] - initDefaulUser - Пользователь "${defaultUsername}" не найден. Создаём...`);
+
+    const result = await tableDB.registerUser(
+      defaultUsername,
+      defaultPassword,
+      defaultLevel,
+      defaultDID,
+      defaultSourceName,
+      defaultSourceDescription,
+      null // email не обязателен
+    );
+
+    logger.logInfoMessage(`[initServer] - initDefaulUser - Пользователь по умолчанию "${defaultUsername}" успешно создан. ID пользователя: ${result.user.id}, ID источника: ${result.dataSourceId}`);
+    console.log(`[initServer] - initDefaulUser - Пользователь "${defaultUsername}" успешно создан.`);
   } catch (error) {
     logger.logErrorMessage(`[initServer] - initDefaulUser - Ошибка проверки пользователя по умолчанию: ${error.message}`);
     console.error('[initServer] - initDefaulUser -  Ошибка проверки пользователя по умолчанию:', error.message);
