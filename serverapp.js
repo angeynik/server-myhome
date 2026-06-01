@@ -53,6 +53,7 @@ app.use(bodyParser.json());
 const initialize = async () => {
   const envInit = process.env.INIT_DB;
   logger.logDevMessage(`[Serverapp] - envInit - инициализация сервера - ${envInit}`);
+  console.log(`[Serverapp] - envInit - инициализация сервера - ${envInit}`);
   if (envInit === 'TRUE') {
     try {
       await initServer(); // Выполняем инициализацию
