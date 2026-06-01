@@ -351,6 +351,7 @@ WSSDash.on('connection', (ws) => {
                         }))
   });
 
+  
   ws.on('message', (message) => {
     logger.logDevMessage(`[Serverapp] - WSSDash.on - Пришло сообщение: ${message}`);
       try {
