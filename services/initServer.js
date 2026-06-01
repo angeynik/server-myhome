@@ -68,9 +68,9 @@ const initDefaulUser = async () => {
 
   try {
     const existingUser = await DBManager.findUser(process.env.DEFAULT_USER_NAME);
-    if (!existingUser) {
-      throw new Error(`[initServer] - initDefaulUser - Пользователь по умолчанию "${process.env.DEFAULT_USER_NAME}" отсутствует`);
-    }
+    // if (!existingUser) {
+    //   throw new Error(`[initServer] - initDefaulUser - Пользователь по умолчанию "${process.env.DEFAULT_USER_NAME}" отсутствует`);
+    // }
     // Пользователя нет – создаём через tableDB.registerUser
     logger.logDevMessage(`[initServer] - initDefaulUser - Пользователь "${defaultUsername}" не найден. Создаём...`);
     console.log(`[initServer] - initDefaulUser - Пользователь "${defaultUsername}" не найден. Создаём...`);

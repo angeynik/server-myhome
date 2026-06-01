@@ -66,72 +66,133 @@ const findUser = async (username) => {
 
   // Регистрация нового пользователя
 const registerUser = async (username, password, level, dID, sourceName = null, sourceDescription = null, email = null) => {
-    console.log('[tableDB] - registerUser - Начинаем регистрацию: username - ', username, 'password - ', password, 'level', level, 'dID', dID, 'sourceName', sourceName, 'email - ', email);
-    if (!username || !password || !level || !dID) {
-      throw new Error('[tableDB] - registerUser -Username, password, dID and level are required');
-    }
+  console.log('[tableDB] - registerUser - Начинаем регистрацию: username -', username, 'level', level, 'dID', dID, 'sourceName', sourceName, 'email -', email);
   
-    const hashedPassword = await bcrypt.hash(password, 10); // Хешируем пароль
-    console.log ('[tableDB] - registerUser -Хеширование пароля выполнено');
-    try {
-        console.log ('[tableDB] - registerUser -Начинаем подготовку транзации - BEGIN');
-      await DBManager.query('BEGIN'); // Начинаем транзакцию
-        
-      // Регистрация пользователя
+  if (!username || !password || !level || !dID) {
+    throw new Error('[tableDB] - registerUser - Username, password, level and dID are required');
+  }
+
+  const hashedPassword = await bcrypt.hash(password, 10);
+  console.log('[tableDB] - registerUser - Хеширование пароля выполнено');
+
+  try {
+    await DBManager.query('BEGIN');
+
+    // 1. Обработка пользователя
+    let existingUser = await DBManager.findUser(username);
+    let userId;
+    let userCreated = false;
+
+    if (!existingUser) {
+      // Создаём нового пользователя
       const newUser = await DBManager.query(
-        'INSERT INTO users (username, password, email) VALUES ($1, $2, $3) RETURNING id, username, email',
+        `INSERT INTO users (username, password, email)
+         VALUES ($1, $2, $3)
+         RETURNING id, username, email`,
         [username, hashedPassword, email]
       );
-  
-      const userId = newUser.rows[0].id;
-  
-      // Проверяем, существует ли источник данных с таким did
-      const existingDataSource = await DBManager.query(
-        'SELECT id FROM DataSources WHERE did = $1',
-        [dID]
+      userId = newUser.rows[0].id;
+      userCreated = true;
+      console.log('[tableDB] - registerUser - Создан новый пользователь, ID:', userId);
+    } else {
+      userId = existingUser.id;
+      console.log('[tableDB] - registerUser - Пользователь уже существует, ID:', userId);
+    }
+
+    // 2. Обработка источника данных (datasources)
+    let dataSourceResult = await DBManager.query(
+      `SELECT id FROM datasources WHERE dID = $1`,
+      [dID]
+    );
+    let dataSourceId;
+    let dataSourceCreated = false;
+
+    if (dataSourceResult.rows.length > 0) {
+      dataSourceId = dataSourceResult.rows[0].id;
+      console.log('[tableDB] - registerUser - Источник данных уже существует, ID:', dataSourceId);
+    } else {
+      // Создаём новый источник
+      const insertSource = await DBManager.query(
+        `INSERT INTO datasources (dID, name, description)
+         VALUES ($1, $2, $3)
+         RETURNING id`,
+        [dID, sourceName || dID, sourceDescription || `Auto-created for ${username}`]
       );
-  
-      let dataSourceId;
-      if (existingDataSource.rows.length > 0) {
-        // Если источник данных уже существует, используем его
-        dataSourceId = existingDataSource.rows[0].id;
-        console.log('[tableDB] - registerUser - Источник данных уже существует:', dataSourceId);
-      } else {
-        // Если источник данных не существует, создаем новый
-        const dataSource = await DBManager.query(
-          'INSERT INTO datasources (did, name, description) VALUES ($1, $2, $3) RETURNING id',
-          [dID, sourceName, sourceDescription]
-        );
-        dataSourceId = dataSource.rows[0].id;
-        console.log('[tableDB] - registerUser - Создан новый источник данных:', dataSourceId);
-      }
-  
-      // Связывание пользователя с источником данных
+      dataSourceId = insertSource.rows[0].id;
+      dataSourceCreated = true;
+      console.log('[tableDB] - registerUser - Создан новый источник данных, ID:', dataSourceId);
+    }
+
+    // 3. Связь пользователь-источник (userdatasources)
+    const linkExists = await DBManager.query(
+      `SELECT id FROM userdatasources
+       WHERE user_id = $1 AND data_source_id = $2`,
+      [userId, dataSourceId]
+    );
+
+    if (linkExists.rows.length === 0) {
       await DBManager.query(
-        'INSERT INTO userdatasources (user_id, data_source_id) VALUES ($1, $2)',
+        `INSERT INTO userdatasources (user_id, data_source_id)
+         VALUES ($1, $2)`,
         [userId, dataSourceId]
       );
-  
-      // Назначение прав доступа
+      console.log('[tableDB] - registerUser - Связь пользователь-источник создана');
+    } else {
+      console.log('[tableDB] - registerUser - Связь пользователь-источник уже существует');
+    }
+
+    // 4. Права доступа (permissions)
+    const permExists = await DBManager.query(
+      `SELECT id, permission_level FROM permissions
+       WHERE user_id = $1 AND data_source_id = $2`,
+      [userId, dataSourceId]
+    );
+
+    if (permExists.rows.length === 0) {
+      // Нет прав – создаём
       await DBManager.query(
-        'INSERT INTO permissions (user_id, data_source_id, permission_level) VALUES ($1, $2, $3)',
+        `INSERT INTO permissions (user_id, data_source_id, permission_level)
+         VALUES ($1, $2, $3)`,
         [userId, dataSourceId, level]
       );
-  
-      await DBManager.query('COMMIT'); // Завершаем транзакцию
-  
-      return {
-        message: 'User registered successfully!',
-        user: newUser.rows[0],
-        dataSourceId,
-        permissionLevel: level,
-      };
-    } catch (error) {
-      await DBManager.query('ROLLBACK'); // Откатываем транзакцию в случае ошибки
-      console.error('[tableDB] - registerUser - Откат транзации ROLLBACK -Ошибка при регистрации пользователя:', error);
-      throw error;
+      console.log('[tableDB] - registerUser - Права доступа созданы (level', level, ')');
+    } else {
+      const currentLevel = permExists.rows[0].permission_level;
+      if (currentLevel !== level) {
+        // Уровень изменился – обновляем
+        await DBManager.query(
+          `UPDATE permissions
+           SET permission_level = $1
+           WHERE user_id = $2 AND data_source_id = $3`,
+          [level, userId, dataSourceId]
+        );
+        console.log('[tableDB] - registerUser - Права доступа обновлены:', currentLevel, '→', level);
+      } else {
+        console.log('[tableDB] - registerUser - Права доступа уже существуют с нужным уровнем');
+      }
     }
-  };
+
+    await DBManager.query('COMMIT');
+
+    // Формируем ответ
+    const userInfo = existingUser || { id: userId, username, email };
+    return {
+      message: userCreated
+        ? 'User registered successfully!'
+        : 'User already exists, permissions updated',
+      user: userInfo,
+      dataSourceId,
+      permissionLevel: level,
+      dataSourceCreated,
+      userCreated
+    };
+
+  } catch (error) {
+    await DBManager.query('ROLLBACK');
+    console.error('[tableDB] - registerUser - Ошибка, транзакция откачена:', error);
+    throw error;
+  }
+};
 
 // Регистрация пользователя (упрощенная версия)
 const register = async (username, password, email = null) => {

@@ -61,23 +61,23 @@ class DBManager {
     const User = dbUser || this.dbUser;
     const Pass = dbPass || this.dbPass;
     logger.logDevMessage(`[db]- query - Выполнение запроса  ${text} для ${Name}, ${User}, ${Pass}`);
-      //console.log(`[db]- query - [QUERY START] ${text}`);
-      //console.log(`[db]- query - Параметры: ${JSON.stringify(params)}`);
+      console.log(`[db]- query - [QUERY START] ${text}`);
+      console.log(`[db]- query - Параметры: ${JSON.stringify(params)}`);
 
-    //console.log(`[db]- query - Выполнение запроса для ${Name}, ${User}, ${Pass}`);
+    console.log(`[db]- query - Выполнение запроса для ${Name}, ${User}, ${Pass}`);
     const pool = this.getPool(Name, User, Pass);
     const start = Date.now();
     try {
       const res = await pool.query(text, params);
       const duration = Date.now() - start;
       logger.logDevMessage(`[db]- query - Подключение к базе данных ${Name} пользователь ${User} выполнено за ${duration} мс`);
-      //console.log(`[db]- query - Подключение к базе данных ${Name} пользователь ${User} выполнено за ${duration} мс`);
-      //console.log('[db]- query - Результат выполнения запроса:', JSON.stringify(res, null, 2));
+      console.log(`[db]- query - Подключение к базе данных ${Name} пользователь ${User} выполнено за ${duration} мс`);
+      console.log('[db]- query - Результат выполнения запроса:', JSON.stringify(res, null, 2));
   
       return res;
     } catch (error) {
       logger.logErrorMessage(`[db]- query - Ошибка при выполнении запроса: ${error.message}`);
-      //console.error('[db]- query - Ошибка при выполнении запроса:', error.message);
+      console.error('[db]- query - Ошибка при выполнении запроса:', error.message);
       throw error;
     }
   }
