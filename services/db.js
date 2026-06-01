@@ -21,7 +21,7 @@ class DBManager {
   // Создание или получение пула для конкретной базы данных
   getPool(dbName, dbUser, dbPass) {
     const key = `${dbName}-${dbUser}`; // Уникальный ключ для базы данных и пользователя
-    console.log(`[db] - getPool - Создан Уникальный ключ для базы данных и пользователя: ${key}`);
+    //console.log(`[db] - getPool - Создан Уникальный ключ для базы данных и пользователя: ${key}`);
     if (!this.pools[key]) {
       // Если пул для этой базы данных еще не создан, создаем его
       this.pools[key] = new Pool({
@@ -32,7 +32,7 @@ class DBManager {
         port: this.dbPort || 5432,
       });
       logger.logDevMessage(`[db] - getPool - Создан новый пул для базы данных: ${dbName}`);
-      console.log(`[db] - getPool - Создан новый пул для базы данных: ${dbName}`);
+      //console.log(`[db] - getPool - Создан новый пул для базы данных: ${dbName}`);
     }
 
     return this.pools[key];
@@ -53,7 +53,7 @@ class DBManager {
       await this.pools[key].end();
       delete this.pools[key];
       logger.logDevMessage(`[db] - closePool - Пул для базы данных ${dbName} завершен.`);
-      console.log(`[db] - closePool - Пул для базы данных ${dbName} завершен.`);
+      //(`[db] - closePool - Пул для базы данных ${dbName} завершен.`);
     }
   }
   async query(text, params, dbName, dbUser, dbPass) {
@@ -61,18 +61,18 @@ class DBManager {
     const User = dbUser || this.dbUser;
     const Pass = dbPass || this.dbPass;
     logger.logDevMessage(`[db]- query - Выполнение запроса  ${text} для ${Name}, ${User}, ${Pass}`);
-      console.log(`[db]- query - [QUERY START] ${text}`);
-      console.log(`[db]- query - Параметры: ${JSON.stringify(params)}`);
+      // console.log(`[db]- query - [QUERY START] ${text}`);
+      // console.log(`[db]- query - Параметры: ${JSON.stringify(params)}`);
 
-    console.log(`[db]- query - Выполнение запроса для ${Name}, ${User}, ${Pass}`);
+    // console.log(`[db]- query - Выполнение запроса для ${Name}, ${User}, ${Pass}`);
     const pool = this.getPool(Name, User, Pass);
     const start = Date.now();
     try {
       const res = await pool.query(text, params);
       const duration = Date.now() - start;
       logger.logDevMessage(`[db]- query - Подключение к базе данных ${Name} пользователь ${User} выполнено за ${duration} мс`);
-      console.log(`[db]- query - Подключение к базе данных ${Name} пользователь ${User} выполнено за ${duration} мс`);
-      console.log('[db]- query - Результат выполнения запроса:', JSON.stringify(res, null, 2));
+      // console.log(`[db]- query - Подключение к базе данных ${Name} пользователь ${User} выполнено за ${duration} мс`);
+      // console.log('[db]- query - Результат выполнения запроса:', JSON.stringify(res, null, 2));
   
       return res;
     } catch (error) {
@@ -163,7 +163,7 @@ class DBManager {
 
       async findUser(username) {
         logger.logDevMessage(`[db]- findUser - Поиск пользователя ${username}`);
-        console.log(`[db]- findUser - Поиск пользователя ${username}...`);
+        //console.log(`[db]- findUser - Поиск пользователя ${username}...`);
         try {
           const queryText = `
             SELECT 
@@ -182,7 +182,7 @@ class DBManager {
           
           if (result.rows.length === 0) {
             logger.logDevMessage(`[db]- findUser - Пользователь "${username}" не нашелся`);
-            console.log(`[db]- findUser - Пользователь "${username}" не нашелся`);
+            //console.log(`[db]- findUser - Пользователь "${username}" не нашелся`);
             return null;
           }
       

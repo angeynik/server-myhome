@@ -1114,12 +1114,6 @@ const handlePost = async (clientId, data) => {
           username, password, permissionLevel,
           dataSource, dataSource, '', '', process.env.DB_DATABASE
         );
-        if (newUser) {
-          await DBManager.createDB(dataSource, authDB, dbUser, dbPass);
-          logger.logInfoMessage(`[messageHandlers] - База данных "${dataSource}" создана.`);
-          await DBManager.createTableDID(dataSource);
-          logger.logInfoMessage(`[messageHandlers] - Таблицы в "${dataSource}" созданы.`);
-        }
         sendResponse('createUserSuccess', { user: newUser.user });
       } catch (error) {
         sendError('createUserError', error.message);
