@@ -3,6 +3,8 @@ const dotenv = require('dotenv'); // Подключаем .ENV файл с п�
 dotenv.config({path: './conf.env'}); // Указываем путь к  файлу .env
 
 const bcrypt = require('bcryptjs');
+const logger = require('./logger.js');
+logger.initLogging();
 
 //fetchUsers -- получение 
 
@@ -20,7 +22,8 @@ const fetchUsers = async () => {
 
     return users; // Возвращаем список объектов с id и username
   } catch (error) {
-    console.error('Ошибка при получении списка пользователей:', error);
+    logger.logErrorMessage('[tableDB] - fetchUsers - Ошибка при получении списка пользователей:', error);
+    //console.error('[tableDB] - fetchUsers - Ошибка при получении списка пользователей:', error);
     throw error;
   }
 };
@@ -39,7 +42,8 @@ const fetchDataSources = async () => {
 
     return dataSources; // Возвращаем список объектов с id и did
   } catch (error) {
-    console.error('Ошибка при получении списка источников данных:', error);
+    logger.logErrorMessage('[tableDB] - fetchDataSources - Ошибка при получении списка источников данных:', error);
+    //console.error('Ошибка при получении списка источников данных:', error);
     throw error;
   }
 };
@@ -52,6 +56,7 @@ const databaseExists = async (databaseName) => {
     const result = await DBManager.query('SELECT 1 FROM pg_database WHERE datname = $1', [databaseName]);
     return result.rows.length > 0;
   } catch (error) {
+    logger.logErrorMessage('[tableDB] - databaseExists - Ошибка при проверке существования базы данных:', error);
     console.error('Ошибка при проверке существования базы данных:', error);
     throw error;
   }
@@ -59,86 +64,161 @@ const databaseExists = async (databaseName) => {
 
 // Поиск пользователя по имени
 const findUser = async (username) => {
-    console.log(`Ищем пользователя ${username}`);
+    logger.logDevMessage(`[tableDB] - findUser - Ищем пользователя ${username}`);
+    // console.log(`Ищем пользователя ${username}`);
     const result = await DBManager.query('SELECT * FROM users WHERE username = $1', [username], process.env.DB_DATABASE);
     return result.rows[0];
   };
 
   // Регистрация нового пользователя
 const registerUser = async (username, password, level, dID, sourceName = null, sourceDescription = null, email = null) => {
-    console.log('registerUser - Начинаем регистрацию: username - ', username, 'password - ', password, 'level', level, 'dID', dID, 'sourceName', sourceName, 'email - ', email);
-    if (!username || !password || !level || !dID) {
-      throw new Error('Username, password, dID and level are required');
-    }
+  logger.logDevMessage('[tableDB] - registerUser - Начинаем регистрацию: username -', username, 'level', level, 'dID', dID, 'sourceName', sourceName, 'email -', email);
+  //console.log('[tableDB] - registerUser - Начинаем регистрацию: username -', username, 'level', level, 'dID', dID, 'sourceName', sourceName, 'email -', email);
   
-    const hashedPassword = await bcrypt.hash(password, 10); // Хешируем пароль
-    console.log ('Хеширование пароля выполнено');
-    try {
-        console.log ('Начинаем подготовку транзации - BEGIN');
-      await DBManager.query('BEGIN'); // Начинаем транзакцию
-        
-      // Регистрация пользователя
+  if (!username || !password || !level || !dID) {
+    throw new Error('[tableDB] - registerUser - Username, password, level and dID are required');
+  }
+
+  const hashedPassword = await bcrypt.hash(password, 10);
+  logger.logDevMessage('[tableDB] - registerUser - Хеширование пароля выполнено');
+  // console.log('[tableDB] - registerUser - Хеширование пароля выполнено');
+
+  try {
+    await DBManager.query('BEGIN');
+
+    // 1. Обработка пользователя
+    let existingUser = await DBManager.findUser(username);
+    let userId;
+    let userCreated = false;
+
+    if (!existingUser) {
+      // Создаём нового пользователя
       const newUser = await DBManager.query(
-        'INSERT INTO users (username, password, email) VALUES ($1, $2, $3) RETURNING id, username, email',
+        `INSERT INTO users (username, password, email)
+         VALUES ($1, $2, $3)
+         RETURNING id, username, email`,
         [username, hashedPassword, email]
       );
-  
-      const userId = newUser.rows[0].id;
-  
-      // Проверяем, существует ли источник данных с таким did
-      const existingDataSource = await DBManager.query(
-        'SELECT id FROM DataSources WHERE did = $1',
-        [dID]
+      userId = newUser.rows[0].id;
+      userCreated = true;
+      logger.logDevMessage('[tableDB] - registerUser - Создан новый пользователь, ID:', userId);
+      // console.log('[tableDB] - registerUser - Создан новый пользователь, ID:', userId);
+    } else {
+      userId = existingUser.id;
+      logger.logDevMessage('[tableDB] - registerUser - Пользователь уже существует, ID:', userId);
+      // console.log('[tableDB] - registerUser - Пользователь уже существует, ID:', userId);
+    }
+
+    // 2. Обработка источника данных (datasources)
+    let dataSourceResult = await DBManager.query(
+      `SELECT id FROM datasources WHERE dID = $1`,
+      [dID]
+    );
+    let dataSourceId;
+    let dataSourceCreated = false;
+
+    if (dataSourceResult.rows.length > 0) {
+      dataSourceId = dataSourceResult.rows[0].id;
+      logger.logDevMessage('[tableDB] - registerUser - Источник данных уже существует, ID:', dataSourceId);
+      // console.log('[tableDB] - registerUser - Источник данных уже существует, ID:', dataSourceId);
+    } else {
+      // Создаём новый источник
+      const insertSource = await DBManager.query(
+        `INSERT INTO datasources (dID, name, description)
+         VALUES ($1, $2, $3)
+         RETURNING id`,
+        [dID, sourceName || dID, sourceDescription || `Auto-created for ${username}`]
       );
-  
-      let dataSourceId;
-      if (existingDataSource.rows.length > 0) {
-        // Если источник данных уже существует, используем его
-        dataSourceId = existingDataSource.rows[0].id;
-        console.log('Источник данных уже существует:', dataSourceId);
-      } else {
-        // Если источник данных не существует, создаем новый
-        const dataSource = await DBManager.query(
-          'INSERT INTO datasources (did, name, description) VALUES ($1, $2, $3) RETURNING id',
-          [dID, sourceName, sourceDescription]
-        );
-        dataSourceId = dataSource.rows[0].id;
-        console.log('Создан новый источник данных:', dataSourceId);
-      }
-  
-      // Связывание пользователя с источником данных
+      dataSourceId = insertSource.rows[0].id;
+      dataSourceCreated = true;
+      logger.logDevMessage('[tableDB] - registerUser - Создан новый источник данных, ID:', dataSourceId);
+      // console.log('[tableDB] - registerUser - Создан новый источник данных, ID:', dataSourceId);
+    }
+
+    // 3. Связь пользователь-источник (userdatasources)
+    const linkExists = await DBManager.query(
+      `SELECT id FROM userdatasources
+       WHERE user_id = $1 AND data_source_id = $2`,
+      [userId, dataSourceId]
+    );
+
+    if (linkExists.rows.length === 0) {
       await DBManager.query(
-        'INSERT INTO userdatasources (user_id, data_source_id) VALUES ($1, $2)',
+        `INSERT INTO userdatasources (user_id, data_source_id)
+         VALUES ($1, $2)`,
         [userId, dataSourceId]
       );
-  
-      // Назначение прав доступа
+      logger.logDevMessage('[tableDB] - registerUser - Связь пользователь-источник создана');
+      // console.log('[tableDB] - registerUser - Связь пользователь-источник создана');
+    } else {
+      logger.logDevMessage('[tableDB] - registerUser - Связь пользователь-источник уже существует');
+      //console.log('[tableDB] - registerUser - Связь пользователь-источник уже существует');
+    }
+
+    // 4. Права доступа (permissions)
+    const permExists = await DBManager.query(
+      `SELECT id, permission_level FROM permissions
+       WHERE user_id = $1 AND data_source_id = $2`,
+      [userId, dataSourceId]
+    );
+
+    if (permExists.rows.length === 0) {
+      // Нет прав – создаём
       await DBManager.query(
-        'INSERT INTO permissions (user_id, data_source_id, permission_level) VALUES ($1, $2, $3)',
+        `INSERT INTO permissions (user_id, data_source_id, permission_level)
+         VALUES ($1, $2, $3)`,
         [userId, dataSourceId, level]
       );
-  
-      await DBManager.query('COMMIT'); // Завершаем транзакцию
-  
-      return {
-        message: 'User registered successfully!',
-        user: newUser.rows[0],
-        dataSourceId,
-        permissionLevel: level,
-      };
-    } catch (error) {
-      await DBManager.query('ROLLBACK'); // Откатываем транзакцию в случае ошибки
-      console.error('Откат транзации ROLLBACK -Ошибка при регистрации пользователя:', error);
-      throw error;
+      logger.logDevMessage('[tableDB] - registerUser - Права доступа созданы (level', level, ')');
+      // console.log('[tableDB] - registerUser - Права доступа созданы (level', level, ')');
+    } else {
+      const currentLevel = permExists.rows[0].permission_level;
+      if (currentLevel !== level) {
+        // Уровень изменился – обновляем
+        await DBManager.query(
+          `UPDATE permissions
+           SET permission_level = $1
+           WHERE user_id = $2 AND data_source_id = $3`,
+          [level, userId, dataSourceId]
+        );
+        logger.logDevMessage('[tableDB] - registerUser - Права доступа обновлены:', currentLevel, '→', level);
+        // console.log('[tableDB] - registerUser - Права доступа обновлены:', currentLevel, '→', level);
+      } else {
+        logger.logDevMessage('[tableDB] - registerUser - Права доступа уже существуют с нужным уровнем');
+        //console.log('[tableDB] - registerUser - Права доступа уже существуют с нужным уровнем');
+      }
     }
-  };
+
+    await DBManager.query('COMMIT');
+
+    // Формируем ответ
+    const userInfo = existingUser || { id: userId, username, email };
+    return {
+      message: userCreated
+        ? 'User registered successfully!'
+        : 'User already exists, permissions updated',
+      user: userInfo,
+      dataSourceId,
+      permissionLevel: level,
+      dataSourceCreated,
+      userCreated
+    };
+
+  } catch (error) {
+    await DBManager.query('ROLLBACK');
+    logger.logErrorMessage('[tableDB] - registerUser - Ошибка, транзакция откачена:', error);
+    //console.error('[tableDB] - registerUser - Ошибка, транзакция откачена:', error);
+    throw error;
+  }
+};
 
 // Регистрация пользователя (упрощенная версия)
 const register = async (username, password, email = null) => {
-  console.log('Начинаем регистрацию: username - ', username, 'password - ', password, 'email - ', email);
+  logger.logDevMessage('[tableDB] - register - Начинаем регистрацию: username - ', username, 'password - ', password, 'email - ', email);
+  //console.log('[tableDB] - register - Начинаем регистрацию: username - ', username, 'password - ', password, 'email - ', email);
 
   if (!username || !password) {
-    throw new Error('Username and password are required');
+    throw new Error('[tableDB] - register - Username and password are required');
   }
 
   const hashedPassword = await bcrypt.hash(password, 10); // Асинхронное хеширование
@@ -153,7 +233,7 @@ const register = async (username, password, email = null) => {
     return { message: 'User registered successfully!', user };
   } catch (error) {
     if (error.code === '23505') { // Ошибка уникальности (дублирование username или email)
-      throw new Error('Username or email already exists');
+      throw new Error('[tableDB] - register - Username or email already exists');
     }
     throw error; // Пробрасываем другие ошибки
   }
@@ -161,7 +241,8 @@ const register = async (username, password, email = null) => {
 
 // Вставка данных в таблицу
 const insertIntoTable = async (tableName, data, dbName) => { // Возвращает сообщение вида { exists: true, id: id записи } или ошибку
-  console.log('Начинаем insertIntoTable', tableName, data);
+  logger.logDevMessage('[tableDB] - Начинаем insertIntoTable', tableName, data);
+  //console.log('Начинаем insertIntoTable', tableName, data);
   try {
     const columns = Object.keys(data).join(', ');
     const placeholders = Object.keys(data).map((_, index) => `$${index + 1}`).join(', ');
@@ -172,13 +253,15 @@ const insertIntoTable = async (tableName, data, dbName) => { // Возвраща
       values,
       dbName
     );
+    logger.logDevMessage('[tableDB] - insertIntoTable - ', result.rows[0]);
     //console.log('insertIntoTable - ', result.rows[0]);
     return {
       exists: true, 
       id: result.rows[0].id, // Возвращаем ID вставленной записи
   };
   } catch (error) {
-    console.error(`Ошибка при вставке в таблицу ${tableName}:`, error);
+    logger.logErrorMessage(`[tableDB] - insertIntoTable - Ошибка при вставке в таблицу ${tableName}:`, error);
+    //console.error(`insertIntoTable - Ошибка при вставке в таблицу ${tableName}:`, error);
     throw error;
   }
 };
@@ -195,7 +278,8 @@ const addDataSource = async (dID, name, description) => {
 
 // Связывание источника данных с пользователем
 const linkDataSourceToUser = async (user_id, data_source_id, dbName) => { // Возвращает сообщение вида { exists: true, id: id записи } или ошибку
-  console.log('Входим в linkDataSourceToUser');
+  logger.logDevMessage('[tableDB] - linkDataSourceToUser - Входим в linkDataSourceToUser');
+  //console.log('Входим в linkDataSourceToUser');
   try {
     const data = {
       user_id: user_id,
@@ -208,28 +292,19 @@ const linkDataSourceToUser = async (user_id, data_source_id, dbName) => { // В�
       { user_id, data_source_id },
       dbName
     );
-    console.log ('Результат проверки ', exists.id);
+    logger.logDevMessage('[tableDB] - linkDataSourceToUser - Результат проверки ', exists.id);
+    //console.log ('Результат проверки ', exists.id);
     if (exists.id != null) {
       return exists;
     } 
-    //   // Если запись существует, получаем её ID
-    //   const existingRecord = await DBManager.query(
-    //     'SELECT id FROM userdatasources WHERE user_id = $1 AND data_source_id = $2',
-    //     [user_id, data_source_id],
-    //     dbName
-    //   );
-    //   return { 
-    //     error: 'Связь уже существует',
-    //     id: existingRecord.rows[0].id 
-    //   };
-    // }
 
     // Если связи нет, создаем новую
     const result = await insertIntoTable('userdatasources', data, dbName);
     return result;
 
   } catch (error) {
-    console.error('Ошибка связывания:', error);
+    logger.logErrorMessage('[tableDB] - linkDataSourceToUser - Ошибка связывания:', error);
+    //console.error('Ошибка связывания:', error);
     
     // Обрабатываем случай конкурентного добавления
     if (error.code === '23505') {
@@ -268,19 +343,23 @@ const findLevel = async (userId) => {
 // Вход пользователя
 const login = async (username, password) => {
   const user = await findUser(username);
-  console.log('Функция login - найденый user', user);
+  logger.logDevMessage(`[tableDB] - login - найденый пользователm ${user}`);
+  //console.log('Функция login - найденый user', user);
   if (!user) {
-    console.log('Пользователь с логином', username, 'не найден');
+    logger.logDevMessage(`[tableDB] - login - Пользователь с логином${username} не найден`);
+    //console.log('Пользователь с логином', username, 'не найден');
     return null; // Возвращаем null, если пользователь не найден
   }
   const passwordIsValid = bcrypt.compareSync(password, user.password);
   if (!passwordIsValid) {
-    console.log('Неверный пароль для пользователя', username);
+    logger.logDevMessage('[tableDB] - login - Неверный пароль для пользователя', username);
+    //console.log('Неверный пароль для пользователя', username);
     return null; // Возвращаем null, если пароль неверный
   }
   const level = await findLevel(user.id);
   user.level = level || 0;
-  console.log('Уровень доступа пользователя:', level);
+  logger.logDevMessage('[tableDB] - login - Уровень доступа пользователя:', level);
+  //console.log('Уровень доступа пользователя:', level);
   return user;
 };
 
@@ -329,7 +408,8 @@ const changePassword = async (requesterId, targetUsername, newPassword) => {
     return { message: 'Password changed successfully!' };
   } catch (error) {
     await DBManager.query('ROLLBACK'); // Откатываем транзакцию в случае ошибки
-    console.error('Ошибка при изменении пароля:', error);
+    logger.logErrorMessage('[tableDB] - changePassword - Ошибка при изменении пароля:', error);
+    //console.error('[tableDB] - changePassword - Ошибка при изменении пароля:', error);
     throw error;
   }
 };
