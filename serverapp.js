@@ -281,6 +281,7 @@ ws.on('message', async (message) => {
       try {
         const checkInputMessage = checkMessage(message);
         logger.logDevMessage(`[Serverapp] - WSSNodeRED - checkInputMessage - ${JSON.stringify(checkInputMessage, null, 2)}`);
+        //console.log(`[Serverapp] - WSSNodeRED - checkInputMessage - ${JSON.stringify(checkInputMessage, null, 2)}`);
         if(checkInputMessage.status === 'ok') {
 
           const dID = checkInputMessage.data.name;

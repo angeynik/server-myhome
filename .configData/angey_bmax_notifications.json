@@ -72,5 +72,54 @@
         "param": "dTemp"
       }
     ]
+  },
+  "room06": {
+    "dTemp": [
+      {
+        "id": 1,
+        "condition": "greater_than",
+        "value": 16,
+        "notificationСhannel": 0,
+        "frequency": 0,
+        "permission": true,
+        "status": false,
+        "startTime": "10:27",
+        "endTime": "10:37",
+        "createdAt": "09.06.2026, 10:26:29",
+        "updatedAt": "09.06.2026, 10:26:29",
+        "room": "room06",
+        "param": "dTemp"
+      },
+      {
+        "id": 2,
+        "condition": "greater_than",
+        "value": 0,
+        "notificationСhannel": 0,
+        "frequency": 0,
+        "permission": true,
+        "status": false,
+        "startTime": "12:14",
+        "endTime": "12:24",
+        "createdAt": "09.06.2026, 12:13:20",
+        "updatedAt": "09.06.2026, 12:13:20",
+        "room": "room06",
+        "param": "dTemp"
+      },
+      {
+        "id": 3,
+        "condition": "greater_than",
+        "value": 0,
+        "notificationСhannel": 0,
+        "frequency": 0,
+        "permission": true,
+        "status": false,
+        "startTime": "12:25",
+        "endTime": "12:35",
+        "createdAt": "09.06.2026, 12:13:21",
+        "updatedAt": "09.06.2026, 12:13:21",
+        "room": "room06",
+        "param": "dTemp"
+      }
+    ]
   }
 }

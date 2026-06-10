@@ -111,13 +111,277 @@
         "id": 1,
         "startTime": "13:36",
         "endTime": "13:46",
-        "value": 26.65,
+        "value": 27.5,
         "value_type": "absolute",
         "unit": "",
         "room": "room01",
         "param": "dTemp",
         "createdAt": "29.05.2026, 13:35:55",
-        "updatedAt": "29.05.2026, 13:35:55",
+        "updatedAt": "08.06.2026, 21:08:58",
+        "days": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      }
+    ]
+  },
+  "room02": {
+    "dTemp": [
+      {
+        "id": 1,
+        "startTime": "21:24",
+        "endTime": "21:34",
+        "value": 13,
+        "value_type": "absolute",
+        "unit": "",
+        "room": "room02",
+        "param": "dTemp",
+        "createdAt": "08.06.2026, 21:23:09",
+        "updatedAt": "09.06.2026, 10:36:49",
+        "days": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      {
+        "id": 2,
+        "startTime": "19:35",
+        "endTime": "21:45",
+        "value": -8.58,
+        "value_type": "deviation",
+        "unit": "",
+        "room": "room02",
+        "param": "dTemp",
+        "createdAt": "08.06.2026, 21:23:20",
+        "updatedAt": "09.06.2026, 10:36:57",
+        "days": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "undefined": 0
+      },
+      {
+        "id": 3,
+        "startTime": "21:46",
+        "endTime": "21:56",
+        "value": 12.8,
+        "value_type": "absolute",
+        "unit": "",
+        "room": "room02",
+        "param": "dTemp",
+        "createdAt": "08.06.2026, 21:23:23",
+        "updatedAt": "08.06.2026, 21:23:23",
+        "days": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      {
+        "id": 4,
+        "startTime": "21:57",
+        "endTime": "22:07",
+        "value": 12.8,
+        "value_type": "absolute",
+        "unit": "",
+        "room": "room02",
+        "param": "dTemp",
+        "createdAt": "08.06.2026, 21:23:26",
+        "updatedAt": "08.06.2026, 21:23:26",
+        "days": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      }
+    ],
+    "dHum": [
+      {
+        "id": 1,
+        "startTime": "10:28",
+        "endTime": "10:38",
+        "value": 40,
+        "value_type": "absolute",
+        "unit": "",
+        "room": "room02",
+        "param": "dHum",
+        "createdAt": "09.06.2026, 10:27:23",
+        "updatedAt": "09.06.2026, 10:27:23",
+        "days": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      {
+        "id": 2,
+        "startTime": "10:39",
+        "endTime": "10:49",
+        "value": 40,
+        "value_type": "absolute",
+        "unit": "",
+        "room": "room02",
+        "param": "dHum",
+        "createdAt": "09.06.2026, 10:27:25",
+        "updatedAt": "09.06.2026, 10:27:25",
+        "days": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      }
+    ]
+  },
+  "room03": {
+    "dTemp": [
+      {
+        "id": 1,
+        "startTime": "10:15",
+        "endTime": "10:25",
+        "value": 17,
+        "value_type": "absolute",
+        "unit": "",
+        "room": "room03",
+        "param": "dTemp",
+        "createdAt": "09.06.2026, 10:14:33",
+        "updatedAt": "09.06.2026, 10:14:33",
+        "days": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      {
+        "id": 2,
+        "startTime": "07:26",
+        "endTime": "10:36",
+        "value": 17,
+        "value_type": "absolute",
+        "unit": "",
+        "room": "room03",
+        "param": "dTemp",
+        "createdAt": "09.06.2026, 10:14:35",
+        "updatedAt": "09.06.2026, 10:14:39",
+        "days": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      }
+    ]
+  },
+  "room06": {
+    "dHum": [
+      {
+        "id": 1,
+        "startTime": "10:27",
+        "endTime": "10:37",
+        "value": 52,
+        "value_type": "absolute",
+        "unit": "",
+        "room": "room06",
+        "param": "dHum",
+        "createdAt": "09.06.2026, 10:26:49",
+        "updatedAt": "09.06.2026, 10:26:49",
+        "days": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      }
+    ],
+    "dTemp": [
+      {
+        "id": 1,
+        "startTime": "11:27",
+        "endTime": "11:37",
+        "value": 20.2,
+        "value_type": "absolute",
+        "unit": "",
+        "room": "room06",
+        "param": "dTemp",
+        "createdAt": "09.06.2026, 11:26:44",
+        "updatedAt": "09.06.2026, 11:26:44",
+        "days": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      {
+        "id": 2,
+        "startTime": "11:38",
+        "endTime": "11:48",
+        "value": 20.2,
+        "value_type": "absolute",
+        "unit": "",
+        "room": "room06",
+        "param": "dTemp",
+        "createdAt": "09.06.2026, 11:26:47",
+        "updatedAt": "09.06.2026, 11:26:47",
+        "days": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      {
+        "id": 3,
+        "startTime": "11:49",
+        "endTime": "11:59",
+        "value": 20.2,
+        "value_type": "absolute",
+        "unit": "",
+        "room": "room06",
+        "param": "dTemp",
+        "createdAt": "09.06.2026, 11:26:48",
+        "updatedAt": "09.06.2026, 11:26:48",
+        "days": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      {
+        "id": 4,
+        "startTime": "12:00",
+        "endTime": "12:10",
+        "value": 20.2,
+        "value_type": "absolute",
+        "unit": "",
+        "room": "room06",
+        "param": "dTemp",
+        "createdAt": "09.06.2026, 11:26:48",
+        "updatedAt": "09.06.2026, 11:26:48",
         "days": [
           1,
           2,

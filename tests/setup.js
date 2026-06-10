@@ -15,7 +15,10 @@ jest.mock('../services/db', () => ({
   findUser: jest.fn(),
   query: jest.fn(),
   checkRecordExists: jest.fn(),
-  closeAllPools: jest.fn()
+  closeAllPools: jest.fn(),
+  getPool: jest.fn(() => ({
+    on: jest.fn()
+  }))
 }));
 
 // Глобальные тестовые утилиты
@@ -158,6 +161,22 @@ jest.mock('fs', () => ({
 // Мок для dotenv (добавляем для configStore тестов)
 jest.mock('dotenv', () => ({
   config: jest.fn()
+}));
+
+// Мок для logger
+jest.mock('../services/logger.js', () => ({
+  initLogging: jest.fn(),
+  logInfoMessage: jest.fn(),
+  logDevMessage: jest.fn(),
+  logErrorMessage: jest.fn(),
+  logInfo: () => true,
+  logDev: () => true,
+  logError: () => true
+}));
+
+// Мок для tableDB
+jest.mock('../services/tableDB.js', () => ({
+  registerUser: jest.fn()
 }));
 
 // Глобальные тестовые данные для WebSocket

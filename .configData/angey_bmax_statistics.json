@@ -64,5 +64,39 @@
         "param": "dTemp"
       }
     ]
+  },
+  "room06": {
+    "dTemp": [
+      {
+        "id": 1,
+        "value": true,
+        "setpoint": true,
+        "devSetpoint": false,
+        "changeSeason": true,
+        "savePeriod": 0,
+        "sensityRate": 0.5,
+        "createdAt": "09.06.2026, 10:26:36",
+        "updatedAt": "09.06.2026, 10:26:41",
+        "room": "room06",
+        "param": "dTemp"
+      }
+    ]
+  },
+  "room02": {
+    "dTemp": [
+      {
+        "id": 1,
+        "value": true,
+        "setpoint": false,
+        "devSetpoint": false,
+        "changeSeason": false,
+        "savePeriod": 0,
+        "sensityRate": 0.5,
+        "createdAt": "09.06.2026, 20:35:48",
+        "updatedAt": "09.06.2026, 20:35:48",
+        "room": "room02",
+        "param": "dTemp"
+      }
+    ]
   }
 }

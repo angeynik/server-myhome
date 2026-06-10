@@ -1204,6 +1204,8 @@ const handlePost = async (clientId, data) => {
             lastUpdate: new Date().toLocaleString('ru-RU', { timeZone: 'Europe/Moscow' }),
           };
         }
+        console.log('[messageHandlers] - handlePost - setpoints - cfgData', cfgData[room].setpoints);
+        
         ({ fileUpdateNeeded, filePath, dataToWrite, responseType, responseRequest, responsePayload }
           = buildFileResponse(cfgData, cfgPath, 'response', 'config'));
  

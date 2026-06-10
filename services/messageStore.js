@@ -67,7 +67,7 @@ function getAllQueueMessages() {
       queue.forEach((entry, key) => {
         console.log(`🔑 ${key}`, {
           message: entry.message,
-          timestamp: entry.timestamp,
+          timestamp: Date.now(),
           retryCount: entry.retryCount
         });
       });

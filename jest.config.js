@@ -13,8 +13,13 @@ module.exports = {
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov', 'clover'],
   setupFilesAfterEnv: ['<rootDir>/tests/setup.js'],
+  // moduleNameMapper: {
+  //   '^@/(.*)$': '<rootDir>/$1'
+  // },
   moduleNameMapper: {
-    '^@/(.*)$': '<rootDir>/$1'
+    '^@/(.*)$': '<rootDir>/src/$1',
+    '^services/(.*)$': '<rootDir>/services/$1',
+    '^classes/(.*)$': '<rootDir>/classes/$1'
   },
   testPathIgnorePatterns: [
     '/node_modules/',
