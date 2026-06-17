@@ -120,6 +120,38 @@
         "room": "room06",
         "param": "dTemp"
       }
+    ],
+    "dTemp01": [
+      {
+        "id": 1,
+        "condition": "greater_than",
+        "value": 0,
+        "notificationСhannel": 0,
+        "frequency": 0,
+        "permission": true,
+        "status": false,
+        "startTime": "14:17",
+        "endTime": "14:27",
+        "createdAt": "17.06.2026, 14:16:38",
+        "updatedAt": "17.06.2026, 14:16:38",
+        "room": "room06",
+        "param": "dTemp01"
+      },
+      {
+        "id": 2,
+        "condition": "greater_than",
+        "value": 0,
+        "notificationСhannel": 0,
+        "frequency": 0,
+        "permission": true,
+        "status": false,
+        "startTime": "14:28",
+        "endTime": "14:38",
+        "createdAt": "17.06.2026, 14:16:43",
+        "updatedAt": "17.06.2026, 14:16:43",
+        "room": "room06",
+        "param": "dTemp01"
+      }
     ]
   }
 }

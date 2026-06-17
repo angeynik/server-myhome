@@ -390,6 +390,130 @@
           5
         ]
       }
+    ],
+    "sSwitch03": [
+      {
+        "id": 1,
+        "startTime": "14:10",
+        "endTime": "14:20",
+        "value": "ON",
+        "value_type": "absolute",
+        "unit": "",
+        "room": "room06",
+        "param": "sSwitch03",
+        "createdAt": "17.06.2026, 14:09:23",
+        "updatedAt": "17.06.2026, 14:09:23",
+        "days": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      {
+        "id": 2,
+        "startTime": "14:21",
+        "endTime": "14:31",
+        "value": "ON",
+        "value_type": "absolute",
+        "unit": "",
+        "room": "room06",
+        "param": "sSwitch03",
+        "createdAt": "17.06.2026, 14:09:31",
+        "updatedAt": "17.06.2026, 14:09:31",
+        "days": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      }
+    ],
+    "dTemp01": [
+      {
+        "id": 1,
+        "startTime": "14:18",
+        "endTime": "14:28",
+        "value": 0,
+        "value_type": "absolute",
+        "unit": "",
+        "room": "room06",
+        "param": "dTemp01",
+        "createdAt": "17.06.2026, 14:17:03",
+        "updatedAt": "17.06.2026, 14:17:03",
+        "days": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      }
+    ],
+    "dHum06": [
+      {
+        "id": 1,
+        "startTime": "14:18",
+        "endTime": "14:28",
+        "value": 40,
+        "value_type": "absolute",
+        "unit": "",
+        "room": "room06",
+        "param": "dHum06",
+        "createdAt": "17.06.2026, 14:17:45",
+        "updatedAt": "17.06.2026, 14:17:45",
+        "days": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      }
+    ],
+    "aSwitch03": [
+      {
+        "id": 1,
+        "startTime": "14:48",
+        "endTime": "14:58",
+        "value": 0,
+        "value_type": "absolute",
+        "unit": "",
+        "room": "room06",
+        "param": "aSwitch03",
+        "createdAt": "17.06.2026, 14:47:30",
+        "updatedAt": "17.06.2026, 14:47:30",
+        "days": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      }
+    ],
+    "dTemp07": [
+      {
+        "id": 1,
+        "startTime": "15:04",
+        "endTime": "15:14",
+        "value": 23.2,
+        "value_type": "absolute",
+        "unit": "",
+        "room": "room06",
+        "param": "dTemp07",
+        "createdAt": "17.06.2026, 15:03:51",
+        "updatedAt": "17.06.2026, 21:06:43",
+        "days": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      }
     ]
   }
 }

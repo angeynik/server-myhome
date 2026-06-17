@@ -1193,7 +1193,7 @@ const handlePost = async (clientId, data) => {
  
     case 'setpoints': {
       const setpointKey = 's'+key;
-      console.log('[messageHandlers] - handlePost - setpoints - setpointKey:', setpointKey);
+      console.log('[messageHandlers] - handlePost - setpoints - setpointKey:', setpointKey, 'value-', value);
       try {
         if (!setpointKey) throw new Error(`setpointKey не определён`);
  
@@ -1201,9 +1201,9 @@ const handlePost = async (clientId, data) => {
         if (cfgData[room]?.setpoints) {
           const type = (typeof value === 'boolean') ? 'bool' : 'num';
 
-          cfgData[room].setpoints[param] = {
-            value,
-            type,
+          cfgData[room].setpoints[setpointKey] = {
+            value: value,
+            type: type,
             lastUpdate: new Date().toLocaleString('ru-RU', { timeZone: 'Europe/Moscow' }),
           };
         }

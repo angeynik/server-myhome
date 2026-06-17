@@ -46,19 +46,19 @@
     "group": "Родители",
     "sensors": {
       "dTemp10": {
-        "value": 24.5,
+        "value": 24.6,
         "type": "num",
-        "lastUpdate": "17.06.2026, 11:21:19"
+        "lastUpdate": "17.06.2026, 21:33:32"
       },
       "dHum10": {
-        "value": 27.1,
+        "value": 26.9,
         "type": "num",
-        "lastUpdate": "17.06.2026, 12:01:32"
+        "lastUpdate": "17.06.2026, 21:32:32"
       },
       "dMove01": {
         "value": false,
         "type": "bool",
-        "lastUpdate": "17.06.2026, 11:15:04"
+        "lastUpdate": "17.06.2026, 21:25:32"
       }
     },
     "setpoints": {
@@ -75,14 +75,14 @@
     "group": "Дети",
     "setpoints": {
       "sTemp": {
-        "value": 20.2,
+        "value": 22.2,
         "type": "num",
-        "lastUpdate": "17.06.2026, 09:59:03"
+        "lastUpdate": "17.06.2026, 15:03:44"
       },
       "dCurSetpoint": {
-        "value": 21,
+        "value": 17,
         "type": "num",
-        "lastUpdate": "17.06.2026, 12:00:03"
+        "lastUpdate": "17.06.2026, 21:30:02"
       },
       "sHum": {
         "value": 40,
@@ -103,37 +103,47 @@
         "value": true,
         "type": "number",
         "lastUpdate": "17.06.2026, 11:56:02"
+      },
+      "dTemp06": {
+        "value": 22.2,
+        "type": "num",
+        "lastUpdate": "17.06.2026, 14:54:56"
+      },
+      "dTemp07": {
+        "value": 19.2,
+        "type": "num",
+        "lastUpdate": "17.06.2026, 15:02:50"
       }
     },
     "sensors": {
       "dTemp07": {
-        "value": 24.6,
+        "value": 24.8,
         "type": "num",
-        "lastUpdate": "17.06.2026, 12:00:03"
+        "lastUpdate": "17.06.2026, 21:30:02"
       },
       "dTemp06": {
         "value": 25.71,
         "type": "num",
-        "lastUpdate": "17.06.2026, 12:05:16"
+        "lastUpdate": "17.06.2026, 21:48:02"
       },
       "dHum06": {
         "value": 22.7,
         "type": "num",
-        "lastUpdate": "17.06.2026, 12:05:16"
+        "lastUpdate": "17.06.2026, 21:48:02"
       }
     },
     "batteries": {
       "dBat04": {
         "value": false,
         "type": "bool",
-        "lastUpdate": "17.06.2026, 12:00:03"
+        "lastUpdate": "17.06.2026, 21:30:02"
       }
     },
     "switches": {
       "aSwitch03": {
         "value": "ON",
         "type": "bool",
-        "lastUpdate": "17.06.2026, 11:43:35"
+        "lastUpdate": "17.06.2026, 21:51:47"
       }
     }
   },
@@ -157,17 +167,17 @@
       "dTemp12": {
         "value": 22.9,
         "type": "num",
-        "lastUpdate": "17.06.2026, 10:03:19"
+        "lastUpdate": "17.06.2026, 21:44:17"
       },
       "dFire10": {
         "value": false,
         "type": "bool",
-        "lastUpdate": "17.06.2026, 11:20:04"
+        "lastUpdate": "17.06.2026, 21:21:32"
       },
       "dLeak10": {
         "value": false,
         "type": "bool",
-        "lastUpdate": "17.06.2026, 11:23:34"
+        "lastUpdate": "17.06.2026, 21:05:32"
       }
     }
   },
@@ -211,24 +221,24 @@
       "aSwitch01": {
         "value": "OFF",
         "type": "bool",
-        "lastUpdate": "17.06.2026, 12:02:17"
+        "lastUpdate": "17.06.2026, 21:02:17"
       },
       "aSwitch02": {
         "value": "ON",
         "type": "bool",
-        "lastUpdate": "17.06.2026, 11:37:20"
+        "lastUpdate": "17.06.2026, 21:45:47"
       }
     },
     "sensors": {
       "dTemp01": {
-        "value": 24.06,
+        "value": 24.12,
         "type": "num",
-        "lastUpdate": "17.06.2026, 12:04:01"
+        "lastUpdate": "17.06.2026, 21:34:02"
       },
       "dHum01": {
         "value": 40.9,
         "type": "num",
-        "lastUpdate": "17.06.2026, 12:04:01"
+        "lastUpdate": "17.06.2026, 21:34:02"
       },
       "dTemp02": {
         "value": 19.3,
@@ -252,7 +262,7 @@
       "aSwitch12": {
         "value": false,
         "type": "bool",
-        "lastUpdate": "17.06.2026, 11:10:04"
+        "lastUpdate": "17.06.2026, 21:04:17"
       }
     }
   },
@@ -264,14 +274,14 @@
       "aSwitch11": {
         "value": false,
         "type": "bool",
-        "lastUpdate": "17.06.2026, 10:24:49"
+        "lastUpdate": "17.06.2026, 21:54:47"
       }
     },
     "sensors": {
       "dHum11": {
-        "value": 30.3,
+        "value": 30.2,
         "type": "num",
-        "lastUpdate": "17.06.2026, 11:04:49"
+        "lastUpdate": "17.06.2026, 21:32:47"
       },
       "dTemp11": {
         "value": 24.9,
@@ -307,27 +317,27 @@
       "dFrequency01": {
         "value": 49,
         "type": "num",
-        "lastUpdate": "17.06.2026, 12:04:01"
+        "lastUpdate": "17.06.2026, 21:04:17"
       },
       "dVoltage01": {
-        "value": 235.49333333333342,
+        "value": 234.69666666666672,
         "type": "num",
-        "lastUpdate": "17.06.2026, 12:13:37"
+        "lastUpdate": "17.06.2026, 21:55:32"
       },
       "dСurrent01": {
-        "value": 0.7982833333333337,
+        "value": 0.864,
         "type": "num",
-        "lastUpdate": "17.06.2026, 12:12:52"
+        "lastUpdate": "17.06.2026, 21:58:47"
       },
       "dEnergy01": {
-        "value": 3076.3145925925946,
+        "value": 3079.284370370365,
         "type": "num",
-        "lastUpdate": "17.06.2026, 12:08:15"
+        "lastUpdate": "17.06.2026, 21:49:47"
       },
       "dPower01": {
-        "value": 56.873333333333406,
+        "value": 78.3,
         "type": "num",
-        "lastUpdate": "17.06.2026, 12:12:37"
+        "lastUpdate": "17.06.2026, 21:58:47"
       }
     },
     "switches": {
@@ -344,14 +354,14 @@
         "lastUpdate": "17.06.2026, 11:02:49"
       },
       "dHum12": {
-        "value": 11.1,
+        "value": 11.4,
         "type": "num",
-        "lastUpdate": "17.06.2026, 10:42:49"
+        "lastUpdate": "17.06.2026, 19:33:24"
       },
       "dMove10": {
         "value": false,
         "type": "bool",
-        "lastUpdate": "17.06.2026, 11:47:50"
+        "lastUpdate": "17.06.2026, 21:09:32"
       }
     },
     "actuators": {
