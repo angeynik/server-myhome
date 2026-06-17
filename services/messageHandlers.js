@@ -1085,7 +1085,7 @@ const handlePost = async (clientId, data) => {
     '\nPayload:', JSON.stringify(data.payload, null, 2));
  
   const dID = data.name;
-  const { room, param, value, value_name, id, value_type, setKey, updated } = data.payload;
+  const { room, key, param, value, value_name, id, value_type, setKey, updated } = data.payload;
  
   // Состояние отложенной записи — заполняется в каждом case через buildFileResponse
   let fileUpdateNeeded = false;
@@ -1192,15 +1192,18 @@ const handlePost = async (clientId, data) => {
     // ── SETPOINTS ──────────────────────────────────────────────────────────
  
     case 'setpoints': {
-      console.log('[messageHandlers] - handlePost - setpoints - setKey:', setKey);
+      const setpointKey = 's'+key;
+      console.log('[messageHandlers] - handlePost - setpoints - setpointKey:', setpointKey);
       try {
-        if (!setKey) throw new Error(`setKey не определён`);
+        if (!setpointKey) throw new Error(`setpointKey не определён`);
  
         const { data: cfgData, filePath: cfgPath } = await readFileSafely(dID, 'config');
         if (cfgData[room]?.setpoints) {
-          cfgData[room].setpoints[setKey] = {
+          const type = (typeof value === 'boolean') ? 'bool' : 'num';
+
+          cfgData[room].setpoints[param] = {
             value,
-            type:       cfgData[room].setpoints[setKey]?.type || 'number',
+            type,
             lastUpdate: new Date().toLocaleString('ru-RU', { timeZone: 'Europe/Moscow' }),
           };
         }
