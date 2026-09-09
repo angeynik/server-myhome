@@ -33,6 +33,8 @@ const wsDashPORT = process.env.WSD_PORT || 9202;
 // const LOCAL_URL = process.env.LOCAL_URL || 'http://localhost:3020';
 // const pingInterval = process.env.WS_PING_INTERVAL || 150000;
 // const timeOut = process.env.WS_TIME_OUT || 300000;
+const manageModbus = process.env.MANAGE_MODBUS || 'false';
+const modbusId = process.env.MODBUS_ID || 21;
 
 const app = express();
 app.set(servPORT);
@@ -403,6 +405,72 @@ WSSDash.on('connection', (ws) => {
       //console.info('[Serverapp] - Dash WebSocket connection closed');
   });
 });
+
+
+///////////////////////////////////////////////////////////////////////////
+//Работаем с modBus
+if (manageModbus) {
+  modbusManager = new ModbusManager('./modBus/modbusConf.json', {
+    unitId: parseInt(modbusId)
+  });
+  console.log(`[Serverapp] - Modbus инициализирован с ID: ${modbusId}`);
+  
+  modbusManager
+      .start({
+        // Новые показания от Master -> рассылаем в Dashboard (VUE) и NodeRED
+        // так же, как обычные сообщения приложения.
+        onData: (data) => {
+          try {
+            console.log('[Serverapp] - Modbus onData - Получены данные ', data);
+            //broadcast(null, data.dID, data);
+          } catch (error) {
+            logger.logErrorMessage(`[Serverapp] - Modbus onData - Ошибка broadcast: ${error.message}`);
+          }
+        },
+        // Ошибка опроса конкретного устройства/регистра - только в лог, не роняем сервер
+        onDeviceError: (err) => {
+          console.log(`[Serverapp] - Modbus onDeviceError - ${JSON.stringify(err)}`);
+          logger.logErrorMessage(`[Serverapp] - Modbus onDeviceError - ${JSON.stringify(err)}`);
+        },
+        // Внешний Modbus Master записал что-то в наш Slave -> тоже рассылаем клиентам
+        onSlaveWrite: (data) => {
+          try {
+            console.log('[Serverapp] - Modbus onData - Получены данные ',
+              {
+              type: 'post',
+              request: 'modbusSlaveWrite',
+              name: data.dID,
+              payload: { room: data.dID, item_name: data.name || `${data.type}_${data.address}`, item_value: data.value },
+            });
+            // broadcast(null, data.dID, {
+            //   type: 'post',
+            //   request: 'modbusSlaveWrite',
+            //   name: data.dID,
+            //   payload: { room: data.dID, item_name: data.name || `${data.type}_${data.address}`, item_value: data.value },
+            // });
+          } catch (error) {
+            logger.logErrorMessage(`[Serverapp] - Modbus onSlaveWrite - Ошибка broadcast: ${error.message}`);
+          }
+        },
+      })
+      .then(() => {
+        logger.logInfoMessage('[Serverapp] - Modbus RTU сервис запущен');
+      })
+      .catch((error) => {
+        logger.logErrorMessage(`[Serverapp] - Ошибка запуска Modbus RTU сервиса: ${error.message}`);
+      });
+}  else {
+  logger.logInfoMessage('[Serverapp] - Modbus RTU сервис отключён (MANAGE_MODBUS != true)');
+}
+
+
+
+
+
+
+
+
+
 
 
 

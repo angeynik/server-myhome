@@ -4,7 +4,7 @@
 // и связывает их события с остальным приложением через переданные колбэки.
 //
 // ВАЖНО про режим "both" (Master + Slave одновременно):
-// Modbus RTU - это half-duplex шина с ОДНИМ ведущим. Если Master и Slave配置
+// Modbus RTU - это half-duplex шина с ОДНИМ ведущим. Если Master и Slave
 // указывают на один и тот же физический serial-порт, они будут конкурировать
 // за устройство (порт открывается монопольно), а входящие байты одновременно
 // будут пытаться разобрать и как "чужой запрос", и как "наш ответ" - это приведёт
@@ -18,13 +18,44 @@ const fs = require('fs');
 const ModbusMasterManager = require('./modbusMaster');
 const ModbusSlaveServer = require('./modbusSlave');
 const logger = require('../services/logger.js');
+const dotenv = require('dotenv'); 
+const role = (process.env.MODBUS_ROLE || 'slave').toLowerCase();
 
 class ModbusManager {
-  constructor(confPath) {
+  constructor(confPath, options = {}) {
     this.confPath = confPath;
+    this.options = options;
     this.config = JSON.parse(fs.readFileSync(confPath, 'utf8'));
     this.master = null;
     this.slave = null;
+
+    if (options.unitId !== undefined) {
+      this.applyUnitId(options.unitId);
+      
+    }
+  }
+  applyUnitId(unitId) {
+    // Применяем к секции slave
+    if (this.config.slave) {
+      this.config.slave.unitId = unitId;
+      console.log(`[ModbusManager] - Установлен unitId для Slave: ${unitId}`);
+      //logger.logInfoMessage(`[ModbusManager] - Установлен unitId для Slave: ${unitId}`);
+    }
+    
+    // Применяем к секции master, если она есть
+    if (this.config.master && this.config.master.devices) {
+      this.config.master.devices.forEach(device => {
+        device.unitId = unitId;
+      });
+      logger.logInfoMessage(`[ModbusManager] - Установлен unitId для Master устройств: ${unitId}`);
+    }
+    
+    // Применяем к устройствам в корневой секции (если есть)
+    if (this.config.devices) {
+      this.config.devices.forEach(device => {
+        device.unitId = unitId;
+      });
+    }
   }
 
   /**
@@ -34,7 +65,7 @@ class ModbusManager {
    * @param {(data: object) => void} [handlers.onSlaveWrite] - внешний Master записал что-то в наш Slave
    */
   async start({ onData, onDeviceError, onSlaveWrite } = {}) {
-    const role = (process.env.MODBUS_ROLE || this.config.role || 'master').toLowerCase();
+    //const role = (process.env.MODBUS_ROLE || this.config.role || 'slave').toLowerCase();
     logger.logInfoMessage(`[ModbusManager] - Запуск в роли: ${role}`);
 
     if (role === 'both') {
