@@ -53,24 +53,24 @@
       "dTemp10": {
         "value": 24.7,
         "type": "num",
-        "lastUpdate": "19.06.2026, 10:26:39"
+        "lastUpdate": "20.06.2026, 07:01:23"
       },
       "dHum10": {
-        "value": 27.1,
+        "value": 26.7,
         "type": "num",
-        "lastUpdate": "19.06.2026, 10:46:09"
+        "lastUpdate": "20.06.2026, 05:26:37"
       },
       "dMove01": {
         "value": false,
         "type": "bool",
-        "lastUpdate": "19.06.2026, 10:46:09"
+        "lastUpdate": "20.06.2026, 07:10:53"
       }
     },
     "setpoints": {
       "sTemp": {
-        "value": 24.35,
+        "value": 22.4,
         "type": "num",
-        "lastUpdate": "19.06.2026, 10:06:17"
+        "lastUpdate": "26.06.2026, 09:26:34"
       }
     }
   },
@@ -80,19 +80,19 @@
     "group": "Дети",
     "setpoints": {
       "sTemp": {
-        "value": 23.2,
+        "value": 25.2,
         "type": "num",
-        "lastUpdate": "19.06.2026, 10:54:00"
+        "lastUpdate": "19.06.2026, 14:59:44"
       },
       "dCurSetpoint": {
-        "value": 21,
+        "value": 17,
         "type": "num",
-        "lastUpdate": "19.06.2026, 10:29:54"
+        "lastUpdate": "20.06.2026, 06:59:53"
       },
       "sHum": {
-        "value": 23,
+        "value": 28,
         "type": "num",
-        "lastUpdate": "19.06.2026, 10:53:43"
+        "lastUpdate": "19.06.2026, 14:59:51"
       },
       "dHum": {
         "value": 46,
@@ -105,9 +105,9 @@
         "lastUpdate": "17.06.2026, 12:17:26"
       },
       "sSwitch": {
-        "value": true,
-        "type": "number",
-        "lastUpdate": "17.06.2026, 11:56:02"
+        "value": false,
+        "type": "bool",
+        "lastUpdate": "19.06.2026, 15:00:23"
       },
       "dTemp06": {
         "value": 22.2,
@@ -122,33 +122,33 @@
     },
     "sensors": {
       "dTemp07": {
-        "value": 23.6,
+        "value": 22.7,
         "type": "num",
-        "lastUpdate": "19.06.2026, 10:29:54"
+        "lastUpdate": "20.06.2026, 06:59:53"
       },
       "dTemp06": {
         "value": 25.71,
         "type": "num",
-        "lastUpdate": "19.06.2026, 09:44:44"
+        "lastUpdate": "20.06.2026, 06:10:08"
       },
       "dHum06": {
         "value": 22.7,
         "type": "num",
-        "lastUpdate": "19.06.2026, 09:44:44"
+        "lastUpdate": "20.06.2026, 06:10:08"
       }
     },
     "batteries": {
       "dBat04": {
         "value": false,
         "type": "bool",
-        "lastUpdate": "19.06.2026, 10:29:54"
+        "lastUpdate": "20.06.2026, 06:59:53"
       }
     },
     "switches": {
       "aSwitch03": {
         "value": "ON",
         "type": "bool",
-        "lastUpdate": "19.06.2026, 10:24:54"
+        "lastUpdate": "20.06.2026, 06:42:38"
       }
     }
   },
@@ -170,19 +170,19 @@
     },
     "sensors": {
       "dTemp12": {
-        "value": 22.8,
+        "value": 23.3,
         "type": "num",
-        "lastUpdate": "19.06.2026, 08:22:58"
+        "lastUpdate": "20.06.2026, 07:47:17"
       },
       "dFire10": {
         "value": false,
         "type": "bool",
-        "lastUpdate": "19.06.2026, 11:02:39"
+        "lastUpdate": "20.06.2026, 06:33:38"
       },
       "dLeak10": {
         "value": false,
         "type": "bool",
-        "lastUpdate": "19.06.2026, 10:46:54"
+        "lastUpdate": "20.06.2026, 05:48:38"
       }
     }
   },
@@ -199,12 +199,12 @@
       "sTemp": {
         "value": 22,
         "type": "num",
-        "lastUpdate": "17.06.2026, 11:55:29"
+        "lastUpdate": "24.06.2026, 20:48:17"
       },
       "dCurSetpoint": {
         "value": 21.3,
         "type": "num",
-        "lastUpdate": "19.06.2026, 09:33:28"
+        "lastUpdate": "19.06.2026, 12:53:33"
       },
       "sSwitch01": {
         "value": true,
@@ -217,45 +217,45 @@
         "lastUpdate": "17.06.2026, 12:11:27"
       },
       "sSwitch": {
-        "value": true,
+        "value": false,
         "type": "bool",
-        "lastUpdate": "18.06.2026, 23:05:37"
+        "lastUpdate": "20.06.2026, 22:32:48"
       }
     },
     "switches": {
       "aSwitch01": {
         "value": "OFF",
         "type": "bool",
-        "lastUpdate": "19.06.2026, 08:02:28"
+        "lastUpdate": "20.06.2026, 07:02:38"
       },
       "aSwitch02": {
         "value": "ON",
         "type": "bool",
-        "lastUpdate": "19.06.2026, 10:15:29"
+        "lastUpdate": "20.06.2026, 06:32:08"
       }
     },
     "sensors": {
       "dTemp01": {
-        "value": 24.14,
+        "value": 24.26,
         "type": "num",
-        "lastUpdate": "19.06.2026, 11:03:54"
+        "lastUpdate": "20.06.2026, 07:03:53"
       },
       "dHum01": {
-        "value": 46.4,
+        "value": 43.75,
         "type": "num",
-        "lastUpdate": "19.06.2026, 11:03:54"
+        "lastUpdate": "20.06.2026, 07:03:53"
       },
       "dTemp02": {
-        "value": 19.3,
+        "value": 19.8,
         "type": "num",
-        "lastUpdate": "19.06.2026, 09:33:28"
+        "lastUpdate": "19.06.2026, 12:53:33"
       }
     },
     "batteries": {
       "dBat02": {
         "value": 71,
         "type": "num",
-        "lastUpdate": "19.06.2026, 09:33:28"
+        "lastUpdate": "19.06.2026, 12:53:33"
       }
     }
   },
@@ -265,9 +265,9 @@
     "group": "Дети",
     "switches": {
       "aSwitch12": {
-        "value": false,
+        "value": true,
         "type": "bool",
-        "lastUpdate": "19.06.2026, 10:33:54"
+        "lastUpdate": "20.06.2026, 05:27:22"
       }
     }
   },
@@ -279,26 +279,26 @@
       "aSwitch11": {
         "value": false,
         "type": "bool",
-        "lastUpdate": "19.06.2026, 11:08:39"
+        "lastUpdate": "20.06.2026, 06:41:08"
       }
     },
     "sensors": {
       "dHum11": {
-        "value": 30,
+        "value": 30.2,
         "type": "num",
-        "lastUpdate": "19.06.2026, 09:16:28"
+        "lastUpdate": "20.06.2026, 06:15:08"
       },
       "dTemp11": {
         "value": 24.7,
         "type": "num",
-        "lastUpdate": "19.06.2026, 08:02:43"
+        "lastUpdate": "20.06.2026, 05:34:08"
       }
     },
     "conrtollers": {
       "aController01": {
-        "value": 1.7,
+        "value": 1.6,
         "type": "num",
-        "lastUpdate": "19.06.2026, 07:49:28"
+        "lastUpdate": "20.06.2026, 05:03:37"
       }
     },
     "setpoints": {
@@ -322,65 +322,65 @@
       "dFrequency01": {
         "value": 49,
         "type": "num",
-        "lastUpdate": "19.06.2026, 10:43:54"
+        "lastUpdate": "20.06.2026, 06:31:23"
       },
       "dVoltage01": {
-        "value": 238.04166666666683,
+        "value": 235.48500000000013,
         "type": "num",
-        "lastUpdate": "19.06.2026, 11:02:24"
+        "lastUpdate": "20.06.2026, 07:06:38"
       },
       "dСurrent01": {
-        "value": 1.313,
+        "value": 1.308,
         "type": "num",
-        "lastUpdate": "19.06.2026, 10:49:24"
+        "lastUpdate": "20.06.2026, 07:12:53"
       },
       "dEnergy01": {
-        "value": 3086.7490370370397,
+        "value": 3094.5199259259375,
         "type": "num",
-        "lastUpdate": "19.06.2026, 10:55:09"
+        "lastUpdate": "20.06.2026, 06:58:53"
       },
       "dPower01": {
-        "value": 217.46166666666662,
+        "value": 220.9,
         "type": "num",
-        "lastUpdate": "19.06.2026, 11:03:24"
+        "lastUpdate": "20.06.2026, 07:12:38"
       }
     },
     "switches": {
       "aSwitch10": {
         "value": false,
         "type": "bool",
-        "lastUpdate": "19.06.2026, 10:08:59"
+        "lastUpdate": "20.06.2026, 05:46:53"
       }
     },
     "sensors": {
       "dTemp13": {
-        "value": 20.3,
+        "value": 20.1,
         "type": "num",
-        "lastUpdate": "19.06.2026, 09:54:44"
+        "lastUpdate": "20.06.2026, 06:58:08"
       },
       "dHum12": {
         "value": 11.5,
         "type": "num",
-        "lastUpdate": "19.06.2026, 10:08:29"
+        "lastUpdate": "20.06.2026, 06:55:38"
       },
       "dMove10": {
         "value": false,
         "type": "bool",
-        "lastUpdate": "19.06.2026, 10:07:14"
+        "lastUpdate": "20.06.2026, 04:33:37"
       }
     },
     "actuators": {
       "aActuator10": {
-        "value": 1.4,
+        "value": 1.8,
         "type": "num",
-        "lastUpdate": "19.06.2026, 11:03:39"
+        "lastUpdate": "20.06.2026, 05:13:22"
       }
     },
     "setpoints": {
       "sActuator": {
         "value": 1.2,
         "type": "num",
-        "lastUpdate": "19.06.2026, 04:33:41"
+        "lastUpdate": "20.06.2026, 03:33:37"
       }
     }
   },

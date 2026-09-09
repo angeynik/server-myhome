@@ -1,0 +1,608 @@
+{
+  "newConfigID": "testConfig_20260706_150614",
+  "password": "testConfig",
+  "init": {
+    "dID": "testConfig_20260706_150237",
+    "limits": {
+      "Default": {
+        "high": 30,
+        "low": 4,
+        "step": 1
+      },
+      "Bool": {
+        "high": true,
+        "low": false,
+        "step": 1
+      },
+      "Actuator": {
+        "high": 100,
+        "low": 0,
+        "step": 0.1
+      },
+      "Temp": {
+        "high": 36,
+        "low": 8,
+        "step": 0.25
+      },
+      "Hum": {
+        "high": 60,
+        "low": 12,
+        "step": 0.5
+      },
+      "Switch": {
+        "high": 1,
+        "low": 0,
+        "step": 1
+      },
+      "hours": {
+        "high": 23,
+        "low": 0,
+        "step": 1
+      },
+      "minutes": {
+        "high": 59,
+        "low": 0,
+        "step": 1
+      }
+    },
+    "title": ""
+  },
+  "room00": {
+    "group": "",
+    "id": 0,
+    "title": "Общие настройки",
+    "sensors": {},
+    "powers": {},
+    "manages": {},
+    "setpoints": {},
+    "batteries": {}
+  },
+  "room01": {
+    "group": "Родители",
+    "id": 1,
+    "title": "Спальня",
+    "sensors": {
+      "dTemp01": {
+        "sensorID": null,
+        "value": 30,
+        "type": "num",
+        "lastUpdate": "06.07.2026, 15:06:14"
+      },
+      "dHum01": {
+        "sensorID": null,
+        "value": 30,
+        "type": "num",
+        "lastUpdate": "06.07.2026, 15:06:14"
+      },
+      "dMove01": {
+        "sensorID": null,
+        "value": 30,
+        "type": "bool",
+        "lastUpdate": "06.07.2026, 15:06:14"
+      }
+    },
+    "manages": {
+      "sSwitchT01": {
+        "sensorID": null,
+        "value": 0,
+        "type": "bool",
+        "lastUpdate": null
+      },
+      "sSwitchH01": {
+        "sensorID": null,
+        "value": 0,
+        "type": "bool",
+        "lastUpdate": null
+      }
+    },
+    "setpoints": {
+      "sTemp01": {
+        "sensorID": null,
+        "value": 22,
+        "type": "num",
+        "lastUpdate": null,
+        "limits": {
+          "high": 36,
+          "low": 8,
+          "step": 0.25
+        }
+      },
+      "sHum01": {
+        "sensorID": null,
+        "value": 45,
+        "type": "num",
+        "lastUpdate": null,
+        "limits": {
+          "high": 60,
+          "low": 12,
+          "step": 0.5
+        }
+      }
+    },
+    "batteries": {},
+    "tempManage": {
+      "aSwitch01": {
+        "sensorID": null,
+        "value": null,
+        "type": "bool",
+        "lastUpdate": null
+      },
+      "aThermostat01": {
+        "sensorID": null,
+        "value": null,
+        "type": null,
+        "lastUpdate": null
+      },
+      "aIR01": {
+        "sensorID": null,
+        "value": null,
+        "type": null,
+        "lastUpdate": null
+      }
+    },
+    "humManage": {
+      "aSwitch02": {
+        "sensorID": null,
+        "value": null,
+        "type": "bool",
+        "lastUpdate": null
+      },
+      "aIR02": {
+        "sensorID": null,
+        "value": null,
+        "type": null,
+        "lastUpdate": null
+      }
+    }
+  },
+  "room02": {
+    "group": "Родители",
+    "id": 2,
+    "title": "Гостиная",
+    "sensors": {
+      "dTemp02": {
+        "sensorID": null,
+        "value": 30,
+        "type": "num",
+        "lastUpdate": "06.07.2026, 15:06:14"
+      },
+      "dHum02": {
+        "sensorID": null,
+        "value": 30,
+        "type": "num",
+        "lastUpdate": "06.07.2026, 15:06:14"
+      },
+      "dMove02": {
+        "sensorID": null,
+        "value": 30,
+        "type": "bool",
+        "lastUpdate": "06.07.2026, 15:06:14"
+      }
+    },
+    "manages": {
+      "sSwitchT02": {
+        "sensorID": null,
+        "value": 0,
+        "type": "bool",
+        "lastUpdate": null
+      }
+    },
+    "setpoints": {
+      "sTemp02": {
+        "sensorID": null,
+        "value": 22,
+        "type": "num",
+        "lastUpdate": null,
+        "limits": {
+          "high": 36,
+          "low": 8,
+          "step": 0.25
+        }
+      }
+    },
+    "batteries": {},
+    "tempManage": {
+      "aSwitch03": {
+        "sensorID": null,
+        "value": null,
+        "type": "bool",
+        "lastUpdate": null
+      },
+      "aThermostat02": {
+        "sensorID": null,
+        "value": null,
+        "type": null,
+        "lastUpdate": null
+      },
+      "aIR03": {
+        "sensorID": null,
+        "value": null,
+        "type": null,
+        "lastUpdate": null
+      }
+    }
+  },
+  "room03": {
+    "group": "Родители",
+    "id": 3,
+    "title": "Кухня",
+    "sensors": {
+      "dTemp03": {
+        "sensorID": null,
+        "value": 30,
+        "type": "num",
+        "lastUpdate": "06.07.2026, 15:06:14"
+      },
+      "dHum03": {
+        "sensorID": null,
+        "value": 30,
+        "type": "num",
+        "lastUpdate": "06.07.2026, 15:06:14"
+      },
+      "dMove03": {
+        "sensorID": null,
+        "value": 30,
+        "type": "bool",
+        "lastUpdate": "06.07.2026, 15:06:14"
+      },
+      "dCo01": {
+        "sensorID": null,
+        "value": 30,
+        "type": null,
+        "lastUpdate": "06.07.2026, 15:06:14"
+      },
+      "dLeak01": {
+        "sensorID": null,
+        "value": 30,
+        "type": "bool",
+        "lastUpdate": "06.07.2026, 15:06:14"
+      }
+    },
+    "manages": {
+      "sSwitchT03": {
+        "sensorID": null,
+        "value": 0,
+        "type": "bool",
+        "lastUpdate": null
+      }
+    },
+    "setpoints": {
+      "sTemp03": {
+        "sensorID": null,
+        "value": 22,
+        "type": "num",
+        "lastUpdate": null,
+        "limits": {
+          "high": 36,
+          "low": 8,
+          "step": 0.25
+        }
+      }
+    },
+    "batteries": {},
+    "tempManage": {
+      "aSwitch04": {
+        "sensorID": null,
+        "value": null,
+        "type": "bool",
+        "lastUpdate": null
+      },
+      "aThermostat03": {
+        "sensorID": null,
+        "value": null,
+        "type": null,
+        "lastUpdate": null
+      }
+    }
+  },
+  "room04": {
+    "group": "Родители",
+    "id": 4,
+    "title": "Санузел",
+    "sensors": {
+      "dTemp04": {
+        "sensorID": null,
+        "value": 30,
+        "type": "num",
+        "lastUpdate": "06.07.2026, 15:06:14"
+      },
+      "dHum04": {
+        "sensorID": null,
+        "value": 30,
+        "type": "num",
+        "lastUpdate": "06.07.2026, 15:06:14"
+      },
+      "dMove04": {
+        "sensorID": null,
+        "value": 30,
+        "type": "bool",
+        "lastUpdate": "06.07.2026, 15:06:14"
+      },
+      "dLeak02": {
+        "sensorID": null,
+        "value": 30,
+        "type": "bool",
+        "lastUpdate": "06.07.2026, 15:06:14"
+      }
+    },
+    "manages": {},
+    "setpoints": {},
+    "batteries": {}
+  },
+  "room05": {
+    "group": "Родители",
+    "id": 5,
+    "title": "Прихожая",
+    "sensors": {
+      "dTemp05": {
+        "sensorID": null,
+        "value": 30,
+        "type": "num",
+        "lastUpdate": "06.07.2026, 15:06:14"
+      },
+      "dHum05": {
+        "sensorID": null,
+        "value": 30,
+        "type": "num",
+        "lastUpdate": "06.07.2026, 15:06:14"
+      },
+      "dMove05": {
+        "sensorID": null,
+        "value": 30,
+        "type": "bool",
+        "lastUpdate": "06.07.2026, 15:06:14"
+      },
+      "dDoor01": {
+        "sensorID": null,
+        "value": 30,
+        "type": "bool",
+        "lastUpdate": "06.07.2026, 15:06:14"
+      }
+    },
+    "manages": {},
+    "setpoints": {},
+    "batteries": {}
+  },
+  "room06": {
+    "group": "Дети",
+    "id": 6,
+    "title": "Миша",
+    "sensors": {
+      "dTemp06": {
+        "sensorID": null,
+        "value": 30,
+        "type": "num",
+        "lastUpdate": "06.07.2026, 15:06:14"
+      },
+      "dHum06": {
+        "sensorID": null,
+        "value": 30,
+        "type": "num",
+        "lastUpdate": "06.07.2026, 15:06:14"
+      },
+      "dMove06": {
+        "sensorID": null,
+        "value": 30,
+        "type": "bool",
+        "lastUpdate": "06.07.2026, 15:06:14"
+      }
+    },
+    "manages": {},
+    "setpoints": {
+      "sTemp04": {
+        "sensorID": null,
+        "value": 22,
+        "type": "num",
+        "lastUpdate": null,
+        "limits": {
+          "high": 36,
+          "low": 8,
+          "step": 0.25
+        }
+      },
+      "sHum02": {
+        "sensorID": null,
+        "value": 45,
+        "type": "num",
+        "lastUpdate": null,
+        "limits": {
+          "high": 60,
+          "low": 12,
+          "step": 0.5
+        }
+      }
+    },
+    "batteries": {},
+    "tempManage": {
+      "aThermostat04": {
+        "sensorID": null,
+        "value": null,
+        "type": null,
+        "lastUpdate": null
+      },
+      "aIR04": {
+        "sensorID": null,
+        "value": null,
+        "type": null,
+        "lastUpdate": null
+      }
+    },
+    "humManage": {
+      "aIR05": {
+        "sensorID": null,
+        "value": null,
+        "type": null,
+        "lastUpdate": null
+      }
+    }
+  },
+  "room07": {
+    "group": "Дети",
+    "id": 7,
+    "title": "Леша",
+    "sensors": {
+      "dTemp07": {
+        "sensorID": null,
+        "value": 30,
+        "type": "num",
+        "lastUpdate": "06.07.2026, 15:06:14"
+      },
+      "dHum07": {
+        "sensorID": null,
+        "value": 30,
+        "type": "num",
+        "lastUpdate": "06.07.2026, 15:06:14"
+      },
+      "dMove07": {
+        "sensorID": null,
+        "value": 30,
+        "type": "bool",
+        "lastUpdate": "06.07.2026, 15:06:14"
+      }
+    },
+    "manages": {},
+    "setpoints": {
+      "sTemp05": {
+        "sensorID": null,
+        "value": 22,
+        "type": "num",
+        "lastUpdate": null,
+        "limits": {
+          "high": 36,
+          "low": 8,
+          "step": 0.25
+        }
+      },
+      "sHum03": {
+        "sensorID": null,
+        "value": 45,
+        "type": "num",
+        "lastUpdate": null,
+        "limits": {
+          "high": 60,
+          "low": 12,
+          "step": 0.5
+        }
+      }
+    },
+    "batteries": {},
+    "tempManage": {
+      "aThermostat05": {
+        "sensorID": null,
+        "value": null,
+        "type": null,
+        "lastUpdate": null
+      },
+      "aIR06": {
+        "sensorID": null,
+        "value": null,
+        "type": null,
+        "lastUpdate": null
+      }
+    },
+    "humManage": {
+      "aIR07": {
+        "sensorID": null,
+        "value": null,
+        "type": null,
+        "lastUpdate": null
+      }
+    }
+  },
+  "room08": {
+    "group": "Дети",
+    "id": 8,
+    "title": "Санузел",
+    "sensors": {
+      "dTemp08": {
+        "sensorID": null,
+        "value": 30,
+        "type": "num",
+        "lastUpdate": "06.07.2026, 15:06:14"
+      },
+      "dHum08": {
+        "sensorID": null,
+        "value": 30,
+        "type": "num",
+        "lastUpdate": "06.07.2026, 15:06:14"
+      },
+      "dMove08": {
+        "sensorID": null,
+        "value": 30,
+        "type": "bool",
+        "lastUpdate": "06.07.2026, 15:06:14"
+      },
+      "dLeak03": {
+        "sensorID": null,
+        "value": 30,
+        "type": "bool",
+        "lastUpdate": "06.07.2026, 15:06:14"
+      }
+    },
+    "manages": {},
+    "setpoints": {},
+    "batteries": {}
+  },
+  "room09": {
+    "group": "Дети",
+    "id": 9,
+    "title": "Прихожая",
+    "sensors": {
+      "dTemp09": {
+        "sensorID": null,
+        "value": 30,
+        "type": "num",
+        "lastUpdate": "06.07.2026, 15:06:14"
+      },
+      "dHum09": {
+        "sensorID": null,
+        "value": 30,
+        "type": "num",
+        "lastUpdate": "06.07.2026, 15:06:14"
+      },
+      "dMove09": {
+        "sensorID": null,
+        "value": 30,
+        "type": "bool",
+        "lastUpdate": "06.07.2026, 15:06:14"
+      },
+      "dDoor02": {
+        "sensorID": null,
+        "value": 30,
+        "type": "bool",
+        "lastUpdate": "06.07.2026, 15:06:14"
+      }
+    },
+    "manages": {},
+    "setpoints": {},
+    "batteries": {}
+  },
+  "room10": {
+    "group": "Дети",
+    "id": 10,
+    "title": "Балкон",
+    "sensors": {
+      "dTemp10": {
+        "sensorID": null,
+        "value": 30,
+        "type": "num",
+        "lastUpdate": "06.07.2026, 15:06:14"
+      },
+      "dHum10": {
+        "sensorID": null,
+        "value": 30,
+        "type": "num",
+        "lastUpdate": "06.07.2026, 15:06:14"
+      },
+      "dMove10": {
+        "sensorID": null,
+        "value": 30,
+        "type": "bool",
+        "lastUpdate": "06.07.2026, 15:06:14"
+      }
+    },
+    "manages": {},
+    "setpoints": {},
+    "batteries": {}
+  }
+}

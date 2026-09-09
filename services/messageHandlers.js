@@ -1081,8 +1081,9 @@ const handleGet = async (clientId, data) => {
 
 const handlePost = async (clientId, data) => {
   logger.logDevMessage(`[messageHandlers] - handlePost - request: ${data.request}`);
-  console.log('[messageHandlers] - handlePost - Request:', data?.request,
-    '\nPayload:', JSON.stringify(data.payload, null, 2));
+  console.log(`[messageHandlers] - handlePost - request: ${data.request}`);
+  // console.log('[messageHandlers] - handlePost - Request:', data?.request,
+  //   '\nPayload:', JSON.stringify(data.payload, null, 2));
  
   const dID = data.name;
   const { room, key, param, value, value_name, id, value_type, setKey, updated } = data.payload;
@@ -1415,11 +1416,44 @@ const handlePost = async (clientId, data) => {
       }
       break;
     }
- 
-    case 'sensors':
-      // Placeholder
+    case 'sensors': {
+      console.log('[messageHandlers] - handlePost - сase sensors ');
       break;
- 
+      }
+    case 'userConfigEdit': {
+      try {
+        const dID = data.name;
+        const newConfigData = data.payload;
+        
+        // Получаем путь к файлу через readFileSafely (он создаст базовую структуру, если файла нет)
+        const { filePath } = await readFileSafely(dID, "config");
+        
+        // Подготавливаем данные для сохранения
+        // Добавляем dID в init, если его нет
+        if (!newConfigData.init) {
+          newConfigData.init = {};
+        }
+        newConfigData.init.dID = dID;
+        
+        // Сохраняем ПОЛНЫЕ данные, которые пришли от клиента
+        await writeFileSafely(filePath, JSON.stringify(newConfigData, null, 2));
+        
+        // Отправляем подтверждение клиенту
+        wsManager.sendToConnection('VUE_connections', clientId, 'response', 'userConfigEditSuccess', dID, {
+          message: 'Конфигурация успешно сохранена',
+          dID: dID
+        });
+        
+        logger.logDevMessage(`[messageHandlers] - Конфигурация ${dID} успешно сохранена`);
+        
+      } catch (error) {
+        logger.logErrorMessage(`[messageHandlers] - Ошибка сохранения конфигурации: ${error.message}`);
+        wsManager.sendToConnection('VUE_connections', clientId, 'error', 'userConfigEditError', data.name, {
+          message: error.message
+        });
+      }
+      break;
+    }
     default:
       break;
   }
