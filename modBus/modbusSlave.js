@@ -35,7 +35,7 @@ class ModbusSlaveServer extends EventEmitter {
       throw new Error('[ModbusSlave] Не указан config.port для Slave-подключения');
     }
     this.config = config;
-    this.unitID = config.unitID || 1;
+    this.unitID = config.unitId || 21;
     this.registerMap = config.registerMap || [];
 
     this.holdingRegisters = new Uint16Array(config.holdingRegistersSize || 100);

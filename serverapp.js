@@ -33,6 +33,10 @@ const wsDashPORT = process.env.WSD_PORT || 9202;
 // const LOCAL_URL = process.env.LOCAL_URL || 'http://localhost:3020';
 // const pingInterval = process.env.WS_PING_INTERVAL || 150000;
 // const timeOut = process.env.WS_TIME_OUT || 300000;
+
+const ModbusManager = require('./modBus/modbusManager');
+let modbusManager;
+
 const manageModbus = process.env.MANAGE_MODBUS || 'false';
 const modbusId = process.env.MODBUS_ID || 21;
 
@@ -414,7 +418,7 @@ if (manageModbus) {
     unitId: parseInt(modbusId)
   });
   console.log(`[Serverapp] - Modbus инициализирован с ID: ${modbusId}`);
-  
+
   modbusManager
       .start({
         // Новые показания от Master -> рассылаем в Dashboard (VUE) и NodeRED

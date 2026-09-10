@@ -2,7 +2,8 @@ module.exports = {
   testEnvironment: 'node', // Устанавливаем окружение Node.js
   testMatch: [
     '**/tests/unit/**/*.test.js',
-    '**/tests/integration/**/*.integration.js'
+    '**/tests/integration/**/*.integration.js',
+    "**/tests/modbusRTU/**/*.test.js"
   ],
   collectCoverageFrom: [
     'auth.js',

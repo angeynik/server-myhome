@@ -10,7 +10,7 @@
     "test:all": "jest",
     "start": "nodemon serverapp.js"
   },
-   "nodemonConfig": {
+  "nodemonConfig": {
     "ignore": [
       "configData/**/*",
       "logs/**/*",
@@ -37,6 +37,7 @@
     "http": "^0.0.1-security",
     "joi": "^17.13.3",
     "jsonwebtoken": "^9.0.2",
+    "modbus-serial": "^8.0.25",
     "nodemon": "^3.1.7",
     "pg": "^8.13.1",
     "uuid": "^10.0.0",

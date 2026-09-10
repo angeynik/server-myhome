@@ -23,6 +23,7 @@ const role = (process.env.MODBUS_ROLE || 'slave').toLowerCase();
 
 class ModbusManager {
   constructor(confPath, options = {}) {
+    console.log('Конструктор ModbusManager, создаем экземпляр с: ', options);
     this.confPath = confPath;
     this.options = options;
     this.config = JSON.parse(fs.readFileSync(confPath, 'utf8'));
@@ -30,8 +31,9 @@ class ModbusManager {
     this.slave = null;
 
     if (options.unitId !== undefined) {
+      console.log('options.unitId :', options.unitId);
       this.applyUnitId(options.unitId);
-      
+
     }
   }
   applyUnitId(unitId) {
@@ -90,6 +92,7 @@ class ModbusManager {
     }
 
     if ((role === 'slave' || role === 'both') && this.config.slave) {
+      console.log('Создаем сервер для Modbus Slave');
       this.slave = new ModbusSlaveServer(this.config.slave);
       if (onSlaveWrite) this.slave.on('write', onSlaveWrite);
       await this.slave.start();
