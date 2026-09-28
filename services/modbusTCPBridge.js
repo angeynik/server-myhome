@@ -27,7 +27,7 @@ const TABLES = {
 };
 const WIDTH = { bool: 1, uint16: 1, int16: 1, uint32: 2, int32: 2, float32: 2 };
 
-let cfg = { pollInterval: 1000, republishMs: 60000 };
+let cfg = { pollInterval: 1000, republishMs: 60000, maxGap: 0 };
 let broadcastFn = null;
 let broadcastTargets;             // undefined -> значение по умолчанию функции broadcast
 const tagIndex = new Map();       // "dID|request|room|item_name" -> tag
@@ -199,7 +199,7 @@ function buildBlocks() {
     let cur = null;
     for (const tag of tags) {
       const end = tag.address + tag.width - 1;
-      if (!cur || end - cur.start + 1 > maxSpan) {
+      if (!cur || end - cur.start + 1 > maxSpan || tag.address - cur.end - 1 > cfg.maxGap) {
         cur = { deviceId, table, interval: Number(intervalStr), start: tag.address, end, tags: [] };
         const name = `blk_${table}_${cur.start}`;
         cur.name = name;
@@ -317,7 +317,8 @@ function init({ broadcast, mapFile, targets } = {}) {
 
   cfg = {
     pollInterval: Number(map.pollInterval) || cfg.pollInterval,
-    republishMs: Number(map.republishMs) || cfg.republishMs
+    republishMs: Number(map.republishMs) || cfg.republishMs,
+    maxGap: Number.isInteger(map.maxGap) ? map.maxGap : 0
   };
 
   (map.tags || []).forEach((raw, i) => {
