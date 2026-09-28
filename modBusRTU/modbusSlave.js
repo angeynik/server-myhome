@@ -13,8 +13,8 @@
 
 const EventEmitter = require('events');
 const ModbusRTU = require('modbus-serial');
-const { encodeToRegisters } = require('./modbusUtils');
-const logger = require('../services/logger.js');
+const { encodeToRegisters } = require('./modbusUtils.js');
+const logger = require('../logger.js');
 
 class ModbusSlaveServer extends EventEmitter {
   /**
@@ -94,7 +94,7 @@ class ModbusSlaveServer extends EventEmitter {
         this.server = new ModbusRTU.ServerSerial(this._vector(), {
           path: this.config.port,
           baudRate: this.config.baudRate || 9600,
-          unitID: this.unitID,
+          unitID: this.unitId,
           debug: !!this.config.debug,
         });
       } catch (err) {
@@ -103,7 +103,7 @@ class ModbusSlaveServer extends EventEmitter {
 
       this.server.on('open', () => {
         logger.logInfoMessage(
-          `[ModbusSlave] - Slave-сервер запущен на ${this.config.port}, unitID=${this.unitID}`
+          `[ModbusSlave] - Slave-сервер запущен на ${this.config.port}, unitID=${this.unitId}`
         );
         resolve();
       });

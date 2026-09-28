@@ -412,7 +412,7 @@ WSSDash.on('connection', (ws) => {
 
 
 ///////////////////////////////////////////////////////////////////////////
-//Работаем с modBus
+//Работаем с modBusRTU
 if (manageModbus) {
   modbusManager = new ModbusManager('./modBus/modbusConf.json', {
     unitId: parseInt(modbusId)
@@ -467,7 +467,8 @@ if (manageModbus) {
   logger.logInfoMessage('[Serverapp] - Modbus RTU сервис отключён (MANAGE_MODBUS != true)');
 }
 
-
+///////////////////////////////////////////////////////////////////////////
+//Работаем с modBusTCP
 
 
 

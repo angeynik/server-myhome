@@ -9,8 +9,8 @@
 
 const EventEmitter = require('events');
 const ModbusRTU = require('modbus-serial');
-const { REGISTER_SIZE, decodeRegisters, encodeToRegisters } = require('./modbusUtils');
-const logger = require('../services/logger.js');
+const { REGISTER_SIZE, decodeRegisters, encodeToRegisters } = require('./modbusUtils.js');
+const logger = require('../logger.js');
 
 class ModbusMasterManager extends EventEmitter {
   /**

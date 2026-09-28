@@ -15,9 +15,9 @@
 // в modbusConf.json "allowSharedPort": true - но это на ваш риск.
 
 const fs = require('fs');
-const ModbusMasterManager = require('./modbusMaster');
-const ModbusSlaveServer = require('./modbusSlave');
-const logger = require('../services/logger.js');
+const ModbusMasterManager = require('./modbusMaster.js');
+const ModbusSlaveServer = require('./modbusSlave.js');
+const logger = require('../logger.js');
 const dotenv = require('dotenv'); 
 const role = (process.env.MODBUS_ROLE || 'slave').toLowerCase();
 
