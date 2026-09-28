@@ -1,0 +1,39 @@
+{
+  "pollInterval": 1000,
+  "republishMs": 60000,
+  "tags": [
+    {
+      "deviceId": "relay1", "dID": "poddy_base", "room": "room1",
+      "request": "actuators", "item_name": "dLight1", "item_type": "dBool",
+      "title": "Гостиная", "group": "Свет",
+      "table": "coil", "address": 0, "writable": true
+    },
+    {
+      "deviceId": "relay1", "dID": "poddy_base", "room": "room1",
+      "request": "sensors", "item_name": "dDoor1", "item_type": "dBool",
+      "title": "Гостиная", "group": "Двери",
+      "table": "discrete", "address": 0
+    },
+    {
+      "deviceId": "relay1", "dID": "poddy_base", "room": "room1",
+      "request": "sensors", "item_name": "dTemp1", "item_type": "dTemp",
+      "title": "Гостиная", "group": "",
+      "table": "input", "address": 0, "dataType": "int16",
+      "scale": 0.1, "decimals": 1, "deadband": 0.2
+    },
+    {
+      "deviceId": "relay1", "dID": "poddy_base", "room": "room1",
+      "request": "sensors", "item_name": "dHum1", "item_type": "dHum",
+      "title": "Гостиная", "group": "",
+      "table": "input", "address": 2, "dataType": "float32",
+      "wordOrder": "BE", "decimals": 1, "deadband": 1
+    },
+    {
+      "deviceId": "relay1", "dID": "poddy_base", "room": "room1",
+      "request": "actuators", "item_name": "dValve1", "item_type": "dActuator",
+      "title": "Гостиная", "group": "Отопление",
+      "table": "holding", "address": 10, "dataType": "uint16",
+      "scale": 1, "writable": true, "interval": 5000
+    }
+  ]
+}

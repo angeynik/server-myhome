@@ -9,6 +9,9 @@ const {initServer, initUsers, initDefaulUser, initDB_dID} = require('./services/
 //const tableDB = require('./services/tableDB.js');
 
 const wsManager = require('./classes/wsManager.js');
+const modbusManager = require('./classes/modBusTCPManager');
+const modbusBridge  = require('./services/modbusTCPBridge.js');
+
 const { nodeRedClients, registerClient, getAllClients, getClient, startHeartbeat} = require('./services/clientsStore');
 const { addMessageToQueue, getAllQueueMessages, processAllQueues, removeFromQueue, triggerQueueProcessing} = require('./services/messageStore.js');
 const { handleAuth, handleGet, handlePost, handleResponse, handleSet, handleError} = require('./services/messageHandlers.js'); // Подключаем обработку входящих по WS сообщений
@@ -96,6 +99,8 @@ const handleShutdown = async () => {
     // 0. Останавливаем heartbeat мониторинг
     wsManager.stopHeartbeat();
     safeWrite('✅ Heartbeat monitoring stopped');
+    modbusBridge.stop();
+    modbusManager.cleanup();
 
     // 1. Закрываем соединения с БД
     await DBManager.closeAllPools();
@@ -235,6 +240,9 @@ wsManager.startHeartbeat('VUE_connections', 180000, 370000); // Для Dashboard
 wsManager.startHeartbeat('nRED_connections', 240000, 500000); // Для NodeRED соединений
 logger.logDevMessage('[Serverapp] - Heartbeat monitoring started for all WebSocket  connections');
 // console.log('[Serverapp] - Heartbeat monitoring started for all WebSocket connections');
+modbusManager.loadFromEnv();
+modbusBridge.init({ broadcast });
+console.log('[Serverapp] - Запускаем modbusBridge TCP');
 
 // Запускаем обработчик очередей WebSocket сообщений каждые 5 секунд (можно чаще, например, каждую секунду)
 const QUEUE_PROCESS_INTERVAL = 15000;
@@ -307,7 +315,7 @@ ws.on('message', async (message) => {
                   try {
                   broadcast(connectionId, dID, checkInputMessage.data);
                   } catch (error) {
-                    logErrorMessage(`[Serverapp] - Ошибка отправки полученного сообщения от NodeRED  клиенту WSSDash: ${error}`);
+                    logger.logErrorMessage(`[Serverapp] - Ошибка отправки полученного сообщения от NodeRED  клиенту WSSDash: ${error}`);
                   }
               break;
 s
@@ -376,8 +384,10 @@ WSSDash.on('connection', (ws) => {
                 const dID = dashData.data.name;
                 try {
                     //sendToNodeRED(dID, dashData.data);
-                    broadcast(connectionId, dID, dashData.data);
-                    // Рассылка только NodeRED клиентам  
+                    //broadcast(connectionId, dID, dashData.data);
+                    if (!modbusBridge.handleCommand(connectionId, dashData.data)) {
+                      broadcast(connectionId, dID, dashData.data);
+                    }
                   //broadcast(dID, messageData, ['nRED_connections']);
                 } catch (error) {
                     console.log('[Serverapp] -  Ошибка отправки полученного сообщения от VUE клиента к NodeRED:', error);
