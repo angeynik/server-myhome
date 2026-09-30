@@ -1,13 +1,21 @@
-// classes/modbusTCPManager.js
+// classes/modBusTCPManager.js
 // Modbus TCP master (без внешних зависимостей, только net + events).
 // - ModbusDevice: одно TCP-соединение со slave, очередь запросов (1 запрос "в полёте"),
 //   таймауты, автопереподключение с экспоненциальной паузой
 // - ModbusManager: реестр устройств, опрос (polling), события, загрузка из env
+//
+// Логирование (logger.js):
+//   logInfoMessage  - значимые события жизненного цикла: подключение, отключение,
+//                      добавление/удаление устройства, старт/стоп опроса
+//   logDevMessage   - подробности каждого запроса/ответа, полезно при отладке протокола
+//   logErrorMessage - таймауты, ошибки сокета, modbus-исключения, невалидные ответы
 
 'use strict';
 
 const net = require('net');
 const EventEmitter = require('events');
+const logger = require('../services/logger.js');
+logger.initLogging();
 
 const FC = {
   READ_COILS: 0x01,
@@ -18,6 +26,13 @@ const FC = {
   WRITE_SINGLE_REGISTER: 0x06,
   WRITE_MULTIPLE_COILS: 0x0f,
   WRITE_MULTIPLE_REGISTERS: 0x10
+};
+
+const FC_NAMES = {
+  0x01: 'READ_COILS', 0x02: 'READ_DISCRETE_INPUTS',
+  0x03: 'READ_HOLDING_REGISTERS', 0x04: 'READ_INPUT_REGISTERS',
+  0x05: 'WRITE_SINGLE_COIL', 0x06: 'WRITE_SINGLE_REGISTER',
+  0x0f: 'WRITE_MULTIPLE_COILS', 0x10: 'WRITE_MULTIPLE_REGISTERS'
 };
 
 const EXCEPTIONS = {
@@ -76,11 +91,15 @@ class ModbusDevice extends EventEmitter {
     this.reconnectTimer = null;
     this.lastError = null;
     this.lastActivity = null;
+
+    this.tag = `${this.id}(${this.host}:${this.port})`;
   }
 
   // ---- соединение ---------------------------------------------------------
   connect() {
     if (this.closed || this.socket) return;
+
+    logger.logInfoMessage(`[ModbusDevice] - 🔌 ${this.tag} - устанавливаем соединение (попытка ${this.attempt + 1})`);
 
     const sock = new net.Socket();
     this.socket = sock;
@@ -95,15 +114,20 @@ class ModbusDevice extends EventEmitter {
       this.connected = true;
       this.attempt = 0;
       this.lastActivity = Date.now();
+      logger.logInfoMessage(`[ModbusDevice] - ✅ ${this.tag} - соединение установлено`);
       this.emit('connect');
       this._next();
     });
-    sock.on('timeout', () => sock.destroy(new ModbusError('Connect timeout', { code: 'ETIMEOUT' })));
+    sock.on('timeout', () => {
+      logger.logErrorMessage(`[ModbusDevice] - ⏱ ${this.tag} - таймаут установки соединения (${this.timeout} мс)`);
+      sock.destroy(new ModbusError('Connect timeout', { code: 'ETIMEOUT' }));
+    });
     sock.on('data', (chunk) => {
       if (sock === this.socket) this._onData(chunk);
     });
     sock.on('error', (err) => {
       this.lastError = err.message;
+      logger.logErrorMessage(`[ModbusDevice] - ❌ ${this.tag} - ошибка сокета: ${err.message}`);
       this.emit('fault', err); // не 'error', чтобы не падать без слушателя
     });
     sock.on('close', () => {
@@ -112,7 +136,10 @@ class ModbusDevice extends EventEmitter {
       this.socket = null;
       this.connected = false;
       this._failAll(new ModbusError('Connection closed', { code: 'ECLOSED' }));
-      if (wasConnected) this.emit('disconnect');
+      if (wasConnected) {
+        logger.logInfoMessage(`[ModbusDevice] - ⚠️ ${this.tag} - соединение закрыто`);
+        this.emit('disconnect');
+      }
       this._scheduleReconnect();
     });
 
@@ -123,6 +150,7 @@ class ModbusDevice extends EventEmitter {
     if (this.closed || this.reconnectTimer) return;
     const delay = Math.min(this.reconnectMin * 2 ** this.attempt, this.reconnectMax);
     this.attempt++;
+    logger.logInfoMessage(`[ModbusDevice] - 🔁 ${this.tag} - переподключение через ${delay} мс`);
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = null;
       this.connect();
@@ -131,6 +159,7 @@ class ModbusDevice extends EventEmitter {
   }
 
   close() {
+    logger.logInfoMessage(`[ModbusDevice] - 🛑 ${this.tag} - закрываем устройство`);
     this.closed = true;
     clearTimeout(this.reconnectTimer);
     this.reconnectTimer = null;
@@ -144,8 +173,10 @@ class ModbusDevice extends EventEmitter {
   _request(pdu) {
     return new Promise((resolve, reject) => {
       if (this.closed || !this.connected) {
+        logger.logErrorMessage(`[ModbusDevice] - ❌ ${this.tag} - запрос отклонён: нет соединения`);
         return reject(new ModbusError(`Device "${this.id}" not connected`, { code: 'ENOTCONNECTED' }));
       }
+      logger.logDevMessage(`[ModbusDevice] - 📥 ${this.tag} - запрос поставлен в очередь: fc=${FC_NAMES[pdu[0]] || pdu[0]}, очередь: ${this.queue.length + (this.current ? 1 : 0)}`);
       this.queue.push({ pdu, fc: pdu[0], resolve, reject, tid: 0, timer: null });
       this._next();
     });
@@ -166,16 +197,22 @@ class ModbusDevice extends EventEmitter {
     frame.writeUInt8(this.unitId, 6);
     req.pdu.copy(frame, 7);
 
+    logger.logDevMessage(`[ModbusDevice] - 📤 ${this.tag} - отправляем tid=${req.tid} fc=${FC_NAMES[req.fc] || req.fc} unit=${this.unitId} (${frame.length} байт)`);
+
     req.timer = setTimeout(() => {
       if (this.current !== req) return;
       this.current = null;
+      logger.logErrorMessage(`[ModbusDevice] - ⏱ ${this.tag} - таймаут ответа (${this.timeout} мс) на tid=${req.tid} fc=${FC_NAMES[req.fc] || req.fc}`);
       req.reject(new ModbusError(`Timeout (${this.timeout} ms) on "${this.id}"`, { code: 'ETIMEOUT' }));
       // позднего ответа быть не должно -> пересоздаём соединение, чтобы не потерять синхронизацию
       if (this.socket) this.socket.destroy();
     }, this.timeout);
 
     this.socket.write(frame, (err) => {
-      if (err && this.current === req) this.socket?.destroy(err);
+      if (err && this.current === req) {
+        logger.logErrorMessage(`[ModbusDevice] - ❌ ${this.tag} - ошибка записи в сокет: ${err.message}`);
+        this.socket?.destroy(err);
+      }
     });
   }
 
@@ -185,6 +222,9 @@ class ModbusDevice extends EventEmitter {
       this.current.reject(err);
       this.current = null;
     }
+    if (this.queue.length) {
+      logger.logErrorMessage(`[ModbusDevice] - ${this.tag} - отменено запросов в очереди: ${this.queue.length} (${err.message})`);
+    }
     for (const req of this.queue) req.reject(err);
     this.queue = [];
   }
@@ -192,12 +232,14 @@ class ModbusDevice extends EventEmitter {
   _onData(chunk) {
     this.buffer = Buffer.concat([this.buffer, chunk]);
     this.lastActivity = Date.now();
+    logger.logDevMessage(`[ModbusDevice] - 📩 ${this.tag} - получено ${chunk.length} байт, в буфере ${this.buffer.length}`);
 
     while (this.buffer.length >= 7) {
       const protocolId = this.buffer.readUInt16BE(2);
       const length = this.buffer.readUInt16BE(4);
       if (protocolId !== 0 || length < 2 || length > 254) {
         // поток рассинхронизирован
+        logger.logErrorMessage(`[ModbusDevice] - ❌ ${this.tag} - невалидный MBAP заголовок (protocolId=${protocolId}, length=${length}), пересоздаём соединение`);
         this.socket?.destroy(new ModbusError('Invalid MBAP header', { code: 'EPROTOCOL' }));
         return;
       }
@@ -217,7 +259,10 @@ class ModbusDevice extends EventEmitter {
     const req = this.current;
 
     // ответ на уже отменённый запрос или чужой unit - игнорируем
-    if (!req || req.tid !== tid || unit !== this.unitId) return;
+    if (!req || req.tid !== tid || unit !== this.unitId) {
+      logger.logDevMessage(`[ModbusDevice] - ⚠️ ${this.tag} - получен неожиданный кадр tid=${tid} unit=${unit}, игнорируем`);
+      return;
+    }
 
     clearTimeout(req.timer);
     this.current = null;
@@ -225,11 +270,14 @@ class ModbusDevice extends EventEmitter {
     const fc = pdu[0];
     if (fc === (req.fc | 0x80)) {
       const ec = pdu[1];
+      logger.logErrorMessage(`[ModbusDevice] - ❌ ${this.tag} - modbus-исключение ${ec} ${EXCEPTIONS[ec] || ''} на tid=${tid} fc=${FC_NAMES[req.fc] || req.fc}`);
       req.reject(new ModbusError(`Modbus exception ${ec} ${EXCEPTIONS[ec] || ''}`.trim(),
         { code: 'EEXCEPTION', exceptionCode: ec }));
     } else if (fc !== req.fc) {
+      logger.logErrorMessage(`[ModbusDevice] - ❌ ${this.tag} - неожиданный fc=${fc} в ответе на tid=${tid} (ожидался ${req.fc})`);
       req.reject(new ModbusError(`Unexpected function code ${fc}`, { code: 'EPROTOCOL' }));
     } else {
+      logger.logDevMessage(`[ModbusDevice] - ✅ ${this.tag} - получен корректный ответ tid=${tid} fc=${FC_NAMES[fc] || fc}`);
       req.resolve(pdu);
     }
     this._next();
@@ -274,6 +322,7 @@ class ModbusDevice extends EventEmitter {
     pdu.writeUInt8(FC.WRITE_SINGLE_COIL, 0);
     pdu.writeUInt16BE(address, 1);
     pdu.writeUInt16BE(value ? 0xff00 : 0x0000, 3);
+    logger.logInfoMessage(`[ModbusDevice] - ✍️ ${this.tag} - запись coil[${address}] = ${value}`);
     await this._request(pdu);
     return true;
   }
@@ -285,6 +334,7 @@ class ModbusDevice extends EventEmitter {
     pdu.writeUInt8(FC.WRITE_SINGLE_REGISTER, 0);
     pdu.writeUInt16BE(address, 1);
     pdu.writeUInt16BE(value, 3);
+    logger.logInfoMessage(`[ModbusDevice] - ✍️ ${this.tag} - запись register[${address}] = ${value}`);
     await this._request(pdu);
     return true;
   }
@@ -300,6 +350,7 @@ class ModbusDevice extends EventEmitter {
     pdu.writeUInt16BE(qty, 3);
     pdu.writeUInt8(byteCount, 5);
     values.forEach((v, i) => { if (v) pdu[6 + (i >> 3)] |= 1 << (i & 7); });
+    logger.logInfoMessage(`[ModbusDevice] - ✍️ ${this.tag} - запись coils[${address}..${address + qty - 1}] = [${values}]`);
     await this._request(pdu);
     return true;
   }
@@ -316,6 +367,7 @@ class ModbusDevice extends EventEmitter {
     pdu.writeUInt16BE(qty, 3);
     pdu.writeUInt8(qty * 2, 5);
     values.forEach((v, i) => pdu.writeUInt16BE(v, 6 + i * 2));
+    logger.logInfoMessage(`[ModbusDevice] - ✍️ ${this.tag} - запись registers[${address}..${address + qty - 1}] = [${values}]`);
     await this._request(pdu);
     return true;
   }
@@ -344,9 +396,11 @@ class ModbusManager extends EventEmitter {
 
   addDevice(id, opts = {}) {
     if (this.devices.has(id)) {
-      console.log(`[ModbusManager] - 🔄 Устройство ${id} уже зарегистрировано`);
+      logger.logInfoMessage(`[ModbusManager] - 🔄 Устройство ${id} уже зарегистрировано`);
       return this.devices.get(id);
     }
+    logger.logInfoMessage(`[ModbusManager] - ➕ Добавляем устройство ${id} (${opts.host}:${opts.port || 502}, unitId=${opts.unitId ?? 1})`);
+
     const device = new ModbusDevice(id, {
       timeout: Number(process.env.MODBUS_TIMEOUT) || undefined,
       reconnectMin: Number(process.env.MODBUS_RECONNECT_MIN) || undefined,
@@ -354,20 +408,10 @@ class ModbusManager extends EventEmitter {
       ...opts
     });
 
-    device.on('connect', () => {
-      console.log(`[ModbusManager] - ✅ ${id} подключено (${device.host}:${device.port})`);
-      this.emit('connect', id);
-    });
-    device.on('disconnect', () => {
-      console.log(`[ModbusManager] - ⚠️ ${id} отключено`);
-      this.emit('disconnect', id);
-    });
+    device.on('connect', () => this.emit('connect', id));
+    device.on('disconnect', () => this.emit('disconnect', id));
     device.on('fault', (err) => {
-      // логируем только при смене ошибки, чтобы не засорять лог при реконнектах
-      if (device._lastLogged !== err.message) {
-        device._lastLogged = err.message;
-        console.error(`[ModbusManager] - ❌ ${id}: ${err.message}`);
-      }
+      // событие уже залогировано внутри ModbusDevice; здесь только прокидываем дальше
       this.emit('fault', id, err);
     });
 
@@ -386,7 +430,7 @@ class ModbusManager extends EventEmitter {
     }
     device.close();
     this.devices.delete(id);
-    console.log(`[ModbusManager] - 🗑 Устройство удалено: ${id}`);
+    logger.logInfoMessage(`[ModbusManager] - 🗑 Устройство удалено: ${id}`);
     return true;
   }
 
@@ -412,6 +456,7 @@ class ModbusManager extends EventEmitter {
     const key = `${deviceId}:${name}`;
     this._stopPollKey(key);
     const { method = 'readHoldingRegisters', address = 0, quantity = 1, interval = 1000 } = cfg;
+    logger.logInfoMessage(`[ModbusManager] - ▶️ Старт опроса ${key}: ${method}(${address}, ${quantity}) каждые ${interval} мс`);
     const state = { active: true, timer: null };
     this.polls.set(key, state);
 
@@ -422,8 +467,10 @@ class ModbusManager extends EventEmitter {
       if (device?.connected) {
         try {
           const values = await device[method](address, quantity);
+          logger.logDevMessage(`[ModbusManager] - 📊 ${key} - опрос успешен: [${values}]`);
           if (state.active) this.emit('data', { deviceId, name, values, ts: Date.now() });
         } catch (err) {
+          logger.logErrorMessage(`[ModbusManager] - ❌ ${key} - ошибка опроса: ${err.message}`);
           if (state.active) this.emit('pollError', { deviceId, name, error: err });
         }
       }
@@ -435,7 +482,10 @@ class ModbusManager extends EventEmitter {
     tick();
   }
 
-  stopPoll(deviceId, name) { this._stopPollKey(`${deviceId}:${name}`); }
+  stopPoll(deviceId, name) {
+    logger.logInfoMessage(`[ModbusManager] - ⏹ Стоп опроса ${deviceId}:${name}`);
+    this._stopPollKey(`${deviceId}:${name}`);
+  }
 
   _stopPollKey(key) {
     const state = this.polls.get(key);
@@ -450,12 +500,15 @@ class ModbusManager extends EventEmitter {
   //   "polls":[{"name":"state","method":"readCoils","address":0,"quantity":8,"interval":1000}]}]
   loadFromEnv() {
     const raw = process.env.MODBUS_DEVICES;
-    if (!raw) return 0;
+    if (!raw) {
+      logger.logInfoMessage('[ModbusManager] - MODBUS_DEVICES не задан, устройства не загружены');
+      return 0;
+    }
     let list;
     try {
       list = JSON.parse(raw);
     } catch (e) {
-      console.error('[ModbusManager] - ❌ MODBUS_DEVICES: невалидный JSON:', e.message);
+      logger.logErrorMessage(`[ModbusManager] - ❌ MODBUS_DEVICES: невалидный JSON: ${e.message}`);
       return 0;
     }
     let count = 0;
@@ -464,17 +517,19 @@ class ModbusManager extends EventEmitter {
         this.addDevice(cfg.id, cfg);
         count++;
       } catch (e) {
-        console.error(`[ModbusManager] - ❌ Не удалось добавить ${cfg?.id}:`, e.message);
+        logger.logErrorMessage(`[ModbusManager] - ❌ Не удалось добавить ${cfg?.id}: ${e.message}`);
       }
     }
+    logger.logInfoMessage(`[ModbusManager] - Загружено устройств из env: ${count}`);
     return count;
   }
 
   cleanup() {
+    logger.logInfoMessage('[ModbusManager] - Останавливаем все устройства и опросы');
     for (const key of [...this.polls.keys()]) this._stopPollKey(key);
     for (const device of this.devices.values()) device.close();
     this.devices.clear();
-    console.log('[ModbusManager] - All devices cleaned up');
+    logger.logInfoMessage('[ModbusManager] - All devices cleaned up');
   }
 }
 

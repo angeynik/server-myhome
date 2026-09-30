@@ -1,4 +1,4 @@
-// services/modbusBridge.js
+// services/modbusTCPBridge.js
 // Мост между ModBusTCPManager и существующим потоком сообщений сервера.
 //
 //  Modbus slave --poll--> decode --> {type:'post', ...} --> addMessageToQueue (запись в config-файл)
@@ -7,6 +7,11 @@
 //
 // Формат сообщений полностью совпадает с тем, что присылает NodeRED,
 // поэтому VUE и handlePostNodeRED ничего не знают про Modbus.
+//
+// Логирование (logger.js):
+//   logInfoMessage  - загрузка карты тегов, старт/стоп блоков опроса, приём команды от VUE, результат записи
+//   logDevMessage   - декодирование каждого блока, публикация значений, детали кодирования при записи
+//   logErrorMessage - ошибки карты тегов, ошибки опроса, ошибки записи
 
 'use strict';
 
@@ -16,6 +21,7 @@ const modbusManager = require('../classes/modBusTCPManager');
 const wsManager = require('../classes/wsManager');
 const { addMessageToQueue } = require('./messageStore.js');
 const logger = require('./logger.js');
+logger.initLogging();
 
 const BRIDGE_ID = 'modbus-bridge'; // исключается из рассылки как "отправитель"
 
@@ -39,12 +45,28 @@ const pollErrors = new Map();     // чтобы не спамить лог од�
 // ---------------------------------------------------------------------------
 const tagKey = (dID, request, room, item) => `${dID}|${request}|${room}|${item}`;
 
-function normalizeTag(raw, i) {
+/**
+ * Собирает и проверяет описание тега.
+ * @param {object} raw  запись из modbusMap.json
+ * @param {number} i    индекс записи (для сообщений об ошибках)
+ * @param {object} [scaling]  дефолты масштабирования уровня карты, применяются
+ *   ТОЛЬКО если raw.scale/raw.offset не заданы явно у самого тега. Значение из
+ *   raw для конкретного регистра всегда в приоритете — это тот "исходный,
+ *   родной" коэффициент устройства для данного регистра, а не глобальная заглушка.
+ * @param {number} [scaling.scale=1]
+ * @param {number} [scaling.offset=0]
+ */
+function normalizeTag(raw, i, { scale: defaultScale = 1, offset: defaultOffset = 0 } = {}) {
   const t = {
-    request: 'sensors', dataType: null, scale: 1, offset: 0, decimals: 3,
+    request: 'sensors', dataType: null, decimals: 3,
     deadband: 0, writable: false, wordOrder: 'BE', item_type: '', title: '', group: '',
     ...raw
   };
+  // scale/offset берём из самого тега (raw), а не из общих значений по умолчанию,
+  // чтобы дефолт карты не мог незаметно подменить коэффициент конкретного регистра
+  t.scale = raw.scale ?? defaultScale;
+  t.offset = raw.offset ?? defaultOffset;
+
   const fail = (msg) => {
     logger.logErrorMessage(`[modbusBridge] - тег #${i} (${raw?.item_name}): ${msg}`);
     return null;
@@ -61,10 +83,12 @@ function normalizeTag(raw, i) {
   if (!(t.dataType in WIDTH)) return fail(`неизвестный dataType "${t.dataType}"`);
   if (tbl.bits !== (t.dataType === 'bool')) return fail('bool допустим только для coil/discrete');
   if (t.writable && !tbl.writable) return fail(`таблица "${t.table}" только для чтения`);
-  if (!Number.isFinite(t.scale) || t.scale === 0) return fail('scale должен быть ненулевым числом');
+  if (!Number.isFinite(t.scale) || t.scale === 0) return fail(`scale должен быть ненулевым числом, получено: ${t.scale}`);
+  if (!Number.isFinite(t.offset)) return fail(`offset должен быть числом, получено: ${t.offset}`);
 
   t.width = WIDTH[t.dataType];
   t._last = null;
+  logger.logDevMessage(`[modbusBridge] - тег #${i} нормализован: ${t.deviceId}/${t.table}[${t.address}] -> ${t.dID}/${t.room}/${t.item_name} (scale=${t.scale}, offset=${t.offset})`);
   return t;
 }
 
@@ -133,13 +157,15 @@ function publish(tag, value, { toClients = true } = {}) {
     }
   };
 
+  logger.logDevMessage(`[modbusBridge] - 📬 публикация ${tag.dID}/${tag.room}/${tag.item_name} = ${value} (toClients=${toClients})`);
+
   try {
     addMessageToQueue(tag.dID, message); // сохранит в config-файл через handlePostNodeRED
     if (toClients && broadcastFn) {
       broadcastFn(BRIDGE_ID, tag.dID, { ...message, payload: { ...message.payload } }, broadcastTargets);
     }
   } catch (err) {
-    logger.logErrorMessage(`[modbusBridge] - publish ${tag.item_name}: ${err.message}`);
+    logger.logErrorMessage(`[modbusBridge] - ❌ publish ${tag.item_name}: ${err.message}`);
   }
 }
 
@@ -165,12 +191,15 @@ function onData({ deviceId, name, values }) {
   if (!block) return;
   pollErrors.delete(key);
 
+  logger.logDevMessage(`[modbusBridge] - 📊 блок ${key} получен: [${values}], тегов к разбору: ${block.tags.length}`);
+
   for (const tag of block.tags) {
     const i = tag.address - block.start;
     const slice = values.slice(i, i + tag.width);
     if (slice.length < tag.width) continue;
     const value = decode(tag, slice);
     if (value !== null) publishIfNeeded(tag, value);
+    else logger.logErrorMessage(`[modbusBridge] - ❌ не удалось декодировать ${tag.item_name} из блока ${key}`);
   }
 }
 
@@ -178,7 +207,7 @@ function onPollError({ deviceId, name, error }) {
   const key = `${deviceId}:${name}`;
   if (pollErrors.get(key) === error.message) return;
   pollErrors.set(key, error.message);
-  logger.logErrorMessage(`[modbusBridge] - ошибка опроса ${key}: ${error.message}`);
+  logger.logErrorMessage(`[modbusBridge] - ❌ ошибка опроса ${key}: ${error.message}`);
 }
 
 // Объединяем теги в минимальное число запросов: (устройство, таблица, интервал) -> диапазоны
@@ -199,7 +228,8 @@ function buildBlocks() {
     let cur = null;
     for (const tag of tags) {
       const end = tag.address + tag.width - 1;
-      if (!cur || end - cur.start + 1 > maxSpan || tag.address - cur.end - 1 > cfg.maxGap) {
+      const gap = cur ? tag.address - cur.end - 1 : 0;
+      if (!cur || end - cur.start + 1 > maxSpan || gap > cfg.maxGap) {
         cur = { deviceId, table, interval: Number(intervalStr), start: tag.address, end, tags: [] };
         const name = `blk_${table}_${cur.start}`;
         cur.name = name;
@@ -210,9 +240,11 @@ function buildBlocks() {
     }
   }
 
+  logger.logInfoMessage(`[modbusBridge] - собрано блоков опроса: ${blocks.size} (maxGap=${cfg.maxGap})`);
+
   for (const b of blocks.values()) {
     if (!modbusManager.hasDevice(b.deviceId)) {
-      logger.logErrorMessage(`[modbusBridge] - устройство "${b.deviceId}" не найдено в MODBUS_DEVICES, опрос ${b.name} пропущен`);
+      logger.logErrorMessage(`[modbusBridge] - ❌ устройство "${b.deviceId}" не найдено в MODBUS_DEVICES, опрос ${b.name} пропущен`);
       continue;
     }
     modbusManager.startPoll(b.deviceId, b.name, {
@@ -221,7 +253,7 @@ function buildBlocks() {
       quantity: b.end - b.start + 1,
       interval: b.interval
     });
-    logger.logInfoMessage(`[modbusBridge] - опрос ${b.deviceId}/${b.name}: ${b.table} ${b.start}..${b.end} каждые ${b.interval} мс, тегов: ${b.tags.length}`);
+    logger.logInfoMessage(`[modbusBridge] - ${b.deviceId}/${b.name}: ${b.table} ${b.start}..${b.end} каждые ${b.interval} мс, тегов: ${b.tags.length}`);
   }
 }
 
@@ -252,23 +284,26 @@ function handleCommand(clientId, message) {
   const p = message.payload || {};
   const input = p.item_value ?? p.value;
 
+  logger.logInfoMessage(`[modbusBridge] - 📥 команда от VUE (${clientId}): ${tag.deviceId}/${tag.item_name} <- ${input}`);
+
   const sendError = (msg, code) =>
     wsManager.sendToConnection('VUE_connections', clientId, 'error', 'modbusWriteError', message.name, {
       room: tag.room, item_name: tag.item_name, message: msg, code
     });
 
   if (!tag.writable) {
+    logger.logErrorMessage(`[modbusBridge] - ❌ тег ${tag.item_name} только для чтения, запись отклонена`);
     sendError(`Тег ${tag.item_name} доступен только для чтения`, 'READ_ONLY');
     return true;
   }
 
   writeTag(tag, input)
     .then((value) => {
-      logger.logDevMessage(`[modbusBridge] - записано ${tag.deviceId}/${tag.item_name} = ${value}`);
+      logger.logInfoMessage(`[modbusBridge] - ✅ записано ${tag.deviceId}/${tag.item_name} = ${value}`);
       publish(tag, value); // подтверждение всем VUE, включая отправителя; опрос затем сверит факт
     })
     .catch((err) => {
-      logger.logErrorMessage(`[modbusBridge] - запись ${tag.deviceId}/${tag.item_name}: ${err.message}`);
+      logger.logErrorMessage(`[modbusBridge] - ❌ запись ${tag.deviceId}/${tag.item_name}: ${err.message}`);
       sendError(err.message, err.code || 'MODBUS_ERROR');
     });
 
@@ -278,6 +313,7 @@ function handleCommand(clientId, message) {
 async function writeTag(tag, input) {
   if (tag.dataType === 'bool') {
     const v = toBool(input);
+    logger.logDevMessage(`[modbusBridge] - кодирование ${tag.item_name}: ${input} -> coil ${v}`);
     await modbusManager.call(tag.deviceId, 'writeSingleCoil', tag.address, v);
     return v;
   }
@@ -285,6 +321,7 @@ async function writeTag(tag, input) {
   if (!Number.isFinite(num)) throw new Error(`Некорректное значение: ${input}`);
 
   const words = encode(tag, num);
+  logger.logDevMessage(`[modbusBridge] - кодирование ${tag.item_name}: ${input} -> регистры [${words}] (scale=${tag.scale}, offset=${tag.offset})`);
   if (words.length === 1) {
     await modbusManager.call(tag.deviceId, 'writeSingleRegister', tag.address, words[0]);
   } else {
@@ -307,26 +344,30 @@ function init({ broadcast, mapFile, targets } = {}) {
   broadcastTargets = targets;
 
   const file = path.resolve(mapFile || process.env.MODBUS_MAP_FILE || './modbusMap.json');
+  logger.logInfoMessage(`[modbusBridge] - читаем карту тегов: ${file}`);
+
   let map;
   try {
     map = JSON.parse(fs.readFileSync(file, 'utf8'));
   } catch (err) {
-    logger.logErrorMessage(`[modbusBridge] - не удалось прочитать карту тегов ${file}: ${err.message}`);
+    logger.logErrorMessage(`[modbusBridge] - ❌ не удалось прочитать карту тегов ${file}: ${err.message}`);
     return 0;
   }
 
   cfg = {
     pollInterval: Number(map.pollInterval) || cfg.pollInterval,
     republishMs: Number(map.republishMs) || cfg.republishMs,
-    maxGap: Number.isInteger(map.maxGap) ? map.maxGap : 0
+    maxGap: Number.isInteger(map.maxGap) ? map.maxGap : cfg.maxGap
   };
 
+  const scaling = { scale: map.defaultScale ?? 1, offset: map.defaultOffset ?? 0 };
+
   (map.tags || []).forEach((raw, i) => {
-    const tag = normalizeTag(raw, i);
+    const tag = normalizeTag(raw, i, scaling);
     if (!tag) return;
     const key = tagKey(tag.dID, tag.request, tag.room, tag.item_name);
     if (tagIndex.has(key)) {
-      logger.logErrorMessage(`[modbusBridge] - дубликат тега ${key}, пропущен`);
+      logger.logErrorMessage(`[modbusBridge] - ❌ дубликат тега ${key}, пропущен`);
       return;
     }
     tagIndex.set(key, tag);
@@ -336,11 +377,12 @@ function init({ broadcast, mapFile, targets } = {}) {
   modbusManager.on('pollError', onPollError);
   buildBlocks();
 
-  logger.logInfoMessage(`[modbusBridge] - загружено тегов: ${tagIndex.size}, блоков опроса: ${blocks.size}`);
+  logger.logInfoMessage(`[modbusBridge] - ✅ инициализация завершена: тегов ${tagIndex.size}, блоков опроса ${blocks.size}`);
   return tagIndex.size;
 }
 
 function stop() {
+  logger.logInfoMessage('[modbusBridge] - остановка моста');
   modbusManager.removeListener('data', onData);
   modbusManager.removeListener('pollError', onPollError);
   for (const b of blocks.values()) modbusManager.stopPoll(b.deviceId, b.name);
