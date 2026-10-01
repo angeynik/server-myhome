@@ -26,3 +26,14 @@ DEFAULT_USER_LEVEL=1
 DEFAULT_USER_SOURCE=''
 
 DATA_DIR='.configData'
+
+MODBUS_TIMEOUT=3000
+MODBUS_RECONNECT_MIN=1000
+MODBUS_RECONNECT_MAX=30000
+MODBUS_DEVICES='[{
+    "id":"pr205",
+    "host":"192.168.10.5",
+    "port":502,
+    "unitId":1
+    }]'
+MODBUS_MAP_FILE=./modbusMap.json

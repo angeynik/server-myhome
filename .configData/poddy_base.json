@@ -103,5 +103,189 @@
     },
     "actuators": {},
     "setpoints": {}
+  },
+  "common": {
+    "id": 4,
+    "title": "Комната-common",
+    "group": "",
+    "sensors": {
+      "NetUpdate": {
+        "value": 0,
+        "type": "dBool",
+        "lastUpdate": "01.10.2026, 14:09:23"
+      }
+    },
+    "actuators": {
+      "userSeason": {
+        "value": 0,
+        "type": "dActuator",
+        "lastUpdate": "01.10.2026, 14:09:23"
+      }
+    }
+  },
+  "room1": {
+    "id": 4,
+    "title": "Комната-room1",
+    "group": "",
+    "sensors": {
+      "K1_connect": {
+        "value": 0,
+        "type": "dBool",
+        "lastUpdate": "01.10.2026, 14:09:23"
+      },
+      "K1_tempRoom": {
+        "value": 20,
+        "type": "dTemp",
+        "lastUpdate": "01.10.2026, 14:09:23"
+      }
+    },
+    "actuators": {
+      "K1_status": {
+        "value": 0,
+        "type": "dBool",
+        "lastUpdate": "01.10.2026, 14:09:23"
+      },
+      "K1_mode": {
+        "value": 0,
+        "type": "dActuator",
+        "lastUpdate": "01.10.2026, 14:09:23"
+      },
+      "K1_fanSpeed": {
+        "value": 0,
+        "type": "dActuator",
+        "lastUpdate": "01.10.2026, 14:09:23"
+      }
+    },
+    "setpoints": {
+      "sK1_temp": {
+        "value": 20,
+        "type": "dTemp",
+        "lastUpdate": "01.10.2026, 14:09:23"
+      },
+      "sRoom1": {
+        "value": 20,
+        "type": "dTemp",
+        "lastUpdate": "01.10.2026, 14:09:23"
+      }
+    }
+  },
+  "room2": {
+    "id": 5,
+    "title": "Комната-room2",
+    "group": "",
+    "sensors": {
+      "K2_connect": {
+        "value": 0,
+        "type": "dBool",
+        "lastUpdate": "01.10.2026, 14:09:23"
+      },
+      "K2_tempRoom": {
+        "value": 20,
+        "type": "dTemp",
+        "lastUpdate": "01.10.2026, 14:09:23"
+      }
+    },
+    "actuators": {
+      "K2_status": {
+        "value": 0,
+        "type": "dBool",
+        "lastUpdate": "01.10.2026, 14:09:23"
+      },
+      "K2_mode": {
+        "value": 0,
+        "type": "dActuator",
+        "lastUpdate": "01.10.2026, 14:09:23"
+      },
+      "K2_fanSpeed": {
+        "value": 0,
+        "type": "dActuator",
+        "lastUpdate": "01.10.2026, 14:09:23"
+      }
+    },
+    "setpoints": {
+      "sK2_temp": {
+        "value": 20,
+        "type": "dTemp",
+        "lastUpdate": "01.10.2026, 14:09:23"
+      },
+      "sRoom2": {
+        "value": 20,
+        "type": "dTemp",
+        "lastUpdate": "01.10.2026, 14:09:23"
+      }
+    }
+  },
+  "room3": {
+    "id": 6,
+    "title": "Комната-room3",
+    "group": "",
+    "sensors": {
+      "KF_connect": {
+        "value": 0,
+        "type": "dBool",
+        "lastUpdate": "01.10.2026, 14:09:23"
+      },
+      "KF_tempRoom": {
+        "value": 20,
+        "type": "dTemp",
+        "lastUpdate": "01.10.2026, 14:09:23"
+      },
+      "KF_tempSupply": {
+        "value": 20,
+        "type": "dTemp",
+        "lastUpdate": "01.10.2026, 14:09:23"
+      },
+      "KF_tempOut": {
+        "value": 20,
+        "type": "dTemp",
+        "lastUpdate": "01.10.2026, 14:09:23"
+      }
+    },
+    "actuators": {
+      "KF_status": {
+        "value": 0,
+        "type": "dBool",
+        "lastUpdate": "01.10.2026, 14:09:23"
+      },
+      "KF_mode": {
+        "value": 0,
+        "type": "dActuator",
+        "lastUpdate": "01.10.2026, 14:09:23"
+      },
+      "KF_fanSpeed": {
+        "value": 0,
+        "type": "dActuator",
+        "lastUpdate": "01.10.2026, 14:09:23"
+      }
+    },
+    "setpoints": {
+      "sKF_tempSupply": {
+        "value": 20,
+        "type": "dTemp",
+        "lastUpdate": "01.10.2026, 14:09:23"
+      },
+      "sKF_tempRoom": {
+        "value": 20,
+        "type": "dTemp",
+        "lastUpdate": "01.10.2026, 14:09:23"
+      },
+      "sRoom3": {
+        "value": 20,
+        "type": "dTemp",
+        "lastUpdate": "01.10.2026, 14:09:23"
+      }
+    }
+  },
+  "room4": {
+    "id": 7,
+    "title": "Комната-room4",
+    "group": "",
+    "setpoints": {
+      "sRoom4": {
+        "value": 20,
+        "type": "dTemp",
+        "lastUpdate": "01.10.2026, 14:09:23"
+      }
+    }
   }
 }
