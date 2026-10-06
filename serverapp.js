@@ -24,7 +24,7 @@ dotenv.config({path: './conf.env'}); // Указываем путь к  файл
 const DBManager = require('./services/db.js'); // Импортируем DBManager
 
 // Подключаем функции модуля joi для валидации данных
-const {validType} = require('./validate');
+const { validType, validPost } = require('./validate');
 
 const logger = require('./services/logger.js');
 logger.initLogging();
@@ -489,17 +489,40 @@ function stringToJSON(message) {
 };
 
 // Проверка сообщения и дальнейшая валидация корректности структуры сообщения
+// function checkMessage(message) {
+//   const data = stringToJSON(message); // Преобразуем строку в объект JSON
+//   logger.logDevMessage(`[Serverapp] - checkMessage получило сообщение: ${message}`);
+//   const { error } = validType(data);
+//   if (error) {
+//     logger.logErrorMessage(`[Serverapp] - checkMessage - Некорректный формат полученного сообщения. ${message} Ошибка: Error validType: ${error.message}`);
+//     //console.log(`Некорректный формат полученного сообщения. ${message} Ошибка: Error validType: ${error.message}`);
+//     return error;
+//   }
+//   return {status:'ok', data: data};
+// };
+
 function checkMessage(message) {
-  const data = stringToJSON(message); // Преобразуем строку в объект JSON
+  const data = stringToJSON(message);
   logger.logDevMessage(`[Serverapp] - checkMessage получило сообщение: ${message}`);
+
+  // 1. Грубая проверка типа
   const { error } = validType(data);
   if (error) {
-    logger.logErrorMessage(`[Serverapp] - checkMessage - Некорректный формат полученного сообщения. ${message} Ошибка: Error validType: ${error.message}`);
-    //console.log(`Некорректный формат полученного сообщения. ${message} Ошибка: Error validType: ${error.message}`);
+    logger.logErrorMessage(`[Serverapp] - checkMessage - Некорректный type. ${message} Ошибка: ${error.message}`);
     return error;
   }
-  return {status:'ok', data: data};
-};
+
+  // 2. Для post-сообщений — дополнительная проверка структуры payload
+  if (data.type === 'post') {
+    const postCheck = validPost(data);
+    if (postCheck.error) {
+      logger.logErrorMessage(`[Serverapp] - checkMessage - Некорректный post. ${message} Ошибка: ${postCheck.error.message}`);
+      return postCheck.error;
+    }
+  }
+
+  return { status: 'ok', data: data };
+}
 
 // Работа с GPIO
 const deviceName = process.env.DEVICE_NAME;

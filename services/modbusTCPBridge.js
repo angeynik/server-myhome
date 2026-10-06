@@ -95,6 +95,24 @@ function normalizeTag(raw, i, { scale: defaultScale = 1, offset: defaultOffset =
 // ---------------------------------------------------------------------------
 // Кодирование / декодирование
 // ---------------------------------------------------------------------------
+// function decode(tag, regs) {
+//   if (tag.dataType === 'bool') return Boolean(regs[0]);
+
+//   const buf = Buffer.alloc(tag.width * 2);
+//   const words = tag.wordOrder === 'LE' ? [...regs].reverse() : regs;
+//   words.forEach((w, i) => buf.writeUInt16BE(w, i * 2));
+
+//   let raw;
+//   switch (tag.dataType) {
+//     case 'uint16':  raw = buf.readUInt16BE(0); break;
+//     case 'int16':   raw = buf.readInt16BE(0); break;
+//     case 'uint32':  raw = buf.readUInt32BE(0); break;
+//     case 'int32':   raw = buf.readInt32BE(0); break;
+//     case 'float32': raw = buf.readFloatBE(0); break;
+//   }
+//   if (!Number.isFinite(raw)) return null;
+//   return Number((raw * tag.scale + tag.offset).toFixed(tag.decimals));
+// }
 function decode(tag, regs) {
   if (tag.dataType === 'bool') return Boolean(regs[0]);
 
@@ -110,7 +128,15 @@ function decode(tag, regs) {
     case 'int32':   raw = buf.readInt32BE(0); break;
     case 'float32': raw = buf.readFloatBE(0); break;
   }
+
   if (!Number.isFinite(raw)) return null;
+
+  // ✅ Конвертация в boolean для тегов с item_type === 'dBool'
+  //    (независимо от dataType — работает и для int16, и для uint16)
+  if (tag.item_type === 'dBool') {
+    return raw !== 0;
+  }
+
   return Number((raw * tag.scale + tag.offset).toFixed(tag.decimals));
 }
 
