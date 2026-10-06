@@ -2,11 +2,12 @@
 // Modbus TCP master (без внешних зависимостей, только net + events).
 // - ModbusDevice: одно TCP-соединение со slave, очередь запросов (1 запрос "в полёте"),
 //   таймауты, автопереподключение с экспоненциальной паузой
-// - ModbusManager: реестр устройств, опрос (polling), события, загрузка из env
+// - ModbusManager: реестр устройств, адаптивный опрос (polling) с backoff по ошибкам,
+//   события, загрузка из env
 //
 // Логирование (logger.js):
 //   logInfoMessage  - значимые события жизненного цикла: подключение, отключение,
-//                      добавление/удаление устройства, старт/стоп опроса
+//                      добавление/удаление устройства, старт/стоп опроса, смена интервала
 //   logDevMessage   - подробности каждого запроса/ответа, полезно при отладке протокола
 //   logErrorMessage - таймауты, ошибки сокета, modbus-исключения, невалидные ответы
 
@@ -106,7 +107,7 @@ class ModbusDevice extends EventEmitter {
     this.buffer = Buffer.alloc(0);
     sock.setNoDelay(true);
     sock.setKeepAlive(true, 10000);
-    sock.setTimeout(this.timeout); // таймаут на установку соединения
+    sock.setTimeout(this.timeout);
 
     sock.on('connect', () => {
       if (sock !== this.socket) return;
@@ -128,7 +129,7 @@ class ModbusDevice extends EventEmitter {
     sock.on('error', (err) => {
       this.lastError = err.message;
       logger.logErrorMessage(`[ModbusDevice] - ❌ ${this.tag} - ошибка сокета: ${err.message}`);
-      this.emit('fault', err); // не 'error', чтобы не падать без слушателя
+      this.emit('fault', err);
     });
     sock.on('close', () => {
       if (sock !== this.socket) return;
@@ -192,8 +193,8 @@ class ModbusDevice extends EventEmitter {
 
     const frame = Buffer.alloc(7 + req.pdu.length);
     frame.writeUInt16BE(req.tid, 0);
-    frame.writeUInt16BE(0, 2);                      // protocol id
-    frame.writeUInt16BE(req.pdu.length + 1, 4);     // unitId + pdu
+    frame.writeUInt16BE(0, 2);
+    frame.writeUInt16BE(req.pdu.length + 1, 4);
     frame.writeUInt8(this.unitId, 6);
     req.pdu.copy(frame, 7);
 
@@ -204,7 +205,6 @@ class ModbusDevice extends EventEmitter {
       this.current = null;
       logger.logErrorMessage(`[ModbusDevice] - ⏱ ${this.tag} - таймаут ответа (${this.timeout} мс) на tid=${req.tid} fc=${FC_NAMES[req.fc] || req.fc}`);
       req.reject(new ModbusError(`Timeout (${this.timeout} ms) on "${this.id}"`, { code: 'ETIMEOUT' }));
-      // позднего ответа быть не должно -> пересоздаём соединение, чтобы не потерять синхронизацию
       if (this.socket) this.socket.destroy();
     }, this.timeout);
 
@@ -238,13 +238,12 @@ class ModbusDevice extends EventEmitter {
       const protocolId = this.buffer.readUInt16BE(2);
       const length = this.buffer.readUInt16BE(4);
       if (protocolId !== 0 || length < 2 || length > 254) {
-        // поток рассинхронизирован
         logger.logErrorMessage(`[ModbusDevice] - ❌ ${this.tag} - невалидный MBAP заголовок (protocolId=${protocolId}, length=${length}), пересоздаём соединение`);
         this.socket?.destroy(new ModbusError('Invalid MBAP header', { code: 'EPROTOCOL' }));
         return;
       }
       const total = 6 + length;
-      if (this.buffer.length < total) return; // ждём остаток
+      if (this.buffer.length < total) return;
 
       const frame = this.buffer.subarray(0, total);
       this.buffer = this.buffer.subarray(total);
@@ -258,7 +257,6 @@ class ModbusDevice extends EventEmitter {
     const pdu = Buffer.from(frame.subarray(7));
     const req = this.current;
 
-    // ответ на уже отменённый запрос или чужой unit - игнорируем
     if (!req || req.tid !== tid || unit !== this.unitId) {
       logger.logDevMessage(`[ModbusDevice] - ⚠️ ${this.tag} - получен неожиданный кадр tid=${tid} unit=${unit}, игнорируем`);
       return;
@@ -391,7 +389,7 @@ class ModbusManager extends EventEmitter {
   constructor() {
     super();
     this.devices = new Map(); // id -> ModbusDevice
-    this.polls = new Map();   // `${id}:${name}` -> { active, timer }
+    this.polls = new Map();   // `${id}:${name}` -> pollState
   }
 
   addDevice(id, opts = {}) {
@@ -411,7 +409,6 @@ class ModbusManager extends EventEmitter {
     device.on('connect', () => this.emit('connect', id));
     device.on('disconnect', () => this.emit('disconnect', id));
     device.on('fault', (err) => {
-      // событие уже залогировано внутри ModbusDevice; здесь только прокидываем дальше
       this.emit('fault', id, err);
     });
 
@@ -439,6 +436,22 @@ class ModbusManager extends EventEmitter {
   isConnected(id) { return Boolean(this.devices.get(id)?.connected); }
   getAllStatus() { return [...this.devices.values()].map((d) => d.getStatus()); }
 
+  // Статус всех опросов — для наблюдения
+  getPollsStatus() {
+    const out = [];
+    for (const [key, s] of this.polls.entries()) {
+      out.push({
+        key,
+        active: s.active,
+        baseInterval: s.baseInterval,
+        currentInterval: s.currentInterval,
+        consecutiveErrors: s.consecutiveErrors,
+        backoffStep: s.backoffStep
+      });
+    }
+    return out;
+  }
+
   // Универсальный вызов: manager.call('relay1', 'readHoldingRegisters', 0, 10)
   call(id, method, ...args) {
     const device = this.devices.get(id);
@@ -449,36 +462,109 @@ class ModbusManager extends EventEmitter {
     return device[method](...args);
   }
 
-  // ---- опрос --------------------------------------------------------------
+  // ---- адаптивный опрос ---------------------------------------------------
   // cfg: { method: 'readHoldingRegisters', address: 0, quantity: 4, interval: 1000 }
   // Событие: manager.on('data', ({ deviceId, name, values, ts }) => ...)
+  //
+  // Адаптивность:
+  //   • базовый интервал = interval (например 2000 мс)
+  //   • считаем consecutiveErrors
+  //   • каждые errorThreshold ошибок подряд интервал умножается на backoffMultiplier
+  //     (по умолчанию ×2), но не выше maxInterval (по умолчанию 300 000 мс)
+  //   • при первом успехе — возврат к базовому интервалу, счётчик ошибок = 0
   startPoll(deviceId, name, cfg) {
     const key = `${deviceId}:${name}`;
     this._stopPollKey(key);
+
     const { method = 'readHoldingRegisters', address = 0, quantity = 1, interval = 1000 } = cfg;
-    logger.logInfoMessage(`[ModbusManager] - ▶️ Старт опроса ${key}: ${method}(${address}, ${quantity}) каждые ${interval} мс`);
-    const state = { active: true, timer: null };
+
+    const errorThreshold = Number(process.env.MODBUS_POLL_ERROR_THRESHOLD) || 5;
+    const maxInterval    = Number(process.env.MODBUS_POLL_MAX_INTERVAL) || 300000;
+    const backoffMult    = Number(process.env.MODBUS_POLL_BACKOFF_MULTIPLIER) || 2;
+
+    logger.logInfoMessage(
+      `[ModbusManager] - ▶️ Старт опроса ${key}: ${method}(${address}, ${quantity}) ` +
+      `базовый интервал ${interval} мс, порог ошибок ${errorThreshold}, ` +
+      `множитель ×${backoffMult}, максимум ${maxInterval} мс`
+    );
+
+    const state = {
+      active: true,
+      timer: null,
+      method,
+      address,
+      quantity,
+      baseInterval: interval,
+      currentInterval: interval,
+      consecutiveErrors: 0,
+      backoffStep: 0,        // сколько раз уже увеличивали интервал
+      errorThreshold,
+      maxInterval,
+      backoffMultiplier: backoffMult,
+      lastErrorAt: null,
+      lastSuccessAt: null
+    };
     this.polls.set(key, state);
 
-    // setTimeout-цепочка: следующий опрос только после завершения предыдущего
+    // Цепочка setTimeout: следующий опрос только после завершения предыдущего
     const tick = async () => {
       if (!state.active) return;
+
       const device = this.devices.get(deviceId);
       if (device?.connected) {
         try {
           const values = await device[method](address, quantity);
           logger.logDevMessage(`[ModbusManager] - 📊 ${key} - опрос успешен: [${values}]`);
+          state.lastSuccessAt = Date.now();
+
+          if (state.consecutiveErrors > 0) {
+            logger.logInfoMessage(
+              `[ModbusManager] - ✅ ${key} - восстановление после ${state.consecutiveErrors} ошибок, ` +
+              `возврат к базовому интервалу ${state.baseInterval} мс`
+            );
+            state.consecutiveErrors = 0;
+            state.backoffStep = 0;
+            state.currentInterval = state.baseInterval;
+          }
+
           if (state.active) this.emit('data', { deviceId, name, values, ts: Date.now() });
         } catch (err) {
-          logger.logErrorMessage(`[ModbusManager] - ❌ ${key} - ошибка опроса: ${err.message}`);
-          if (state.active) this.emit('pollError', { deviceId, name, error: err });
+          state.consecutiveErrors++;
+          state.lastErrorAt = Date.now();
+
+          // Сколько раз уже нужно было увеличить интервал
+          const expectedStep = Math.floor(state.consecutiveErrors / state.errorThreshold);
+          const expectedInterval = Math.min(
+            state.baseInterval * Math.pow(state.backoffMultiplier, expectedStep),
+            state.maxInterval
+          );
+
+          if (expectedStep > state.backoffStep && expectedInterval !== state.currentInterval) {
+            // Достигли очередного порога ошибок — увеличиваем интервал
+            state.backoffStep = expectedStep;
+            state.currentInterval = expectedInterval;
+            logger.logErrorMessage(
+              `[ModbusManager] - ⚠️ ${key} - ошибок подряд ${state.consecutiveErrors}, ` +
+              `интервал опроса увеличен до ${state.currentInterval} мс (шаг ${state.backoffStep})`
+            );
+          } else {
+            // Рядовой случай — короткая строка
+            logger.logErrorMessage(
+              `[ModbusManager] - ❌ ${key} - ошибка опроса ` +
+              `(${state.consecutiveErrors} подряд, интервал ${state.currentInterval} мс): ${err.message}`
+            );
+          }
+
+          if (state.active) this.emit('pollError', { deviceId, name, error: err, pollState: state });
         }
       }
+
       if (state.active) {
-        state.timer = setTimeout(tick, interval);
+        state.timer = setTimeout(tick, state.currentInterval);
         state.timer.unref?.();
       }
     };
+
     tick();
   }
 

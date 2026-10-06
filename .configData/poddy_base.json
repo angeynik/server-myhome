@@ -113,13 +113,28 @@
         "value": 0,
         "type": "dBool",
         "lastUpdate": "01.10.2026, 14:09:23"
+      },
+      "System": {
+        "value": 0,
+        "type": "dActuator",
+        "lastUpdate": "06.10.2026, 14:41:24"
       }
     },
     "actuators": {
       "userSeason": {
+        "value": 1,
+        "type": "dActuator",
+        "lastUpdate": "06.10.2026, 14:41:24"
+      },
+      "PidStart": {
+        "value": 1,
+        "type": "dActuator",
+        "lastUpdate": "06.10.2026, 14:41:24"
+      },
+      "Season": {
         "value": 0,
         "type": "dActuator",
-        "lastUpdate": "01.10.2026, 14:09:23"
+        "lastUpdate": "06.10.2026, 14:41:24"
       }
     }
   },
@@ -131,12 +146,27 @@
       "K1_connect": {
         "value": 0,
         "type": "dBool",
-        "lastUpdate": "01.10.2026, 14:09:23"
+        "lastUpdate": "06.10.2026, 14:41:24"
       },
       "K1_tempRoom": {
-        "value": 20,
+        "value": 0,
         "type": "dTemp",
-        "lastUpdate": "01.10.2026, 14:09:23"
+        "lastUpdate": "06.10.2026, 14:41:24"
+      },
+      "K1_status": {
+        "value": 0,
+        "type": "dBool",
+        "lastUpdate": "06.10.2026, 14:41:24"
+      },
+      "K1_errStatus": {
+        "value": 0,
+        "type": "dBool",
+        "lastUpdate": "06.10.2026, 14:41:24"
+      },
+      "K1_errCode": {
+        "value": 0,
+        "type": "dActuator",
+        "lastUpdate": "06.10.2026, 14:41:24"
       }
     },
     "actuators": {
@@ -148,24 +178,24 @@
       "K1_mode": {
         "value": 0,
         "type": "dActuator",
-        "lastUpdate": "01.10.2026, 14:09:23"
+        "lastUpdate": "06.10.2026, 14:41:24"
       },
       "K1_fanSpeed": {
         "value": 0,
         "type": "dActuator",
-        "lastUpdate": "01.10.2026, 14:09:23"
+        "lastUpdate": "06.10.2026, 14:41:24"
       }
     },
     "setpoints": {
       "sK1_temp": {
-        "value": 20,
+        "value": 0,
         "type": "dTemp",
-        "lastUpdate": "01.10.2026, 14:09:23"
+        "lastUpdate": "06.10.2026, 14:41:24"
       },
       "sRoom1": {
-        "value": 20,
+        "value": 20.5,
         "type": "dTemp",
-        "lastUpdate": "01.10.2026, 14:09:23"
+        "lastUpdate": "06.10.2026, 14:41:24"
       }
     }
   },
@@ -177,12 +207,32 @@
       "K2_connect": {
         "value": 0,
         "type": "dBool",
-        "lastUpdate": "01.10.2026, 14:09:23"
+        "lastUpdate": "06.10.2026, 14:41:24"
       },
       "K2_tempRoom": {
-        "value": 20,
+        "value": 0,
         "type": "dTemp",
-        "lastUpdate": "01.10.2026, 14:09:23"
+        "lastUpdate": "06.10.2026, 14:41:24"
+      },
+      "Room2_aver": {
+        "value": 0,
+        "type": "dTemp",
+        "lastUpdate": "06.10.2026, 14:41:24"
+      },
+      "K2_status": {
+        "value": 0,
+        "type": "dBool",
+        "lastUpdate": "06.10.2026, 14:41:24"
+      },
+      "K2_errStatus": {
+        "value": 0,
+        "type": "dBool",
+        "lastUpdate": "06.10.2026, 14:41:24"
+      },
+      "K2_errCode": {
+        "value": 0,
+        "type": "dActuator",
+        "lastUpdate": "06.10.2026, 14:41:24"
       }
     },
     "actuators": {
@@ -194,24 +244,24 @@
       "K2_mode": {
         "value": 0,
         "type": "dActuator",
-        "lastUpdate": "01.10.2026, 14:09:23"
+        "lastUpdate": "06.10.2026, 14:41:24"
       },
       "K2_fanSpeed": {
         "value": 0,
         "type": "dActuator",
-        "lastUpdate": "01.10.2026, 14:09:23"
+        "lastUpdate": "06.10.2026, 14:41:24"
       }
     },
     "setpoints": {
       "sK2_temp": {
-        "value": 20,
+        "value": 0,
         "type": "dTemp",
-        "lastUpdate": "01.10.2026, 14:09:23"
+        "lastUpdate": "06.10.2026, 14:41:24"
       },
       "sRoom2": {
-        "value": 20,
+        "value": 20.5,
         "type": "dTemp",
-        "lastUpdate": "01.10.2026, 14:09:23"
+        "lastUpdate": "06.10.2026, 14:41:24"
       }
     }
   },
@@ -223,7 +273,7 @@
       "KF_connect": {
         "value": 0,
         "type": "dBool",
-        "lastUpdate": "01.10.2026, 14:09:23"
+        "lastUpdate": "06.10.2026, 14:41:24"
       },
       "KF_tempRoom": {
         "value": 20,
@@ -239,6 +289,11 @@
         "value": 20,
         "type": "dTemp",
         "lastUpdate": "01.10.2026, 14:09:23"
+      },
+      "KF_status": {
+        "value": 0,
+        "type": "dBool",
+        "lastUpdate": "06.10.2026, 14:41:24"
       }
     },
     "actuators": {
@@ -250,12 +305,12 @@
       "KF_mode": {
         "value": 0,
         "type": "dActuator",
-        "lastUpdate": "01.10.2026, 14:09:23"
+        "lastUpdate": "06.10.2026, 14:41:24"
       },
       "KF_fanSpeed": {
         "value": 0,
         "type": "dActuator",
-        "lastUpdate": "01.10.2026, 14:09:23"
+        "lastUpdate": "06.10.2026, 14:41:24"
       }
     },
     "setpoints": {
@@ -270,9 +325,9 @@
         "lastUpdate": "01.10.2026, 14:09:23"
       },
       "sRoom3": {
-        "value": 20,
+        "value": 21.5,
         "type": "dTemp",
-        "lastUpdate": "01.10.2026, 14:09:23"
+        "lastUpdate": "06.10.2026, 14:41:24"
       }
     }
   },
@@ -284,7 +339,7 @@
       "sRoom4": {
         "value": 20,
         "type": "dTemp",
-        "lastUpdate": "01.10.2026, 14:09:23"
+        "lastUpdate": "06.10.2026, 14:41:24"
       }
     }
   }
