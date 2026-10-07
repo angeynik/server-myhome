@@ -5,8 +5,7 @@ const cors = require('cors');
 const path = require('path');
 const bodyParser = require('body-parser');
 const fs = require('fs');
-const {initServer, initUsers, initDefaulUser, initDB_dID} = require('./services/initServer.js');
-//const tableDB = require('./services/tableDB.js');
+const userStore = require('./services/userStore.js');
 
 const wsManager = require('./classes/wsManager.js');
 const modbusManager = require('./classes/modBusTCPManager');
@@ -16,12 +15,10 @@ const { nodeRedClients, registerClient, getAllClients, getClient, startHeartbeat
 const { addMessageToQueue, getAllQueueMessages, processAllQueues, removeFromQueue, triggerQueueProcessing} = require('./services/messageStore.js');
 const { handleAuth, handleGet, handlePost, handleResponse, handleSet, handleError} = require('./services/messageHandlers.js'); // Подключаем обработку входящих по WS сообщений
 
-// require('dotenv').config({ path: './conf.env' }); 
 const dotenv = require('dotenv'); // Подключаем .ENV файл с переменными окружения
 dotenv.config({path: './conf.env'}); // Указываем путь к  файлу .env
 //const { loginUser, verifyToken } = require('./auth'); // Импортируем функции авторизации
 
-const DBManager = require('./services/db.js'); // Импортируем DBManager
 
 // Подключаем функции модуля joi для валидации данных
 const { validType, validPost } = require('./validate');
@@ -53,28 +50,55 @@ app.use(bodyParser.json());
 
 
 // Инициализация сервера
-const initialize = async () => {
-  const envInit = process.env.INIT_DB;
-  logger.logDevMessage(`[Serverapp] - envInit - инициализация сервера - ${envInit}`);
-  if (envInit === 'TRUE') {
-    try {
-      await initServer(); // Выполняем инициализацию
-      await initUsers(); // Проверяем существование таблицы Users
-      await initDefaulUser();  // Проверяем наличие пользователя по умолчанию
-      await initDB_dID(); // Проверяем есть ли база для пользователя по умолчанию Имя для базы - DEFAULT_USER_DID 
-      logger.logDevMessage(`[Serverapp] - Инициализация сервера завершена успешно.`);
-    } catch (error) {
-      logger.logErrorMessage(`[Serverapp] - Ошибка при инициализации сервера: ${error}`);
-      //console.error('[Serverapp] - Ошибка при инициализации сервера:', error);
-    }
-  } else {
-    logger.logInfoMessage(`[Serverapp] - Инициализация сервера запрещена INIT_DB - ${envInit}`);
-    //console.log('[Serverapp] - Инициализация сервера запрещена INIT_DB - ', envInit);
+// const initialize = async () => {
+//   const envInit = process.env.INIT_DB;
+//   logger.logDevMessage(`[Serverapp] - envInit - инициализация сервера - ${envInit}`);
+//   if (envInit === 'TRUE') {
+//     try {
+//       await initServer(); // Выполняем инициализацию
+//       await initUsers(); // Проверяем существование таблицы Users
+//       await initDefaulUser();  // Проверяем наличие пользователя по умолчанию
+//       await initDB_dID(); // Проверяем есть ли база для пользователя по умолчанию Имя для базы - DEFAULT_USER_DID 
+//       logger.logDevMessage(`[Serverapp] - Инициализация сервера завершена успешно.`);
+//     } catch (error) {
+//       logger.logErrorMessage(`[Serverapp] - Ошибка при инициализации сервера: ${error}`);
+//       //console.error('[Serverapp] - Ошибка при инициализации сервера:', error);
+//     }
+//   } else {
+//     logger.logInfoMessage(`[Serverapp] - Инициализация сервера запрещена INIT_DB - ${envInit}`);
+//     //console.log('[Serverapp] - Инициализация сервера запрещена INIT_DB - ', envInit);
+//   }
+
+
+// };
+// initialize(); // Выполняем инициализацию сервера
+// ── Инициализация ─────────────────────────────────────────────────────────
+
+
+(async () => {
+  try {
+    // loadUsers() сам:
+    //   1) загрузит или сгенерирует AUTH_KEY_FILE (0600),
+    //   2) если USERS_FILE нет — создаст с DEFAULT_USER_* и запишет,
+    //   3) положит расшифрованный объект в in-memory кэш.
+    const data = await userStore.loadUsers();
+
+    logger.logInfoMessage(
+      `[Serverapp] - userStore готов: ` +
+      `пользователей ${data.users.length}, ` +
+      `источников данных ${data.datasources.length}`
+    );
+
+    logger.logDevMessage(
+      `[Serverapp] - userStore: users=[${data.users.map(u => u.username).join(', ')}], ` +
+      `datasources=[${data.datasources.map(d => d.did).join(', ')}]`
+    );
+  } catch (e) {
+    logger.logErrorMessage(`[Serverapp] - ошибка userStore: ${e.message}`);
+    // Не роняем процесс — сервер поднимется, но авторизация работать не будет.
+    // Админ увидит ошибку в логах и восстановит файлы.
   }
-
-
-};
-initialize(); // Выполняем инициализацию сервера
+})();
 
   // Запуск сервера
   server.listen(servPORT, () => {
@@ -101,36 +125,6 @@ const handleShutdown = async () => {
     safeWrite('✅ Heartbeat monitoring stopped');
     modbusBridge.stop();
     modbusManager.cleanup();
-
-    // 1. Закрываем соединения с БД
-    await DBManager.closeAllPools();
-    safeWrite('✅ Все соединения с базами данных закрыты.');
-
-    // 2. Закрываем WebSocket-серверы и их соединения
-    // const wsServers = [
-    //   { name: 'WSSNodeRED', instance: WSSNodeRED },
-    //   // { name: 'WSSNodeRED_OUT', instance: WSSNodeRED_OUT },
-    //   { name: 'WSSDash', instance: WSSDash }
-    // ];
-    // await Promise.all(wsServers.map(server => 
-    //   new Promise(resolve => {
-    //     if (server.instance && typeof server.instance.close === 'function') {
-    //       server.instance.clients.forEach(client => client.terminate()); // Принудительное закрытие клиентских соединений
-    //       server.instance.close(err => {
-    //         if (err) {
-    //           safeWrite(`🛑 ${server.name}: ошибка закрытия - ${err.message}`);
-    //         } else {
-    //           safeWrite(`✅ ${server.name}: успешно закрыт`);
-    //         }
-    //         resolve();
-    //       });
-    //     } else {
-    //       safeWrite(`ℹ️ ${server.name}: невалидный сервер или уже закрыт`);
-    //       resolve();
-    //     }
-    //   })
-    // ));
-    // safeWrite('✅ Все WebSocket-соединения закрыты.');
 
     // 2. Закрываем WebSocket-серверы и их соединения через wsManager
     safeWrite('🔄 Закрываем WebSocket соединения...');

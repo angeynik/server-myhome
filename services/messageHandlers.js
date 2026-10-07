@@ -2,15 +2,16 @@
 // Метод обработки получаемых Сервером WebSocket сообщений
 
 const path = require('path');
-const DBManager = require('./db');
-const tableDB = require('./tableDB');
+// const DBManager = require('./db');
+// const tableDB = require('./tableDB');
 const dotenv = require('dotenv');
 dotenv.config({ path: './conf.env' });
 const logger = require('./logger.js');
 
-const authDB = process.env.DB_DATABASE || 'spring'; // База данных по умолчанию
-const dbUser = process.env.DB_USER;
-const dbPass = process.env.DB_PASSWORD;
+// const authDB = process.env.DB_DATABASE || 'spring'; // База данных по умолчанию
+// const dbUser = process.env.DB_USER;
+// const dbPass = process.env.DB_PASSWORD;
+const userStore = require('./userStore.js');
 
 const wsManager = require('../classes/wsManager');
 const { loginUser, verifyToken } = require('../auth'); // Импортируем функции авторизации
@@ -235,42 +236,45 @@ const handleGet = async (clientId, data) => {
     logger.logDevMessage('[messageHandlers] - handleGet - Переходим к проверке сообщения типа get', data?.request);
     const dID = data.name;
   switch (data?.request) {
-      case 'fetchUsers':
-      try {
-        const users = await DBManager.fetchUsers();
-        wsManager.sendToConnection('VUE_connections', clientId, 'response', 'fetchUsersSuccess', data.name, {
-            users: users
-          });
-        // sendSuccess(ws, 'fetchUsersSuccess', data.name, {
-        //   users: users
-        // });
-      } catch (error) {
-          wsManager.sendToConnection('VUE_connections', clientId, 'error', 'fetchUsersError', data.name, {
-            message: error.message
-          });
-        // sendError(ws, 'fetchUsersError', data.name, {
-        //   message: error.message
-        // });
-      }
-      break;
-      case 'fetchDataSources':
-      try {
-        const dataSources = await DBManager.fetchDataSources();
-          wsManager.sendToConnection('VUE_connections', clientId, 'error', 'fetchDataSourcesSuccess', data.name, {
-            sources: dataSources
-          });
-        // sendSuccess(ws, 'fetchDataSourcesSuccess', data.name, {
-        //   sources: dataSources
-        // });
-      } catch (error) {
-          wsManager.sendToConnection('VUE_connections', clientId, 'error', 'fetchDataSourcesError', data.name, {
-            message: error.message
-          });
-        // sendError(ws, 'fetchDataSourcesError', data.name, {
-        //   message: error.message
-        // });
-      }
-      break;
+      // case 'fetchUsers':
+      // try {
+      //   const users = await DBManager.fetchUsers();
+      //   wsManager.sendToConnection('VUE_connections', clientId, 'response', 'fetchUsersSuccess', data.name, {
+      //       users: users
+      //     });
+      //   // sendSuccess(ws, 'fetchUsersSuccess', data.name, {
+      //   //   users: users
+      //   // });
+      // } catch (error) {
+      //     wsManager.sendToConnection('VUE_connections', clientId, 'error', 'fetchUsersError', data.name, {
+      //       message: error.message
+      //     });
+      //   // sendError(ws, 'fetchUsersError', data.name, {
+      //   //   message: error.message
+      //   // });
+      // }
+      // break;
+      //case 'fetchUsers':       sendResponse('fetchUsersSuccess',       { users:       await userStore.fetchUsers() }); break;
+
+      // case 'fetchDataSources':
+      // try {
+      //   const dataSources = await DBManager.fetchDataSources();
+      //     wsManager.sendToConnection('VUE_connections', clientId, 'error', 'fetchDataSourcesSuccess', data.name, {
+      //       sources: dataSources
+      //     });
+      //   // sendSuccess(ws, 'fetchDataSourcesSuccess', data.name, {
+      //   //   sources: dataSources
+      //   // });
+      // } catch (error) {
+      //     wsManager.sendToConnection('VUE_connections', clientId, 'error', 'fetchDataSourcesError', data.name, {
+      //       message: error.message
+      //     });
+      //   // sendError(ws, 'fetchDataSourcesError', data.name, {
+      //   //   message: error.message
+      //   // });
+      // }
+      // break;
+      //case 'fetchDataSources': sendResponse('fetchDataSourcesSuccess', { sources:     await userStore.fetchDataSources() }); break;
 
       case 'config':
       try {
@@ -407,83 +411,94 @@ const handlePost = async (clientId, data) => {
  
     // ── ПОЛЬЗОВАТЕЛИ ──────────────────────────────────────────────────────
  
+    // case 'createUser': {
+    //   try {
+    //     const { username, password, dataSource, permissionLevel } = data.payload;
+    //     const newUser = await tableDB.registerUser(
+    //       username, password, permissionLevel,
+    //       dataSource, dataSource, '', '', process.env.DB_DATABASE
+    //     );
+    //     sendResponse('createUserSuccess', { user: newUser.user });
+    //   } catch (error) {
+    //     sendError('createUserError', error.message);
+    //   }
+    //   break;
+    // }
     case 'createUser': {
       try {
         const { username, password, dataSource, permissionLevel } = data.payload;
-        const newUser = await tableDB.registerUser(
-          username, password, permissionLevel,
-          dataSource, dataSource, '', '', process.env.DB_DATABASE
-        );
-        sendResponse('createUserSuccess', { user: newUser.user });
-      } catch (error) {
-        sendError('createUserError', error.message);
-      }
+        const res = await userStore.registerUser(username, password, permissionLevel, dataSource, dataSource);
+        sendResponse('createUserSuccess', { user: res.user });
+      } catch (e) { sendError('createUserError', e.message); }
       break;
     }
- 
-    case 'linkUserToDataSource': {
-      try {
-        const { userId, dataSourceId } = data.payload;
-        const result = await tableDB.linkDataSourceToUser(userId, dataSourceId, process.env.DB_DATABASE);
-        if (result.error) {
-          sendError('linkUserToDataSourceError', result.error);
-        } else {
-          sendResponse('linkUserToDataSourceSuccess', { message: 'Связь успешно создана', linkId: result.id });
-        }
-      } catch (error) {
-        sendError('linkUserToDataSourceError', error.message);
-      }
+    // case 'linkUserToDataSource': {
+    //   try {
+    //     const { userId, dataSourceId } = data.payload;
+    //     const result = await tableDB.linkDataSourceToUser(userId, dataSourceId, process.env.DB_DATABASE);
+    //     if (result.error) {
+    //       sendError('linkUserToDataSourceError', result.error);
+    //     } else {
+    //       sendResponse('linkUserToDataSourceSuccess', { message: 'Связь успешно создана', linkId: result.id });
+    //     }
+    //   } catch (error) {
+    //     sendError('linkUserToDataSourceError', error.message);
+    //   }
+    //   break;
+    // }
+    case 'linkUserToDataSource':
+      // В файловой модели связь уже создаётся в registerUser — можно вернуть успех
+      sendResponse('linkUserToDataSourceSuccess', { message: 'Связь уже в файле пользователей' });
       break;
-    }
  
     // ── ИНИЦИАЛИЗАЦИЯ ─────────────────────────────────────────────────────
  
-    case 'init_dID': {
-      logger.logInfoMessage(`[messageHandlers] - handlePost - init_dID: ${data.name}`);
-      try {
-        DBManager.getPool(authDB, dbUser, dbPass).on('error', (err) => {
-          logger.logErrorMessage(`[messageHandlers] - Ошибка пула соединений: ${err}`);
-        });
-        const dbDID = await DBManager.query('SELECT NOW()', [], dID, dbUser, dbPass);
-        logger.logDevMessage(`[messageHandlers] - Подключение к БД: ${dbDID.rows[0].now}`);
+    // case 'init_dID': {
+    //   logger.logInfoMessage(`[messageHandlers] - handlePost - init_dID: ${data.name}`);
+    //   try {
+    //     DBManager.getPool(authDB, dbUser, dbPass).on('error', (err) => {
+    //       logger.logErrorMessage(`[messageHandlers] - Ошибка пула соединений: ${err}`);
+    //     });
+    //     const dbDID = await DBManager.query('SELECT NOW()', [], dID, dbUser, dbPass);
+    //     logger.logDevMessage(`[messageHandlers] - Подключение к БД: ${dbDID.rows[0].now}`);
  
-        const tablesToCheck = ['config', 'data'];
-        let allTablesExist  = true;
-        for (const table of tablesToCheck) {
-          const exists = await DBManager.checkTableExists(table, dID, dbUser, dbPass);
-          if (!exists) { allTablesExist = false; break; }
-        }
+    //     const tablesToCheck = ['config', 'data'];
+    //     let allTablesExist  = true;
+    //     for (const table of tablesToCheck) {
+    //       const exists = await DBManager.checkTableExists(table, dID, dbUser, dbPass);
+    //       if (!exists) { allTablesExist = false; break; }
+    //     }
  
-        if (!allTablesExist) {
-          logger.logInfoMessage(`[messageHandlers] - Таблицы в "${dID}" отсутствуют.`);
-          break;
-        }
+    //     if (!allTablesExist) {
+    //       logger.logInfoMessage(`[messageHandlers] - Таблицы в "${dID}" отсутствуют.`);
+    //       break;
+    //     }
  
-        logger.logInfoMessage(`[messageHandlers] - Таблицы в "${dID}" существуют.`);
-        for (const config of configNames) {
-          const checkResult = await DBManager.checkRecordExists(
-            'config', { name: config }, dID, dbUser, dbPass
-          );
+    //     logger.logInfoMessage(`[messageHandlers] - Таблицы в "${dID}" существуют.`);
+    //     for (const config of configNames) {
+    //       const checkResult = await DBManager.checkRecordExists(
+    //         'config', { name: config }, dID, dbUser, dbPass
+    //       );
  
-          if (checkResult.exists) {
-            const fileResult = await DBManager.query(
-              'SELECT file FROM config WHERE name = $1', [config], dID, dbUser, dbPass
-            );
-            const fileData = fileResult.rows[0]?.file;
-            if (!fileData || Object.keys(fileData).length === 0) {
-              logger.logDevMessage(`[messageHandlers] - JSON пустой, запрашиваем у nodeRED: ${config}`);
-              wsManager.sendToConnection('nRED_connections', clientId, 'get', 'config', dID, { config });
-            }
-          } else {
-            logger.logDevMessage(`[messageHandlers] - Запись ${config} отсутствует, запрашиваем у nodeRED`);
-            wsManager.sendToConnection('nRED_connections', clientId, 'get', 'config', dID, { config });
-          }
-        }
-      } catch (error) {
-        logger.logErrorMessage(`[messageHandlers] - Ошибка обращения к БД "${dID}": ${error}`);
-      }
-      break;
-    }
+    //       if (checkResult.exists) {
+    //         const fileResult = await DBManager.query(
+    //           'SELECT file FROM config WHERE name = $1', [config], dID, dbUser, dbPass
+    //         );
+    //         const fileData = fileResult.rows[0]?.file;
+    //         if (!fileData || Object.keys(fileData).length === 0) {
+    //           logger.logDevMessage(`[messageHandlers] - JSON пустой, запрашиваем у nodeRED: ${config}`);
+    //           wsManager.sendToConnection('nRED_connections', clientId, 'get', 'config', dID, { config });
+    //         }
+    //       } else {
+    //         logger.logDevMessage(`[messageHandlers] - Запись ${config} отсутствует, запрашиваем у nodeRED`);
+    //         wsManager.sendToConnection('nRED_connections', clientId, 'get', 'config', dID, { config });
+    //       }
+    //     }
+    //   } catch (error) {
+    //     logger.logErrorMessage(`[messageHandlers] - Ошибка обращения к БД "${dID}": ${error}`);
+    //   }
+    //   break;
+    // }
  
     case 'wsConnect':
       // Placeholder — обработка подключения не требуется
@@ -784,13 +799,13 @@ const handleResponse = async (clientId, data) => {
               logger.logDevMessage(`[messageHandlers] - handleResponse - Config Data: ${configData}`);
 
                   // 1. Проверка существования конфига
-                  const checkResult = await DBManager.checkRecordExists(
-                    'config',
-                    { name: configName },
-                    dID,
-                    dbUser,
-                    dbPass
-                );
+                //   const checkResult = await DBManager.checkRecordExists(
+                //     'config',
+                //     { name: configName },
+                //     dID,
+                //     dbUser,
+                //     dbPass
+                // );
                   // 2. Если конфиг уже существует
                   if (checkResult.exists) {
                     const client = nodeRedClients.get(clientId);
@@ -809,19 +824,19 @@ const handleResponse = async (clientId, data) => {
                     //continue;
                 };
                   // 3. Создание новой записи
-                  const currentDate = new Date().toLocaleString('ru-RU', { timeZone: 'Europe/Moscow' });
-                  const result = await DBManager.query(
-                      `INSERT INTO config (name, file, update_date)
-                       VALUES ($1, $2, $3)
-                       RETURNING id, name, update_date`,
-                      [configName, configData, currentDate],
-                      dID,
-                      dbUser,
-                      dbPass
-                  );
-                  if (!result || !result.rows || result.rows.length === 0) {
-                    throw new Error('Failed to insert config record');
-                  }
+                  // const currentDate = new Date().toLocaleString('ru-RU', { timeZone: 'Europe/Moscow' });
+                  // const result = await DBManager.query(
+                  //     `INSERT INTO config (name, file, update_date)
+                  //      VALUES ($1, $2, $3)
+                  //      RETURNING id, name, update_date`,
+                  //     [configName, configData, currentDate],
+                  //     dID,
+                  //     dbUser,
+                  //     dbPass
+                  // );
+                  // if (!result || !result.rows || result.rows.length === 0) {
+                  //   throw new Error('Failed to insert config record');
+                  // }
                   // 4. Отправка подтверждения
                   wsManager.sendToConnection('nRED_connections',clientId, 'response', 'configSaved', dID, {
                     config: configName,

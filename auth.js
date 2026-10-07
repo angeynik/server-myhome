@@ -1,8 +1,9 @@
 // Процесс авторизации 
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const DBManager = require('./services/db.js'); // Импортируем DBManager
+//const DBManager = require('./services/db.js'); // Импортируем DBManager
 //const { login } = require('./userRepository');
+const userStore = require('./services/userStore.js');
 
 // Моковые данные пользователей
 //const users = [{ id: 1, username: 'testuser', password: bcrypt.hashSync('testpassword', 8) }];
@@ -22,38 +23,40 @@ logger.initLogging();
  * @param {string} password - Пароль
  * @returns {Object} - Данные пользователя и токен
  */
-const loginUser = async (username, password) => {
-  logger.logDevMessage(`[auth] - loginUser - проверяем пользователя -- ${username} --`);
-  //console.log('-- auth -- loginUser - проверяем пользователя --', username, 'с паролем --', password);
-  try {
-    const user = await DBManager.findUser(username);
+// const loginUser = async (username, password) => {
+//   logger.logDevMessage(`[auth] - loginUser - проверяем пользователя -- ${username} --`);
+//   //console.log('-- auth -- loginUser - проверяем пользователя --', username, 'с паролем --', password);
+//   try {
+//     const user = await DBManager.findUser(username);
     
-    if (!user) {
-      return { error: `User ${username} not found`, code: 'USER_NOT_FOUND' };
-    }
+//     if (!user) {
+//       return { error: `User ${username} not found`, code: 'USER_NOT_FOUND' };
+//     }
 
-    const isValid = await bcrypt.compare(password, user.password);
-    if (!isValid) {
-      return { error: 'Invalid password', code: 'INVALID_PASSWORD' };
-    }
-    const token = jwt.sign({ id: user.id }, secret, { expiresIn: '1h' });
-    logger.logDevMessage(`[auth] - loginUser - Login successfull: ${user.username}`);
-    logger.logDevMessage(`[auth] - loginUser - User dID: ${user.dID}`);
-    return {
-      success: true,
-      token,
-      username: user.username,
-      userlevel: user.userlevel,
-      dID: user.dID
-    };
+//     const isValid = await bcrypt.compare(password, user.password);
+//     if (!isValid) {
+//       return { error: 'Invalid password', code: 'INVALID_PASSWORD' };
+//     }
+//     const token = jwt.sign({ id: user.id }, secret, { expiresIn: '1h' });
+//     logger.logDevMessage(`[auth] - loginUser - Login successfull: ${user.username}`);
+//     logger.logDevMessage(`[auth] - loginUser - User dID: ${user.dID}`);
+//     return {
+//       success: true,
+//       token,
+//       username: user.username,
+//       userlevel: user.userlevel,
+//       dID: user.dID
+//     };
     
-  } catch (error) {
-    logger.logErrorMessage(`[auth] - loginUser - Login error: ${error.message}`);
-    //console.error('Login error:', error);
-    return { error: 'Server error', code: 'SERVER_ERROR' };
-  }
+//   } catch (error) {
+//     logger.logErrorMessage(`[auth] - loginUser - Login error: ${error.message}`);
+//     //console.error('Login error:', error);
+//     return { error: 'Server error', code: 'SERVER_ERROR' };
+//   }
+// };
+async function loginUser(username, password) {
+  return userStore.loginUser(username, password);
 };
-
 /**
  * Проверка токена
  * @param {string} token - JWT токен
