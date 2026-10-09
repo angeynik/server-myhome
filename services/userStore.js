@@ -161,6 +161,22 @@ function mutate(fn) {
 // ── утилиты ─────────────────────────────────────────────────────────────
 const norm = (s) => String(s || '').trim().toLowerCase();
 
+/**
+ * Из username делает валидный dID.
+ *   angey_bmax  → angey_bmax_base
+ *   john.doe    → john_doe_base
+ *   Ivan-2024   → ivan-2024_base
+ * Точки и любые недопустимые символы заменяются на `_`, регистр — в нижний,
+ * в конце добавляется суффикс `_base`. Результат гарантированно проходит DID_RE.
+ */
+function deriveDID(username) {
+  const base = String(username || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]/g, '_'); // всё, что не буква/цифра/_/- → '_'
+  return `${base}_base`;
+}
+
 function toPublic(u) {
   if (!u) return null;
   return {
@@ -204,14 +220,22 @@ async function verifyCredentials(username, password) {
 }
 
 // ── запись ──────────────────────────────────────────────────────────────
-// Сигнатура сохранена: registerUser(username, password, level, dID, sourceName)
+// Сигнатура: registerUser(username, password, level, dID?, sourceName?)
+// Если dID не передан — выводится из username как "<username>_base".
 async function registerUser(username, password, level, dID, sourceName) {
   username = String(username || '').trim();
   const lvl = parseInt(level, 10);
+
   if (!USERNAME_RE.test(username)) throw authError('BAD_USERNAME', 'Имя: 3–32 символа (буквы, цифры, _ . -)');
   checkPasswordPolicy(password);
   if (![1, 2, 3].includes(lvl)) throw authError('BAD_LEVEL', 'Уровень доступа должен быть 1, 2 или 3');
-  if (!cfg.isValidDID(dID)) throw authError('BAD_DID', 'Недопустимый dID (латиница, цифры, _ и -)');
+
+  // Если dID не передан явно — выводим из username
+  const finalDID = dID ? String(dID).trim() : deriveDID(username);
+  if (!cfg.isValidDID(finalDID)) {
+    throw authError('BAD_DID', 'Недопустимый dID (латиница, цифры, _ и -)');
+  }
+  const finalSource = sourceName || finalDID;
 
   const hash = await bcrypt.hash(password, cfg.BCRYPT_ROUNDS);
 
@@ -225,18 +249,18 @@ async function registerUser(username, password, level, dID, sourceName) {
       password: hash,
       email: null,
       permissionLevel: lvl,
-      dID,
-      dataSourceName: sourceName || dID,
+      dID: finalDID,
+      dataSourceName: finalSource,
       tokenVersion: 0,
       mustChangePassword: false,
       createdAt: new Date().toISOString(),
     };
     data.users.push(user);
-    if (!data.datasources.some((d) => d.did === dID)) {
+    if (!data.datasources.some((d) => d.did === finalDID)) {
       data.datasources.push({
         id: data.datasources.reduce((m, d) => Math.max(m, d.id || 0), 0) + 1,
-        did: dID,
-        name: sourceName || dID,
+        did: finalDID,
+        name: finalSource,
       });
     }
     return { user: toPublic(user), userCreated: true };
@@ -255,6 +279,35 @@ async function changePassword(username, oldPassword, newPassword) {
     u.tokenVersion = (u.tokenVersion || 0) + 1; // все прежние токены становятся недействительными
     u.mustChangePassword = false;
     return JSON.parse(JSON.stringify(u));
+  });
+}
+
+// Смена источника данных (dID) существующего пользователя.
+// Используется, например, чтобы отвязать пользователя от чужого dID.
+// Возвращает публичный объект пользователя.
+async function changeUserDID(username, newDID, sourceName) {
+  const did = String(newDID || '').trim();
+  if (!cfg.isValidDID(did)) throw authError('BAD_DID', 'Недопустимый dID (латиница, цифры, _ и -)');
+  const src = sourceName || did;
+
+  return mutate((data) => {
+    const u = data.users.find((x) => norm(x.username) === norm(username));
+    if (!u) throw authError('NO_USER', 'Пользователь не найден');
+
+    // Если пользователь уже был привязан к этому dID — просто обновим имя источника
+    u.dID = did;
+    u.dataSourceName = src;
+    // Отзываем все прежние JWT: у пользователя меняется контекст доступа
+    u.tokenVersion = (u.tokenVersion || 0) + 1;
+
+    if (!data.datasources.some((d) => d.did === did)) {
+      data.datasources.push({
+        id: data.datasources.reduce((m, d) => Math.max(m, d.id || 0), 0) + 1,
+        did,
+        name: src,
+      });
+    }
+    return toPublic(u);
   });
 }
 
@@ -299,6 +352,7 @@ module.exports = {
   changePassword,
   setPassword,
   bumpTokenVersion,
+  changeUserDID,
   fetchUsers,
   fetchDataSources,
   toPublic,
