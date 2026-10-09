@@ -13,6 +13,24 @@ logger.initLogging();
 // Объявляем кэш файлов
 const fileCache = new Map();
 
+function resolveConfigPath(dID, typeConfig) {
+  const suffix = (typeConfig === 'config') ? '' : `_${typeConfig}`;
+  return path.join(dataDir, `${dID}${suffix}.json`);
+}
+
+async function saveNamedConfig(dID, configName, configData) {
+  const filePath = resolveConfigPath(dID, configName);
+  await writeFileSafely(filePath, JSON.stringify(configData, null, 2));
+  logger.logDevMessage(`[ConfigStore] - saveNamedConfig - ${filePath}`);
+  return { filePath };
+}
+
+async function namedConfigExists(dID, configName) {
+  const filePath = resolveConfigPath(dID, configName);
+  try { await fs.access(filePath); return { exists: true, filePath }; }
+  catch { return { exists: false, filePath }; }
+}
+
 // Общая функция для проверки/создания директории
 async function ensureDataDir() {
     try {
@@ -138,91 +156,8 @@ async function readFileSafely(dID, typeConfig) {
     }
 };
 
-// async function readFileSafely(dID, typeConfig) {
-//     //console.log(`# # # # # # # # # # # # # # # [ConfigStore] - readFileSafely - # начинаем`);
-//     await ensureDataDir();
-//     let filePath = '';
-    
-//     switch (typeConfig) {
-//         case 'config':
-//             filePath = path.join(dataDir, `${dID}.json`);
-//             break;
-//         case 'schedules':
-//             filePath =path.join(dataDir,  `schedules_${dID}.json`);
-//             break;
-//         case 'notifications':
-//             filePath = path.join(dataDir, `notifications_${dID}.json`);
-//             break;
-//         default:
-//             // filePath = path.join(dataDir, `${dID}.json`);// По умолчанию основной конфиг
-//     }
-//     console.log(`[ConfigStore] - readFileSafely - 📂 Читаем данные из ${filePath}`);
-
-//     //const filePath = path.join(dataDir, `${dID}.json`);
-   
-//     if (fileCache.has(filePath)) {
-//         const data = fileCache.get(filePath);
-//         return { data, dataDir, filePath };
-//     }
-
-//     try {
-//         const fileData = await fs.readFile(filePath, 'utf8');
-//         const data = JSON.parse(fileData);
-//         fileCache.set(filePath, data);
-//         return { data, dataDir, filePath };
-//     } catch (error) {
-//         let initData;
-//         if (error.code === 'ENOENT') {
-//             if (typeConfig === 'config') {
-//                initData = { 
-//                 init: { 
-//                     title: "", 
-//                     dID, 
-//                     limits: { 
-//                         Default: { low: 14, high: 30, step: 1 }, 
-//                         Temp: { low: 8, high: 36, step: 0.5 }, 
-//                         Hum: { low: 14, high: 60, step: 1 }
-//                     }
-//                 } 
-//             };
-//             } else if (typeConfig === 'schedules') {
-//                initData = {};
-//             } else if (typeConfig === 'notifications') {
-//                initData = {};
-//             }
-// console.log(`[ConfigStore] - readFileSafely - 📂 Создаем новый файл ${filePath}`);
-// console.log(`[ConfigStore] - readFileSafely - 📂 Создаем новый файл ${JSON.stringify(initData)}`);
-
-
-
-
-//             // const initData = { 
-//             //     init: { 
-//             //         title: "", 
-//             //         dID, 
-//             //         limits: { 
-//             //             Default: { low: 14, high: 30, step: 1 }, 
-//             //             Temp: { low: 8, high: 36, step: 0.5 }, 
-//             //             Hum: { low: 14, high: 60, step: 1 }
-//             //         }
-//             //     } 
-//             // };
-//             fileCache.set(filePath, initData);
-//             return { data: initData, dataDir, filePath }; // Всегда возвращаем одинаковую структуру
-//         } else if (error instanceof SyntaxError) {
-//             logger.logErrorMessage(`[ConfigStore] - Ошибка парсинга файла ${filePath}: ${error.message}`);
-//             //console.error(`[ConfigStore] - Ошибка парсинга файла ${filePath}:`, error);
-//             const initData = { init: { title: "", dID } };
-//             fileCache.set(filePath, initData);
-//             return { data: initData, dataDir, filePath }; // Всегда возвращаем одинаковую структуру
-//         } else {
-//             throw error;
-//         }
-//     }
-// };
 
 module.exports = {
-  writeFileSafely,
-  readFileSafely,
-  fileCache
+  writeFileSafely, readFileSafely, fileCache,
+  saveNamedConfig, namedConfigExists, resolveConfigPath,
 };
