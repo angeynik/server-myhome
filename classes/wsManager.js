@@ -13,7 +13,7 @@ class WsManager {
   constructor() {
     this.VUE_connections = new Map();
     this.nRED_connections = new Map();
-    this.heartbeatInterval = null;
+    this.heartbeatInterval = new Map();
   }
   // generateConnectionId() {
   //   const random = Math.random().toString(32);
@@ -99,6 +99,8 @@ class WsManager {
 
     return null;
   }
+  // ── Поиск и закрытие дубликатов (опционально, если решишь использовать) ──
+// collectionsName — ИМЯ коллекции: 'VUE_connections' или 'nRED_connections'
   closeDuplicateConnections(connections, dID, connectionType, remoteAddress) {
     let closedCount = 0;
     
@@ -115,26 +117,40 @@ class WsManager {
     return closedCount;
   }
 
-  updateConnection(connections, clientId, timestamp, dID = null) {
-    console.log(`[WsManager] - 📡 Connection updated: ${dID}`);
+  // updateConnection(connections, clientId, timestamp, dID = null) {
+  //   console.log(`[WsManager] - 📡 Connection updated: ${dID}`);
 
+  //   const connection = this[connections].get(clientId);
+  //   if (!connection) {
+  //     console.log(`[WsManager] - ⚠️ Connection not found for update: ${clientId}`);
+  //     return;
+  //   }
+  //   let newdID = connection.meta.dID;
+  //   connection.dID = dID;
+  //   if (dID) {
+  //       newdID = dID;
+  //   } 
+  //   if (connection) {
+  //     connection.meta.lastActivity = timestamp;
+  //     connection.meta.isAlive = true;
+  //     connection.meta.dID = newdID;
+  //   }
+  //   console.log(`[WsManager] - 📡 Connection updated: ${clientId} (${newdID})`);
+  // }
+  updateConnection(connections, clientId, timestamp, dID = null) {
     const connection = this[connections].get(clientId);
     if (!connection) {
       console.log(`[WsManager] - ⚠️ Connection not found for update: ${clientId}`);
       return;
     }
-    let newdID = connection.meta.dID;
-    connection.dID = dID;
-    if (dID) {
-        newdID = dID;
-    } 
-    if (connection) {
-      connection.meta.lastActivity = timestamp;
-      connection.meta.isAlive = true;
-      connection.meta.dID = newdID;
+    if (dID) {                        // ← ставим условие!
+      connection.dID = dID;
+      connection.meta.dID = dID;
     }
-    console.log(`[WsManager] - 📡 Connection updated: ${clientId} (${newdID})`);
-  }
+    connection.meta.lastActivity = timestamp;
+    connection.meta.isAlive = true;
+    console.log(`[WsManager] - 📡 Connection updated: ${clientId} (${connection.dID})`);
+}
 
   isConnectionActive(connections, clientId) {
     const connection = this[connections].get(clientId);
@@ -144,19 +160,59 @@ class WsManager {
     return ws && ws.readyState === WebSocket.OPEN && meta.isAlive;
   }
 
-  removeConnection(connections, clientId) {
-    const connection = this[connections].get(clientId);
-    if (!connection) return;
+  // removeConnection(connections, clientId) {
+  //   const connection = this[connections].get(clientId);
+  //   if (!connection) return;
 
-    const { ws, dID, connectionType } = connection;
+  //   const { ws, dID, connectionType } = connection;
 
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.terminate();
-    }
+  //   if (ws && ws.readyState === WebSocket.OPEN) {
+  //     ws.terminate();
+  //   }
 
-    this[connections].delete(clientId);
-    console.log(`[WsManager] - 🗑 Connection removed: ${clientId} (${connectionType}, ${connection.key || 'no-key'})`);
+  //   this[connections].delete(clientId);
+  //   console.log(`[WsManager] - 🗑 Connection removed: ${clientId} (${connectionType}, ${connection.key || 'no-key'})`);
+  // }
+removeConnection(connections, clientId, opts = {}) {
+  const { code = 1000, reason = 'removed', force = false } = opts;
+
+  const map = this[connections];
+  if (!(map instanceof Map)) {
+    console.log(`[WsManager] - ❌ removeConnection: unknown collection ${connections}`);
+    return;
   }
+
+  const connection = map.get(clientId);
+  if (!connection) return;   // защита от повторного вызова через ws.on('close')
+
+  const { ws, connectionType, key } = connection;
+
+  // 1. Сначала удаляем из Map — иначе close-событие вызовет рекурсию
+  map.delete(clientId);
+
+  // 2. Мягко/жёстко закрываем сокет
+  if (ws) {
+    try {
+      if (force) {
+        ws.terminate();
+      } else if (
+        ws.readyState === WebSocket.OPEN ||
+        ws.readyState === WebSocket.CONNECTING
+      ) {
+        ws.close(code, reason);
+      }
+      // CLOSING / CLOSED — уже в процессе, ничего не делаем
+    } catch (err) {
+      console.error(`[WsManager] - removeConnection - close failed for ${clientId}:`, err.message);
+      try { ws.terminate(); } catch {}
+    }
+  }
+
+  console.log(
+    `[WsManager] - 🗑 Connection removed: ${clientId} ` +
+    `(${connectionType}, ${key || 'no-key'})${force ? ' [force]' : ''}`
+  );
+}
 
   hasConnection(connections, clientId) {
     return this[connections].has(clientId) && this.isConnectionActive(connections, clientId);
@@ -297,63 +353,121 @@ class WsManager {
   }
 
 
-  startHeartbeat(connections, interval = 30000, timeout = 60000) {
-    if (this.heartbeatInterval) {
-      clearInterval(this.heartbeatInterval);
-    }
-    if (!this[connections] || !(this[connections] instanceof Map)) {
-      console.log(`[WsManager] - ❌ Invalid collection for heartbeat: ${connections}`);
-      return;
-    }
+  // startHeartbeat(connections, interval = 30000, timeout = 60000) {
+  //   if (this.heartbeatInterval) {
+  //     clearInterval(this.heartbeatInterval);
+  //   }
+  //   if (!this[connections] || !(this[connections] instanceof Map)) {
+  //     console.log(`[WsManager] - ❌ Invalid collection for heartbeat: ${connections}`);
+  //     return;
+  //   }
 
-    this.heartbeatInterval = setInterval(() => {
-      const now = Date.now();
+  //   this.heartbeatInterval = setInterval(() => {
+  //     const now = Date.now();
       
-      for (const [clientId, connection] of this[connections]) {
-        const { ws, meta } = connection;
+  //     for (const [clientId, connection] of this[connections]) {
+  //       const { ws, meta } = connection;
         
-        if (!ws || ws.readyState !== WebSocket.OPEN) {
-          this.removeConnection(connections, clientId);
-          continue;
-        }
+  //       if (!ws || ws.readyState !== WebSocket.OPEN) {
+  //         this.removeConnection(connections, clientId);
+  //         continue;
+  //       }
 
-        if (now - meta.lastActivity > timeout) {
-          console.warn(`[WsManager] - 💀 Heartbeat timeout for ${clientId}`);
-          this.removeConnection(connections, clientId);
-          continue;
-        }
+  //       if (now - meta.lastActivity > timeout) {
+  //         console.warn(`[WsManager] - 💀 Heartbeat timeout for ${clientId}`);
+  //         this.removeConnection(connections, clientId);
+  //         continue;
+  //       }
 
-        if (!meta.isAlive) {
-          ws.terminate();
-          this.removeConnection(connections, clientId);
-          continue;
-        }
+  //       if (!meta.isAlive) {
+  //         ws.terminate();
+  //         this.removeConnection(connections, clientId);
+  //         continue;
+  //       }
 
-        meta.isAlive = false;
-        try {
-          ws.ping(null, false, (err) => {
-            if (err) {
-              console.error(`[WsManager] - Ping error for ${clientId}:`, err);
-              this.removeConnection(connections, clientId);
-            }
-          });
-        } catch (error) {
-          console.error(`[WsManager] - Ping failed for ${clientId}:`, error);
-          this.removeConnection(connections, clientId);
-        }
+  //       meta.isAlive = false;
+  //       try {
+  //         ws.ping(null, false, (err) => {
+  //           if (err) {
+  //             console.error(`[WsManager] - Ping error for ${clientId}:`, err);
+  //             this.removeConnection(connections, clientId);
+  //           }
+  //         });
+  //       } catch (error) {
+  //         console.error(`[WsManager] - Ping failed for ${clientId}:`, error);
+  //         this.removeConnection(connections, clientId);
+  //       }
+  //     }
+  //   }, interval).unref();
+
+  //   //console.log(`[WsManager] - Heartbeat started: interval=${interval}ms, timeout=${timeout}ms`);
+  // }
+  startHeartbeat(connections, interval = 30000, timeout = 60000) {
+  this.heartbeatIntervals = this.heartbeatIntervals;
+  const existing = this.heartbeatIntervals.get(connections);
+  if (existing) clearInterval(existing);
+
+  if (!this[connections] || !(this[connections] instanceof Map)) {
+    console.log(`[WsManager] - ❌ Invalid collection for heartbeat: ${connections}`);
+    return;
+  }
+
+  const id = setInterval(() => {
+    const now = Date.now();
+
+    for (const [clientId, connection] of this[connections]) {
+      const { ws, meta } = connection;
+
+      if (!ws || ws.readyState !== WebSocket.OPEN) {
+        this.removeConnection(connections, clientId, { force: true });
+        continue;
       }
-    }, interval).unref();
 
-    //console.log(`[WsManager] - Heartbeat started: interval=${interval}ms, timeout=${timeout}ms`);
-  }
+      if (now - meta.lastActivity > timeout) {
+        console.warn(`[WsManager] - 💀 Heartbeat timeout for ${clientId}`);
+        this.removeConnection(connections, clientId, { force: true });
+        continue;
+      }
 
-  stopHeartbeat() {
-    if (this.heartbeatInterval) {
-      clearInterval(this.heartbeatInterval);
-      this.heartbeatInterval = null;
-      console.log('[WsManager] - Heartbeat stopped');
+      if (!meta.isAlive) {
+        this.removeConnection(connections, clientId, { force: true });
+        continue;
+      }
+
+      meta.isAlive = false;
+      try {
+        ws.ping(null, false, (err) => {
+          if (err) {
+            console.error(`[WsManager] - Ping error for ${clientId}:`, err.message);
+            this.removeConnection(connections, clientId, { force: true });
+          }
+        });
+      } catch (error) {
+        console.error(`[WsManager] - Ping failed for ${clientId}:`, error.message);
+        this.removeConnection(connections, clientId, { force: true });
+      }
     }
+  }, interval).unref();
+  this.heartbeatIntervals.set(connections, id);
+}
+
+  // stopHeartbeat() {
+  //   if (this.heartbeatInterval) {
+  //     clearInterval(this.heartbeatInterval);
+  //     this.heartbeatInterval = null;
+  //     console.log('[WsManager] - Heartbeat stopped');
+  //   }
+  // }
+  stopHeartbeat(connections) {
+  if (connections) {
+    const id = this.heartbeatIntervals.get(connections);
+    if (id) clearInterval(id);
+    this.heartbeatIntervals.delete(connections);
+  } else {
+    for (const id of this.heartbeatIntervals.values()) clearInterval(id);
+    this.heartbeatIntervals.clear();
   }
+}
 
   getStats(connections) {
     const totalConnections = this[connections].size;
@@ -365,20 +479,36 @@ class WsManager {
     };
   }
 
-  cleanup(connections) {
-    this.stopHeartbeat();
+  // cleanup(connections) {
+  //   this.stopHeartbeat();
    
-    // Добавляем проверку на существование коллекции
+  //   // Добавляем проверку на существование коллекции
+  //   if (!this[connections] || !(this[connections] instanceof Map)) {
+  //     console.log(`[WsManager] - ❌ Invalid collection for cleanup: ${connections}`);
+  //     return;
+  //   }
+  //   for (const clientId of this[connections].keys()) {
+  //     this.removeConnection(connections, clientId);
+  //   }
+    
+  //   this[connections].clear();
+    
+  //   console.log('[WsManager] - All connections cleaned up');
+  // }
+  cleanup(connections) {
+    this.stopHeartbeat(connections);
     if (!this[connections] || !(this[connections] instanceof Map)) {
       console.log(`[WsManager] - ❌ Invalid collection for cleanup: ${connections}`);
       return;
     }
-    for (const clientId of this[connections].keys()) {
-      this.removeConnection(connections, clientId);
+    for (const clientId of [...this[connections].keys()]) {
+      this.removeConnection(connections, clientId, {
+        code: 1001,
+        reason: 'server shutdown',
+        force: true,
+      });
     }
-    
     this[connections].clear();
-    
     console.log('[WsManager] - All connections cleaned up');
   }
 }

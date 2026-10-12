@@ -349,16 +349,16 @@ WSSDash.on('connection', (ws) => {
 
   logger.logDevMessage(`[Serverapp] - WSSDash.on - VUE соединение зарегистрировано: ${connectionId}`);
 
-  const allClients = wsManager.getAllActiveConnections();
+  const allClients = wsManager.getAllActiveConnections('VUE_connections');
   logger.logDevMessage(`[Serverapp] - WSSDash.on - Все соединения:`, allClients);
 
   WSSDash.clients.forEach((client) => {
-    client.send(
-                        JSON.stringify({
-                          type: 'Проверка связи',
-                          request:'serverConnected',
-                          message: 'Проверка связи',
-                        }))
+    ws.send(JSON.stringify({
+      type: 'info',
+      request: 'serverConnected',
+      name: 'server',
+      payload: { message: 'Проверка связи' }
+    }));
   });
 
   
