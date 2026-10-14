@@ -61,6 +61,55 @@ async function main() {
       console.log('Все прежние JWT этого пользователя отозваны (tokenVersion++).');
       break;
     }
+    case 'deleteUser': {
+      const [username] = args;
+      if (!username) throw new Error('usage: deleteUser <username>');
+      const res = await userStore.deleteUser(username);
+
+      console.log(`OK. Пользователь "${res.username}" удалён (dID="${res.dID}").`);
+
+      if (res.otherUsersOnSameDID > 0) {
+        console.log(`  ℹ️ На dID="${res.dID}" осталось ещё пользователей: ${res.otherUsersOnSameDID} — источник данных не тронут.`);
+      } else {
+        console.log(`  ⚠️ На dID="${res.dID}" больше никого не осталось.`);
+        console.log(`     Запись в datasources и файл configData/${res.dID}.json НЕ удалены — почистите вручную, если нужно.`);
+      }
+      break;
+    }
+        case 'deleteDataSource': {
+      const [did] = args;
+      if (!did) throw new Error('usage: deleteDataSource <dID>');
+      try {
+        const res = await userStore.deleteDataSource(did);
+        console.log(`OK. Источник данных "${res.did}"${res.name ? ` (${res.name})` : ''} удалён.`);
+        console.log(`  Файл configData/${res.did}.json НЕ удалён — удалите вручную, если не нужен.`);
+      } catch (e) {
+        if (e.code === 'DATASOURCE_IN_USE') {
+          console.error(`Ошибка: ${e.message}`);
+          console.error('Сначала переведите пользователей на другой dID (setDID) или удалите их (deleteUser).');
+          process.exit(2);
+        }
+        throw e;
+      }
+      break;
+    }
+
+    case 'cleanDataSources': {
+      const res = await userStore.cleanDataSources();
+      if (res.removedCount === 0) {
+        console.log(`Нечего чистить: источников ${res.keptCount}, все используются.`);
+      } else {
+        console.log(`OK. Удалено источников: ${res.removedCount} (осталось ${res.keptCount} из ${res.before}).`);
+        for (const d of res.removed) {
+          console.log(`  - ${d.did}${d.name ? ` (${d.name})` : ''}`);
+        }
+        console.log('  Файлы configData/<dID>.json НЕ тронуты — проверьте вручную:');
+        for (const d of res.removed) {
+          console.log(`    configData/${d.did}.json`);
+        }
+      }
+      break;
+    }
 
     default:
       console.log([
@@ -70,6 +119,9 @@ async function main() {
         '  node scripts/authAdmin.js setDID <username> <newDID> [sourceName]',
         '  node scripts/authAdmin.js createUser <username> <password> <level> [dID] [sourceName]',
         '  node scripts/authAdmin.js bump <username>',
+        '  node scripts/authAdmin.js deleteUser <username>',
+        '  node scripts/authAdmin.js deleteDataSource <dID>',
+        '  node scripts/authAdmin.js cleanDataSources',
       ].join('\n'));
   }
 }

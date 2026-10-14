@@ -343,6 +343,88 @@ async function fetchDataSources() {
   const { datasources } = await loadUsers();
   return datasources.map((d) => ({ id: d.id, did: d.did }));
 }
+async function deleteUser(username) {
+  const uname = String(username || '').trim();
+  if (!uname) {
+    const e = new Error('Имя не указано');
+    e.code = 'BAD_USERNAME';
+    throw e;
+  }
+
+  return mutate((state) => {
+    const idx = state.users.findIndex(
+      (u) => u.username.toLowerCase() === uname.toLowerCase()
+    );
+    if (idx === -1) {
+      const e = new Error('Пользователь не найден');
+      e.code = 'NO_USER';
+      throw e;
+    }
+
+    const [removed] = state.users.splice(idx, 1);
+
+    // Сколько пользователей (если есть) осталось на том же dID
+    const otherUsersOnSameDID = state.users.filter(
+      (u) => u.dID === removed.dID
+    ).length;
+
+    // Запись в datasources НЕ трогаем — даже если это последний пользователь.
+    // Причины: (1) файл configData/<dID>.json остаётся и может быть нужен;
+    // (2) возможен внешний потребитель (NodeRED и т.п.), знающий этот dID;
+    // (3) удаление легко сделать отдельной командой, а откатить — нет.
+
+    return {
+      username: removed.username,
+      dID: removed.dID,
+      otherUsersOnSameDID,
+    };
+  });
+}
+
+// Удаление одного источника данных. Отказывается, если на нём ещё есть пользователи.
+async function deleteDataSource(did) {
+  const d = String(did || '').trim();
+  if (!d) throw authError('BAD_DID', 'dID не указан');
+
+  return mutate((state) => {
+    const idx = state.datasources.findIndex((x) => x.did === d);
+    if (idx === -1) throw authError('NO_DATASOURCE', 'Источник данных не найден');
+
+    const usersOnIt = state.users.filter((u) => u.dID === d);
+    if (usersOnIt.length > 0) {
+      throw authError(
+        'DATASOURCE_IN_USE',
+        `На dID="${d}" ещё есть пользователи: ${usersOnIt.map((u) => u.username).join(', ')}`
+      );
+    }
+
+    const [removed] = state.datasources.splice(idx, 1);
+    return { did: removed.did, name: removed.name || null };
+  });
+}
+
+// Массовая чистка: удаляем все datasources, на которые не ссылается ни один пользователь.
+// Ничего не делает с файлами configData/*.json — их судьба на усмотрение админа.
+async function cleanDataSources() {
+  return mutate((state) => {
+    const used = new Set(state.users.map((u) => u.dID).filter(Boolean));
+    const before = state.datasources.length;
+    const removed = [];
+
+    state.datasources = state.datasources.filter((d) => {
+      if (used.has(d.did)) return true;
+      removed.push({ did: d.did, name: d.name || null });
+      return false;
+    });
+
+    return {
+      removed,
+      removedCount: removed.length,
+      keptCount: state.datasources.length,
+      before,
+    };
+  });
+}
 
 module.exports = {
   loadUsers,
@@ -356,4 +438,7 @@ module.exports = {
   fetchUsers,
   fetchDataSources,
   toPublic,
+  deleteUser,
+  deleteDataSource,
+  cleanDataSources,
 };
