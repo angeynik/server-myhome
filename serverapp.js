@@ -302,7 +302,7 @@ setInterval(() => {
 //const reconnectInterval = 100;
 
 // Работаем с NodeRED
-if (NODERED_ENABLED && WSSNodeRED) {
+if (NODERED_ENABLED) {
   WSSNodeRED.on('connection', (ws, req) => {
     logger.logDevMessage(`[Serverapp] - WSSNodeRED.on - Новое подключение nodeRED (VUE)`);
     const connectionId = wsManager.registerConnection(ws, 'nodeRED', null);
@@ -318,7 +318,7 @@ if (NODERED_ENABLED && WSSNodeRED) {
   logger.logDevMessage(`Client connected to NodeRED on port ${wsRedPORT}`);
 
   ws.on('message', async (message) => {
-      
+        logger.logDevMessage(`[Serverapp] - WSSNodeRED RAW: ${message.toString()}`);
         try {
           const checkInputMessage = checkMessage(message);
           logger.logDevMessage(`[Serverapp] - WSSNodeRED - checkInputMessage - ${JSON.stringify(checkInputMessage, null, 2)}`);
@@ -326,7 +326,15 @@ if (NODERED_ENABLED && WSSNodeRED) {
           if(checkInputMessage.status === 'ok') {
 
             const dID = checkInputMessage.data.name;
-            
+            if (dID) {
+              const conn = wsManager.nRED_connections.get(connectionId);
+              if (conn && !conn.dID) {
+                wsManager.updateConnection('nRED_connections', connectionId, Date.now(), dID);
+                logger.logInfoMessage(
+                  `[Serverapp] - WSSNodeRED: dID привязан из первого сообщения (${checkInputMessage.data.type}/${checkInputMessage.data.request}) → ${dID}`
+                );
+              }
+            }
             switch (checkInputMessage?.data?.type) {
               case 'init':     
                     if (checkInputMessage.data.request === 'init_ws') {
@@ -394,48 +402,6 @@ WSSDash.on('connection', (ws) => {
   });
 
   
-  // ws.on('message', (message) => {
-  //   logger.logDevMessage(`[Serverapp] - WSSDash.on - Пришло сообщение: ${message}`);
-  //     try {
-  //       const dashData = checkMessage(message);
-  //       if(dashData.status === 'ok') {
-  //         logger.logDevMessage(`[Serverapp] - WSSDash - checkInputMessage - OK  - ${JSON.stringify(dashData, null, 2)}`);
-  //         switch (dashData?.data?.type) {
-  //           case 'auth':
-  //               const auth = dashData.data.payload;
-  //               logger.logDevMessage(`[Serverapp] - WSSDash - Пришло сообщение auth: ${JSON.stringify(auth, null, 2)}`);
-  //               handleAuth(connectionId, dashData.data);
-  //               break;
-  //           case 'get': 
-  //               logger.logDevMessage(`[Serverapp] - WSSDash - Пришло сообщение get: ${JSON.stringify(dashData.data, null, 2)}`);
-  //               handleGet(connectionId, dashData.data);
-  //               break;
-  //           case 'post':
-  //             console.log(`[Serverapp] - WSSDash - Пришло сообщение post: ${JSON.stringify(dashData, null, 2)}`);
-  //           //logger.logDevMessage(`[Serverapp] - WSSDash - Пришло сообщение post: ${JSON.stringify(dashData.data, null, 2)}`);
-  //               handlePost(connectionId, dashData.data);
-  //               const dID = dashData.data.name;
-  //               try {
-  //                   //sendToNodeRED(dID, dashData.data);
-  //                   //broadcast(connectionId, dID, dashData.data);
-  //                   if (!modbusBridge.handleCommand(connectionId, dashData.data)) {
-  //                     broadcast(connectionId, dID, dashData.data);
-  //                   }
-  //                 //broadcast(dID, messageData, ['nRED_connections']);
-  //               } catch (error) {
-  //                   console.log('[Serverapp] -  Ошибка отправки полученного сообщения от VUE клиента к NodeRED:', error);
-  //               }
-  //           break;
-  //           default:
-  //             break;
-  //         }
-  //       }
-  //     } catch (error) {
-  //       logger.logErrorMessage(`[Serverapp] - WSSDash - Error  -- checkInputMessage - ${error.message}`);
-  //       //console.error('-[Serverapp] -  Error  -- checkInputMessage -', error);
-  //     }
-  // });
-
   ws.on('message', (message) => {
   logger.logDevMessage(`[Serverapp] - WSSDash.on - Пришло сообщение: ${message}`);
   try {
@@ -546,6 +512,7 @@ function broadcast(excludeClientId, dID, data, targets = null) {
      
       // Отправляем сообщение каждому соединению с нужным dID, исключая отправителя
       userConnections.forEach(({ clientId, connection }) => {
+        logger.logDevMessage(`[Serverapp] - broadcast - Начинаем рассылку`);
         if (clientId === excludeClientId) {
           logger.logDevMessage(`[Serverapp] - broadcast - Пропускаем отправителя: ${clientId}`);
           //console.log(`[Serverapp] - broadcast - Пропускаем отправителя: ${clientId}`);
@@ -560,9 +527,9 @@ function broadcast(excludeClientId, dID, data, targets = null) {
             connection.ws.send(messageString);
             typeSent++;
             totalSent++;
-            console.log(`[Serverapp] - broadcast - Сообщение отправлено клиенту: ${clientId} (${targetType})`);
+            logger.logDevMessage(`[Serverapp] - broadcast - Сообщение отправлено клиенту: ${clientId} (${targetType})`);
           } catch (error) {
-            console.error(`[Serverapp] - broadcast - Ошибка отправки клиенту ${clientId}:`, error);
+            logger.logErrorMessage(`[Serverapp] - broadcast - Ошибка отправки клиенту ${clientId}:`, error);
           }
         }
       });
@@ -571,7 +538,7 @@ function broadcast(excludeClientId, dID, data, targets = null) {
     });
     
     if (totalSent === 0) {
-      logger
+      logger.logDevMessage(`[Serverapp] - broadcast - Нет активных клиентов для рассылки (dID: ${dID}, исключен: ${excludeClientId})`);
       //console.log(`[Serverapp] - broadcast - Нет активных клиентов для рассылки (dID: ${dID}, исключен: ${excludeClientId})`);
     } else {
       logger.logDevMessage(`[Serverapp] - broadcast - Всего отправлено ${totalSent} сообщений для dID: ${dID}`);
