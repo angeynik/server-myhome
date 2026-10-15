@@ -2,7 +2,7 @@
 'use strict';
 
 const dotenv = require('dotenv');
-dotenv.config({ path: './conf.env' });
+dotenv.config({ path: './conf.env', override: true });
 
 const logger    = require('./logger.js');
 const userStore = require('./userStore.js');

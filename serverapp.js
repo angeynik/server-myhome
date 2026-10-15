@@ -557,18 +557,6 @@ function stringToJSON(message) {
     return JSON.parse(data);
 };
 
-// Проверка сообщения и дальнейшая валидация корректности структуры сообщения
-// function checkMessage(message) {
-//   const data = stringToJSON(message); // Преобразуем строку в объект JSON
-//   logger.logDevMessage(`[Serverapp] - checkMessage получило сообщение: ${message}`);
-//   const { error } = validType(data);
-//   if (error) {
-//     logger.logErrorMessage(`[Serverapp] - checkMessage - Некорректный формат полученного сообщения. ${message} Ошибка: Error validType: ${error.message}`);
-//     //console.log(`Некорректный формат полученного сообщения. ${message} Ошибка: Error validType: ${error.message}`);
-//     return error;
-//   }
-//   return {status:'ok', data: data};
-// };
 
 function checkMessage(message) {
   const data = stringToJSON(message);
@@ -577,7 +565,7 @@ function checkMessage(message) {
   // 1. Грубая проверка типа
   const { error } = validType(data);
   if (error) {
-    logger.logErrorMessage(`[Serverapp] - checkMessage - Некорректный type. ${message} Ошибка: ${error.message}`);
+    logger.logErrorMessage(`[Serverapp] - checkMessage - Некорректный type ${message} Ошибка: ${error.message}`);
     return error;
   }
 
