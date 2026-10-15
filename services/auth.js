@@ -2,9 +2,9 @@
 'use strict';
 
 const jwt = require('jsonwebtoken');
-const cfg = require('./services/authConfig');
-const userStore = require('./services/userStore');
-const logger = require('./services/logger.js');
+const cfg = require('./authConfig');
+const userStore = require('./userStore');
+const logger = require('./logger.js');
 logger.initLogging();
 
 // ── Сессии, привязанные к clientId WS-соединения ────────────────────────

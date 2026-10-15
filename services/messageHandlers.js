@@ -6,7 +6,7 @@ dotenv.config({ path: './conf.env' });
 
 const logger    = require('./logger.js');
 const userStore = require('./userStore.js');
-const auth      = require('../auth');
+const auth      = require('./auth');
 const cfg       = require('./authConfig');
 const wsManager = require('../classes/wsManager');
 
