@@ -9,3 +9,14 @@ jspm_packages/
 # Personal configuration
 conf.env
 
+# ── Локальные секреты и данные пользователей ─────────────────────────────
+# Каждый сервер держит свои учётки и свой ключ шифрования. В репозиторий — никогда.
+data/users.enc
+data/users.enc.*.tmp
+data/auth.key
+
+# Папка data/ должна существовать, но её содержимое — локальное
+data/*
+!data/.gitkeep
+.configData/
+configData/

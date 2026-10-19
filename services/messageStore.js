@@ -52,8 +52,11 @@ function addMessageToQueue(clientId, message) {
     logger.logDevMessage(`[messageStore]- processClientQueue - 📬 Сообщение добавлено в очередь для ${clientId}. Ключ: ${key}`);
     //console.log(`[messageStore]- processClientQueue - 📬 Сообщение добавлено в очередь для ${clientId}. Ключ: ${key}`);
   } else {
-    logger.logDevMessage(`[messageStore]- processClientQueue - ⚠️  Сообщение уже в очереди. ${clientId} Ключ: ${key}`);
-    //console.log(`[messageStore]- processClientQueue - ⚠️  Сообщение уже в очереди. ${clientId} Ключ: ${key}`);
+    const existing = queue.get(key);
+    existing.message = message;   // оставляем самое свежее значение
+    existing.retryCount = 0;
+    logger.logDevMessage(`[messageStore]- processClientQueue - ⚠️  Сообщение Обновлено ${clientId} Ключ: ${key}`);
+    //console.log(`[messageStore]- processClientQueue - ⚠️  Сообщение Обновлено ${clientId} Ключ: ${key}`);
   }
 }
 
@@ -83,7 +86,7 @@ async function processClientQueue(clientId) {
     clientLocks.set(clientId, true); // Блокируем клиента
     const clientQueue = messageQueue.get(clientId);
     const processedKeys = [];
-    const now = Date().toString();
+    const now = Date.now();
     
     try {
         for (const [key, entry] of clientQueue.entries()) {

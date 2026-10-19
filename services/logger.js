@@ -1,5 +1,5 @@
 const dotenv = require('dotenv'); // Подключаем .ENV файл с переменными окружения
-dotenv.config({path: './conf.env'}); 
+dotenv.config({ path: './conf.env', override: true }); 
 
 const logLevel = process.env.LOG_LEVEL || 'info';
 

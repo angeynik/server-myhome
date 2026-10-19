@@ -1,44 +1,49 @@
 const express = require('express');
 const http = require('http');
-const axios = require('axios');
+//const axios = require('axios');
 const cors = require('cors');
-const path = require('path');
+//const path = require('path');
 const bodyParser = require('body-parser');
-const fs = require('fs');
-const {initServer, initUsers, initDefaulUser, initDB_dID} = require('./services/initServer.js');
-//const tableDB = require('./services/tableDB.js');
+//const fs = require('fs');
+const userStore = require('./services/userStore.js');
+const auth = require('./services/auth');
+const cfg = require('./services/authConfig');
 
 const wsManager = require('./classes/wsManager.js');
-const { nodeRedClients, registerClient, getAllClients, getClient, startHeartbeat} = require('./services/clientsStore');
-const { addMessageToQueue, getAllQueueMessages, processAllQueues, removeFromQueue, triggerQueueProcessing} = require('./services/messageStore.js');
+const modbusManager = require('./classes/modBusTCPManager');
+const modbusBridge  = require('./services/modbusTCPBridge.js');
+
+//const { nodeRedClients, registerClient, getAllClients, getClient, startHeartbeat} = require('./services/clientsStore');
+const { addMessageToQueue, processAllQueues} = require('./services/messageStore.js');
 const { handleAuth, handleGet, handlePost, handleResponse, handleSet, handleError} = require('./services/messageHandlers.js'); // Подключаем обработку входящих по WS сообщений
 
-// require('dotenv').config({ path: './conf.env' }); 
 const dotenv = require('dotenv'); // Подключаем .ENV файл с переменными окружения
 dotenv.config({path: './conf.env'}); // Указываем путь к  файлу .env
 //const { loginUser, verifyToken } = require('./auth'); // Импортируем функции авторизации
 
-const DBManager = require('./services/db.js'); // Импортируем DBManager
 
 // Подключаем функции модуля joi для валидации данных
-const {validType} = require('./validate');
-
-const logger = require('./services/logger.js');
-logger.initLogging();
+const { validType, validPost } = require('./services/validate');
 
 const servPORT = process.env.SERVER_PORT || 3010;
 const wsRedPORT = process.env.WSR_PORT || 9200;
 const wsDashPORT = process.env.WSD_PORT || 9202;
+// ── Флаги управления потоками ─────────────────────────────────────────
+const NODERED_ENABLED = String(process.env.NODERED_ENABLED ?? 'true').toLowerCase() === 'true';
+const MODBUS_ENABLED  = String(process.env.MODBUS_ENABLED  ?? 'true').toLowerCase() === 'true';
+
 // const EXT_URL = process.env.EXT_URL || 'http://192.168.1.94:3020';
 // const LOCAL_URL = process.env.LOCAL_URL || 'http://localhost:3020';
 // const pingInterval = process.env.WS_PING_INTERVAL || 150000;
 // const timeOut = process.env.WS_TIME_OUT || 300000;
 
-const ModbusManager = require('./modBus/modbusManager');
-let modbusManager;
 
-const manageModbus = process.env.MANAGE_MODBUS || 'false';
-const modbusId = process.env.MODBUS_ID || 21;
+const logger = require('./services/logger.js');
+logger.initLogging();
+logger.logInfoMessage(
+  `[Serverapp] - потоки: VUE=ON, NodeRED=${NODERED_ENABLED ? 'ON' : 'OFF'}, ` +
+  `Modbus=${MODBUS_ENABLED ? 'ON' : 'OFF'}`
+);
 
 const app = express();
 app.set(servPORT);
@@ -56,28 +61,55 @@ app.use(bodyParser.json());
 
 
 // Инициализация сервера
-const initialize = async () => {
-  const envInit = process.env.INIT_DB;
-  logger.logDevMessage(`[Serverapp] - envInit - инициализация сервера - ${envInit}`);
-  if (envInit === 'TRUE') {
-    try {
-      await initServer(); // Выполняем инициализацию
-      await initUsers(); // Проверяем существование таблицы Users
-      await initDefaulUser();  // Проверяем наличие пользователя по умолчанию
-      await initDB_dID(); // Проверяем есть ли база для пользователя по умолчанию Имя для базы - DEFAULT_USER_DID 
-      logger.logDevMessage(`[Serverapp] - Инициализация сервера завершена успешно.`);
-    } catch (error) {
-      logger.logErrorMessage(`[Serverapp] - Ошибка при инициализации сервера: ${error}`);
-      //console.error('[Serverapp] - Ошибка при инициализации сервера:', error);
-    }
-  } else {
-    logger.logInfoMessage(`[Serverapp] - Инициализация сервера запрещена INIT_DB - ${envInit}`);
-    //console.log('[Serverapp] - Инициализация сервера запрещена INIT_DB - ', envInit);
+// const initialize = async () => {
+//   const envInit = process.env.INIT_DB;
+//   logger.logDevMessage(`[Serverapp] - envInit - инициализация сервера - ${envInit}`);
+//   if (envInit === 'TRUE') {
+//     try {
+//       await initServer(); // Выполняем инициализацию
+//       await initUsers(); // Проверяем существование таблицы Users
+//       await initDefaulUser();  // Проверяем наличие пользователя по умолчанию
+//       await initDB_dID(); // Проверяем есть ли база для пользователя по умолчанию Имя для базы - DEFAULT_USER_DID 
+//       logger.logDevMessage(`[Serverapp] - Инициализация сервера завершена успешно.`);
+//     } catch (error) {
+//       logger.logErrorMessage(`[Serverapp] - Ошибка при инициализации сервера: ${error}`);
+//       //console.error('[Serverapp] - Ошибка при инициализации сервера:', error);
+//     }
+//   } else {
+//     logger.logInfoMessage(`[Serverapp] - Инициализация сервера запрещена INIT_DB - ${envInit}`);
+//     //console.log('[Serverapp] - Инициализация сервера запрещена INIT_DB - ', envInit);
+//   }
+
+
+// };
+// initialize(); // Выполняем инициализацию сервера
+// ── Инициализация ─────────────────────────────────────────────────────────
+
+
+(async () => {
+  try {
+    // loadUsers() сам:
+    //   1) загрузит или сгенерирует AUTH_KEY_FILE (0600),
+    //   2) если USERS_FILE нет — создаст с DEFAULT_USER_* и запишет,
+    //   3) положит расшифрованный объект в in-memory кэш.
+    const data = await userStore.loadUsers();
+
+    logger.logInfoMessage(
+      `[Serverapp] - userStore готов: ` +
+      `пользователей ${data.users.length}, ` +
+      `источников данных ${data.datasources.length}`
+    );
+
+    logger.logDevMessage(
+      `[Serverapp] - userStore: users=[${data.users.map(u => u.username).join(', ')}], ` +
+      `datasources=[${data.datasources.map(d => d.did).join(', ')}]`
+    );
+  } catch (e) {
+    logger.logErrorMessage(`[Serverapp] - ошибка userStore: ${e.message}`);
+    // Не роняем процесс — сервер поднимется, но авторизация работать не будет.
+    // Админ увидит ошибку в логах и восстановит файлы.
   }
-
-
-};
-initialize(); // Выполняем инициализацию сервера
+})();
 
   // Запуск сервера
   server.listen(servPORT, () => {
@@ -102,36 +134,13 @@ const handleShutdown = async () => {
     // 0. Останавливаем heartbeat мониторинг
     wsManager.stopHeartbeat();
     safeWrite('✅ Heartbeat monitoring stopped');
-
-    // 1. Закрываем соединения с БД
-    await DBManager.closeAllPools();
-    safeWrite('✅ Все соединения с базами данных закрыты.');
-
-    // 2. Закрываем WebSocket-серверы и их соединения
-    // const wsServers = [
-    //   { name: 'WSSNodeRED', instance: WSSNodeRED },
-    //   // { name: 'WSSNodeRED_OUT', instance: WSSNodeRED_OUT },
-    //   { name: 'WSSDash', instance: WSSDash }
-    // ];
-    // await Promise.all(wsServers.map(server => 
-    //   new Promise(resolve => {
-    //     if (server.instance && typeof server.instance.close === 'function') {
-    //       server.instance.clients.forEach(client => client.terminate()); // Принудительное закрытие клиентских соединений
-    //       server.instance.close(err => {
-    //         if (err) {
-    //           safeWrite(`🛑 ${server.name}: ошибка закрытия - ${err.message}`);
-    //         } else {
-    //           safeWrite(`✅ ${server.name}: успешно закрыт`);
-    //         }
-    //         resolve();
-    //       });
-    //     } else {
-    //       safeWrite(`ℹ️ ${server.name}: невалидный сервер или уже закрыт`);
-    //       resolve();
-    //     }
-    //   })
-    // ));
-    // safeWrite('✅ Все WebSocket-соединения закрыты.');
+    // modbusBridge.stop();
+    // modbusManager.cleanup();
+    if (MODBUS_ENABLED) {
+      modbusBridge.stop();
+      modbusManager.cleanup();
+      safeWrite('✅ Modbus остановлен');
+    }
 
     // 2. Закрываем WebSocket-серверы и их соединения через wsManager
     safeWrite('🔄 Закрываем WebSocket соединения...');
@@ -141,8 +150,11 @@ const handleShutdown = async () => {
       // Очищаем все соединения через wsManager
       const cleanupResults = [
         { name: 'Dashboard connections', result: wsManager.cleanup('VUE_connections') },
-        { name: 'NodeRED connections', result: wsManager.cleanup('nRED_connections') }
+        // { name: 'NodeRED connections', result: wsManager.cleanup('nRED_connections') },
       ];
+      if (NODERED_ENABLED) {
+        cleanupResults.push({ name: 'NodeRED connections', result: wsManager.cleanup('nRED_connections') });
+      }
 
       cleanupResults.forEach(({ name, result }) => {
         if (result) {
@@ -226,118 +238,149 @@ process.on('SIGTERM', () => handleShutdown());
 
 
 const WebSocket = require('ws');
-const { mkdir } = require('fs');
-const { error } = require('console');
+//const { mkdir } = require('fs');
+//const { error } = require('console');
 
 //устанавливаем соединение через Web Socket
-const WSSNodeRED = new WebSocket.Server ({port:wsRedPORT});
+//const WSSNodeRED = new WebSocket.Server ({port:wsRedPORT});
+let WSSNodeRED = null;
+if (NODERED_ENABLED) {
+  WSSNodeRED = new WebSocket.Server({ port: wsRedPORT });
+} else {
+  logger.logInfoMessage('[Serverapp] - NodeRED отключён (NODERED_ENABLED=false)');
+}
 const WSSDash = new WebSocket.Server ({port:wsDashPORT, host: '0.0.0.0' });
 
-logger
 //console.log(`WebSocket servers are running on nodeRed ws port:${wsRedPORT} and DashBoard (client) ws port:${wsDashPORT}`);
 
 // ✅ ЗАПУСКАЕМ HEARTBEAT ДЛЯ ВСЕХ WebSocket СОЕДИНЕНИЙ
 wsManager.startHeartbeat('VUE_connections', 180000, 370000); // Для Dashboard соединений
-wsManager.startHeartbeat('nRED_connections', 240000, 500000); // Для NodeRED соединений
+//wsManager.startHeartbeat('nRED_connections', 240000, 500000); // Для NodeRED соединений
+if (NODERED_ENABLED) {
+  wsManager.startHeartbeat('nRED_connections', 240000, 500000);
+}
 logger.logDevMessage('[Serverapp] - Heartbeat monitoring started for all WebSocket  connections');
 // console.log('[Serverapp] - Heartbeat monitoring started for all WebSocket connections');
+
+if (MODBUS_ENABLED) {
+  modbusManager.loadFromEnv();
+  modbusBridge.init({ broadcast });
+  logger.logInfoMessage('[Serverapp] - Запускаем modbusBridge TCP');
+} else {
+  logger.logInfoMessage('[Serverapp] - Modbus отключён (MODBUS_ENABLED=false)');
+}
 
 // Запускаем обработчик очередей WebSocket сообщений каждые 5 секунд (можно чаще, например, каждую секунду)
 const QUEUE_PROCESS_INTERVAL = 15000;
 setInterval(async () => {
   try {
-    // Логируем статистику соединений (опционально)
-    const vueStats = wsManager.getStats('VUE_connections');
+    const vueStats  = wsManager.getStats('VUE_connections');
     const nredStats = wsManager.getStats('nRED_connections');
-    logger.logDevMessage(`[Serverapp] - Connection stats - Dashboard: ${vueStats.activeConnections}/${vueStats.totalConnections} active, NodeRED: ${nredStats.activeConnections}/${nredStats.totalConnections} active`);
-
-    // Обработка очередей
-    logger.logDevMessage('[Serverapp] - Проверяем сообщения в очередях:');
-    const allQueueMessages = getAllQueueMessages();
-    logger.logDevMessage(`[Serverapp] - Сообщений в очередях: ${JSON.stringify(allQueueMessages, null, 2)}`);
-
+    logger.logDevMessage(
+      `[Serverapp] - stats - VUE ${vueStats.activeConnections}/${vueStats.totalConnections}, ` +
+      `nRED ${nredStats.activeConnections}/${nredStats.totalConnections}`
+    );
     await processAllQueues();
   } catch (error) {
-    logger.logErrorMessage(`[Serverapp] - Ошибка обработки очереди: ${error}`);
-    //console.error('[Serverapp] - Ошибка обработки очереди:', error);
+    logger.logErrorMessage(`[Serverapp] - processAllQueues: ${error.message}`);
   }
 }, QUEUE_PROCESS_INTERVAL).unref();
 
+// 2) Очистка истёкших сессий и записей rate-limit (один таймер на процесс)
+const SESSION_CLEANUP_INTERVAL = 60_000; // 1 мин
+
+setInterval(() => {
+  try {
+    auth.cleanupSessions();
+  } catch (e) {
+    logger.logErrorMessage(`[Serverapp] - cleanupSessions: ${e.message}`);
+  }
+}, SESSION_CLEANUP_INTERVAL).unref();
+
 // Блок с переменными
-let sendToRed = false;
-const reconnectInterval = 100;
+//let sendToRed = false;
+//const reconnectInterval = 100;
 
 // Работаем с NodeRED
-WSSNodeRED.on('connection', (ws, req) => {
-  logger.logDevMessage(`[Serverapp] - WSSNodeRED.on - Новое подключение nodeRED (VUE)`);
-  const connectionId = wsManager.registerConnection(ws, 'nodeRED', null);
-  logger.logDevMessage(`[Serverapp] - WSSNodeRED.on - nodeRED соединение зарегистрировано: ${connectionId}`);
+if (NODERED_ENABLED) {
+  WSSNodeRED.on('connection', (ws, req) => {
+    logger.logDevMessage(`[Serverapp] - WSSNodeRED.on - Новое подключение nodeRED (VUE)`);
+    const connectionId = wsManager.registerConnection(ws, 'nodeRED', null);
+    logger.logDevMessage(`[Serverapp] - WSSNodeRED.on - nodeRED соединение зарегистрировано: ${connectionId}`);
 
 
-  const params = new URLSearchParams(req.url.replace(/^.*\?/, ""));
-  const id = params.get("id");
-  logger.logInfoMessage(`[Serverapp] - WSSNodeRED.on - id: ${id}`);
-  //console.log(`Подключился клиент: id = ${id}`);
+    const params = new URLSearchParams(req.url.replace(/^.*\?/, ""));
+    const id = params.get("id");
+    logger.logInfoMessage(`[Serverapp] - WSSNodeRED.on - id: ${id}`);
+    //console.log(`Подключился клиент: id = ${id}`);
 
 
-logger.logDevMessage(`Client connected to NodeRED on port ${wsRedPORT}`);
+  logger.logDevMessage(`Client connected to NodeRED on port ${wsRedPORT}`);
 
-ws.on('message', async (message) => {
-     
-      try {
-        const checkInputMessage = checkMessage(message);
-        logger.logDevMessage(`[Serverapp] - WSSNodeRED - checkInputMessage - ${JSON.stringify(checkInputMessage, null, 2)}`);
-        //console.log(`[Serverapp] - WSSNodeRED - checkInputMessage - ${JSON.stringify(checkInputMessage, null, 2)}`);
-        if(checkInputMessage.status === 'ok') {
+  ws.on('message', async (message) => {
+        logger.logDevMessage(`[Serverapp] - WSSNodeRED RAW: ${message.toString()}`);
+        try {
+          const checkInputMessage = checkMessage(message);
+          logger.logDevMessage(`[Serverapp] - WSSNodeRED - checkInputMessage - ${JSON.stringify(checkInputMessage, null, 2)}`);
+          //console.log(`[Serverapp] - WSSNodeRED - checkInputMessage - ${JSON.stringify(checkInputMessage, null, 2)}`);
+          if(checkInputMessage.status === 'ok') {
 
-          const dID = checkInputMessage.data.name;
-          
-          switch (checkInputMessage?.data?.type) {
-            case 'init':     
-                  if (checkInputMessage.data.request === 'init_ws') {
-                    logger.logDevMessage(`[Serverapp] - WSSNodeRED - Пришло сообщение init_ws: ${JSON.stringify(checkInputMessage.data, null, 2)}`);
-                    wsManager.updateConnection('nRED_connections', connectionId, Date.now(), checkInputMessage.data.name);
-                  }
-              break;
-            case 'post':
-                  logger.logDevMessage(`[Serverapp] - WSSNodeRED - Post -- Добавляем сообщение в очередь`);
-                  const key = 
-                  `${checkInputMessage.data.type}|
-                  ${checkInputMessage.data.name}|
-                  ${checkInputMessage.data.request}|
-                  ${checkInputMessage.data.payload.room}|
-                  ${checkInputMessage.data.payload.item_name}|
-                  ${checkInputMessage.data.payload.item_value}`;
-                  addMessageToQueue(dID , checkInputMessage.data);
-                  
-                  try {
-                  broadcast(connectionId, dID, checkInputMessage.data);
-                  } catch (error) {
-                    logErrorMessage(`[Serverapp] - Ошибка отправки полученного сообщения от NodeRED  клиенту WSSDash: ${error}`);
-                  }
-              break;
-s
-            default:
-              break;
+            const dID = checkInputMessage.data.name;
+            if (dID) {
+              const conn = wsManager.nRED_connections.get(connectionId);
+              if (conn && !conn.dID) {
+                wsManager.updateConnection('nRED_connections', connectionId, Date.now(), dID);
+                logger.logInfoMessage(
+                  `[Serverapp] - WSSNodeRED: dID привязан из первого сообщения (${checkInputMessage.data.type}/${checkInputMessage.data.request}) → ${dID}`
+                );
+              }
+            }
+            switch (checkInputMessage?.data?.type) {
+              case 'init':     
+                    if (checkInputMessage.data.request === 'init_ws') {
+                      logger.logDevMessage(`[Serverapp] - WSSNodeRED - Пришло сообщение init_ws: ${JSON.stringify(checkInputMessage.data, null, 2)}`);
+                      wsManager.updateConnection('nRED_connections', connectionId, Date.now(), checkInputMessage.data.name);
+                    }
+                break;
+              case 'post':
+                    logger.logDevMessage(`[Serverapp] - WSSNodeRED - Post -- Добавляем сообщение в очередь`);
+                    const key = 
+                    `${checkInputMessage.data.type}|
+                    ${checkInputMessage.data.name}|
+                    ${checkInputMessage.data.request}|
+                    ${checkInputMessage.data.payload.room}|
+                    ${checkInputMessage.data.payload.item_name}|
+                    ${checkInputMessage.data.payload.item_value}`;
+                    addMessageToQueue(dID , checkInputMessage.data);
+                    
+                    try {
+                    broadcast(connectionId, dID, checkInputMessage.data);
+                    } catch (error) {
+                      logger.logErrorMessage(`[Serverapp] - Ошибка отправки полученного сообщения от NodeRED  клиенту WSSDash: ${error}`);
+                    }
+                break;
+
+              default:
+                break;
+            }
+
           }
-
+        } catch (error) {
+          console.error('[Serverapp] - Error  -- checkInputMessage -', error);
         }
-      } catch (error) {
-        console.error('[Serverapp] - Error  -- checkInputMessage -', error);
-      }
-});
+  });
 
-ws.on('close', () => {
-  logger.logInfoMessage(`[Serverapp] - WSSNodeRED - WebSocket connection closed`);
-  //console.log('[Serverapp] - WebSocket connection closed');
-});
+  ws.on('close', () => {
+    logger.logInfoMessage(`[Serverapp] - WSSNodeRED - WebSocket connection closed`);
+    //console.log('[Serverapp] - WebSocket connection closed');
+  });
 
-ws.on('error', (error) => {
-  logger.logErrorMessage(`[Serverapp] - WSSNodeRED - WebSocket error: ${error.message}`);
-  //console.error(`[Serverapp] - WebSocket error: ${error.message}`);
-});
-});
-
+  ws.on('error', (error) => {
+    logger.logErrorMessage(`[Serverapp] - WSSNodeRED - WebSocket error: ${error.message}`);
+    //console.error(`[Serverapp] - WebSocket error: ${error.message}`);
+  });
+  });
+}
 // Работаем с Dashboard
 
 WSSDash.on('connection', (ws) => {
@@ -346,135 +389,93 @@ WSSDash.on('connection', (ws) => {
 
   logger.logDevMessage(`[Serverapp] - WSSDash.on - VUE соединение зарегистрировано: ${connectionId}`);
 
-  const allClients = wsManager.getAllActiveConnections();
+  const allClients = wsManager.getAllActiveConnections('VUE_connections');
   logger.logDevMessage(`[Serverapp] - WSSDash.on - Все соединения:`, allClients);
 
   WSSDash.clients.forEach((client) => {
-    client.send(
-                        JSON.stringify({
-                          type: 'Проверка связи',
-                          request:'serverConnected',
-                          message: 'Проверка связи',
-                        }))
+    ws.send(JSON.stringify({
+      type: 'info',
+      request: 'serverConnected',
+      name: 'server',
+      payload: { message: 'Проверка связи' }
+    }));
   });
 
   
   ws.on('message', (message) => {
-    logger.logDevMessage(`[Serverapp] - WSSDash.on - Пришло сообщение: ${message}`);
-      try {
-        const dashData = checkMessage(message);
-        if(dashData.status === 'ok') {
-          logger.logDevMessage(`[Serverapp] - WSSDash - checkInputMessage - OK  - ${JSON.stringify(dashData, null, 2)}`);
-          switch (dashData?.data?.type) {
-            case 'auth':
-                const auth = dashData.data.payload;
-                logger.logDevMessage(`[Serverapp] - WSSDash - Пришло сообщение auth: ${JSON.stringify(auth, null, 2)}`);
-                handleAuth(connectionId, dashData.data);
-                break;
-            case 'get': 
-                logger.logDevMessage(`[Serverapp] - WSSDash - Пришло сообщение get: ${JSON.stringify(dashData.data, null, 2)}`);
-                handleGet(connectionId, dashData.data);
-                break;
-            case 'post':
-              console.log(`[Serverapp] - WSSDash - Пришло сообщение post: ${JSON.stringify(dashData, null, 2)}`);
-            //logger.logDevMessage(`[Serverapp] - WSSDash - Пришло сообщение post: ${JSON.stringify(dashData.data, null, 2)}`);
-                handlePost(connectionId, dashData.data);
-                const dID = dashData.data.name;
-                try {
-                    //sendToNodeRED(dID, dashData.data);
-                    broadcast(connectionId, dID, dashData.data);
-                    // Рассылка только NodeRED клиентам  
-                  //broadcast(dID, messageData, ['nRED_connections']);
-                } catch (error) {
-                    console.log('[Serverapp] -  Ошибка отправки полученного сообщения от VUE клиента к NodeRED:', error);
-                }
-            break;
-            default:
-              break;
+  logger.logDevMessage(`[Serverapp] - WSSDash.on - Пришло сообщение: ${message}`);
+  try {
+    const dashData = checkMessage(message);
+    if (dashData.status !== 'ok') return;
+
+    const type    = dashData.data?.type;
+    const request = dashData.data?.request;
+
+    // 1) Разрешён ли вообще такой type для Dashboard
+    if (!cfg.DASH_ALLOWED_TYPES.includes(type)) {
+      logger.logDevMessage(`[Serverapp] - WSSDash - type ${type} запрещён`);
+      return;
+    }
+
+    // 2) Auth-middleware: сессия + уровень доступа
+    const access = auth.checkMessageAccess(connectionId, type, request);
+    if (!access.ok) {
+      logger.logDevMessage(
+        `[Serverapp] - WSSDash - доступ запрещён: ${access.code} (${type}/${request})`
+      );
+      wsManager.sendToConnection(
+        'VUE_connections', connectionId,
+        'error', 'accessError', dashData.data.name || 'unknown',
+        { code: access.code, message: access.message, type, request }
+      );
+      return;
+    }
+
+    // 3) Роутинг по типу
+    switch (type) {
+      case 'auth':
+        handleAuth(connectionId, dashData.data);
+        break;
+
+      case 'get':
+        handleGet(connectionId, dashData.data);
+        break;
+
+      case 'post':
+        handlePost(connectionId, dashData.data);
+        {
+          const dID = dashData.data.name;
+          try {
+            const handledByModbus =
+              MODBUS_ENABLED && modbusBridge.handleCommand(connectionId, dashData.data);
+
+            if (!handledByModbus && NODERED_ENABLED) {
+              broadcast(connectionId, dID, dashData.data);
+            }
+          } catch (error) {
+            logger.logErrorMessage(`[Serverapp] - ошибка отправки от VUE к NodeRED: ${error.message}`);
           }
         }
-      } catch (error) {
-        logger.logErrorMessage(`[Serverapp] - WSSDash - Error  -- checkInputMessage - ${error.message}`);
-        //console.error('-[Serverapp] -  Error  -- checkInputMessage -', error);
-      }
-  });
+        break;
 
+      default:
+        break;
+    }
+  } catch (error) {
+    logger.logErrorMessage(`[Serverapp] - WSSDash - ${error.message}`);
+  }
+});
   ws.on('error', (error) => {
     logger
       //console.error('[Serverapp] - WebSocket error on Dashboard:', error);
   });
 
   ws.on('close', () => {
+    auth.clearSession(connectionId); 
     logger.logInfoMessage(`[Serverapp] - WSSDash - WebSocket connection closed`);
       //console.info('[Serverapp] - Dash WebSocket connection closed');
   });
 });
-
-
-///////////////////////////////////////////////////////////////////////////
-//Работаем с modBus
-if (manageModbus) {
-  modbusManager = new ModbusManager('./modBus/modbusConf.json', {
-    unitId: parseInt(modbusId)
-  });
-  console.log(`[Serverapp] - Modbus инициализирован с ID: ${modbusId}`);
-
-  modbusManager
-      .start({
-        // Новые показания от Master -> рассылаем в Dashboard (VUE) и NodeRED
-        // так же, как обычные сообщения приложения.
-        onData: (data) => {
-          try {
-            console.log('[Serverapp] - Modbus onData - Получены данные ', data);
-            //broadcast(null, data.dID, data);
-          } catch (error) {
-            logger.logErrorMessage(`[Serverapp] - Modbus onData - Ошибка broadcast: ${error.message}`);
-          }
-        },
-        // Ошибка опроса конкретного устройства/регистра - только в лог, не роняем сервер
-        onDeviceError: (err) => {
-          console.log(`[Serverapp] - Modbus onDeviceError - ${JSON.stringify(err)}`);
-          logger.logErrorMessage(`[Serverapp] - Modbus onDeviceError - ${JSON.stringify(err)}`);
-        },
-        // Внешний Modbus Master записал что-то в наш Slave -> тоже рассылаем клиентам
-        onSlaveWrite: (data) => {
-          try {
-            console.log('[Serverapp] - Modbus onData - Получены данные ',
-              {
-              type: 'post',
-              request: 'modbusSlaveWrite',
-              name: data.dID,
-              payload: { room: data.dID, item_name: data.name || `${data.type}_${data.address}`, item_value: data.value },
-            });
-            // broadcast(null, data.dID, {
-            //   type: 'post',
-            //   request: 'modbusSlaveWrite',
-            //   name: data.dID,
-            //   payload: { room: data.dID, item_name: data.name || `${data.type}_${data.address}`, item_value: data.value },
-            // });
-          } catch (error) {
-            logger.logErrorMessage(`[Serverapp] - Modbus onSlaveWrite - Ошибка broadcast: ${error.message}`);
-          }
-        },
-      })
-      .then(() => {
-        logger.logInfoMessage('[Serverapp] - Modbus RTU сервис запущен');
-      })
-      .catch((error) => {
-        logger.logErrorMessage(`[Serverapp] - Ошибка запуска Modbus RTU сервиса: ${error.message}`);
-      });
-}  else {
-  logger.logInfoMessage('[Serverapp] - Modbus RTU сервис отключён (MANAGE_MODBUS != true)');
-}
-
-
-
-
-
-
-
-
-
 
 
 
@@ -482,7 +483,12 @@ if (manageModbus) {
 
 
 
-function broadcast(excludeClientId, dID, data, targets = ['VUE_connections', 'nRED_connections']) {
+function broadcast(excludeClientId, dID, data, targets = null) {
+  if (!targets) {
+    targets = NODERED_ENABLED
+      ? ['VUE_connections', 'nRED_connections']
+      : ['VUE_connections'];
+  }
   logger.logDevMessage('[Serverapp] - broadcast - excludeClientId =', excludeClientId, 'dID =', dID, 'targets =', targets, 'data =', data);
   //console.log('[Serverapp] - broadcast: excludeClientId =', excludeClientId, 'dID =', dID, 'targets =', targets, 'data =', data);
   
@@ -506,6 +512,7 @@ function broadcast(excludeClientId, dID, data, targets = ['VUE_connections', 'nR
      
       // Отправляем сообщение каждому соединению с нужным dID, исключая отправителя
       userConnections.forEach(({ clientId, connection }) => {
+        logger.logDevMessage(`[Serverapp] - broadcast - Начинаем рассылку`);
         if (clientId === excludeClientId) {
           logger.logDevMessage(`[Serverapp] - broadcast - Пропускаем отправителя: ${clientId}`);
           //console.log(`[Serverapp] - broadcast - Пропускаем отправителя: ${clientId}`);
@@ -520,9 +527,9 @@ function broadcast(excludeClientId, dID, data, targets = ['VUE_connections', 'nR
             connection.ws.send(messageString);
             typeSent++;
             totalSent++;
-            console.log(`[Serverapp] - broadcast - Сообщение отправлено клиенту: ${clientId} (${targetType})`);
+            logger.logDevMessage(`[Serverapp] - broadcast - Сообщение отправлено клиенту: ${clientId} (${targetType})`);
           } catch (error) {
-            console.error(`[Serverapp] - broadcast - Ошибка отправки клиенту ${clientId}:`, error);
+            logger.logErrorMessage(`[Serverapp] - broadcast - Ошибка отправки клиенту ${clientId}:`, error);
           }
         }
       });
@@ -531,7 +538,7 @@ function broadcast(excludeClientId, dID, data, targets = ['VUE_connections', 'nR
     });
     
     if (totalSent === 0) {
-      logger
+      logger.logDevMessage(`[Serverapp] - broadcast - Нет активных клиентов для рассылки (dID: ${dID}, исключен: ${excludeClientId})`);
       //console.log(`[Serverapp] - broadcast - Нет активных клиентов для рассылки (dID: ${dID}, исключен: ${excludeClientId})`);
     } else {
       logger.logDevMessage(`[Serverapp] - broadcast - Всего отправлено ${totalSent} сообщений для dID: ${dID}`);
@@ -550,18 +557,29 @@ function stringToJSON(message) {
     return JSON.parse(data);
 };
 
-// Проверка сообщения и дальнейшая валидация корректности структуры сообщения
+
 function checkMessage(message) {
-  const data = stringToJSON(message); // Преобразуем строку в объект JSON
+  const data = stringToJSON(message);
   logger.logDevMessage(`[Serverapp] - checkMessage получило сообщение: ${message}`);
+
+  // 1. Грубая проверка типа
   const { error } = validType(data);
   if (error) {
-    logger.logErrorMessage(`[Serverapp] - checkMessage - Некорректный формат полученного сообщения. ${message} Ошибка: Error validType: ${error.message}`);
-    //console.log(`Некорректный формат полученного сообщения. ${message} Ошибка: Error validType: ${error.message}`);
+    logger.logErrorMessage(`[Serverapp] - checkMessage - Некорректный type ${message} Ошибка: ${error.message}`);
     return error;
   }
-  return {status:'ok', data: data};
-};
+
+  // 2. Для post-сообщений — дополнительная проверка структуры payload
+  if (data.type === 'post') {
+    const postCheck = validPost(data);
+    if (postCheck.error) {
+      logger.logErrorMessage(`[Serverapp] - checkMessage - Некорректный post. ${message} Ошибка: ${postCheck.error.message}`);
+      return postCheck.error;
+    }
+  }
+
+  return { status: 'ok', data: data };
+}
 
 // Работа с GPIO
 const deviceName = process.env.DEVICE_NAME;
