@@ -5,7 +5,7 @@
 // загруженные переменные (раньше userStore читал env ДО dotenv.config()).
 'use strict';
 
-require('dotenv').config({ path: './conf.env', override: true });
+require('dotenv').config({ path: './conf.env' });
 const crypto = require('crypto');
 
 const env = process.env;

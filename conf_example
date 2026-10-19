@@ -27,8 +27,8 @@ MANAGE_DOOR=FALSE
 
 SENSOR_BUFF_NUMBER=10
 
-JWT_SECRET='Adf7$_Wep(23#nGHy)0_!slR8*cK-sLLdw_xK3m'  # ≥32 символов для production
-JWT_EXPIRES=7d
+JWT_SECRET=''  # ≥32 символов для production
+JWT_EXPIRES=1d
 JWT_ISSUER=myhome
 
 AUTH_BCRYPT_ROUNDS=10

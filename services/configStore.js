@@ -5,12 +5,11 @@ const fs = require('fs').promises; // Используем асинхронны�
 const path = require('path');
 const dotenv = require('dotenv');
 dotenv.config({ path: './conf.env' });
-const dataDir = process.env.DATA_DIR || './configData';
-console.log(`[ConfigStore] - ДИАГ: process.env.DATA_DIR="${process.env.DATA_DIR}" → dataDir="${dataDir}"`);
-
+const dataDir = process.env.DATA_DIR;
 const logger = require('./logger.js');
 logger.initLogging();
 
+logger.logDevMessage(`[ConfigStore] - ДИАГ: process.env.DATA_DIR="${process.env.DATA_DIR}" → dataDir="${dataDir}"`);
 // Объявляем кэш файлов
 const fileCache = new Map();
 
