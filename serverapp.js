@@ -26,8 +26,8 @@ dotenv.config({path: './conf.env'}); // Указываем путь к  файл
 const { validType, validPost } = require('./services/validate');
 
 const servPORT = process.env.SERVER_PORT || 3010;
-const wsRedPORT = process.env.WSR_PORT || 9200;
-const wsDashPORT = process.env.WSD_PORT || 9202;
+const wsRedPORT = process.env.WSR_PORT_IN|| 9200;
+const wsDashPORT = process.env.WSD_PORT_IN|| 9202;
 // ── Флаги управления потоками ─────────────────────────────────────────
 const NODERED_ENABLED = String(process.env.NODERED_ENABLED ?? 'true').toLowerCase() === 'true';
 const MODBUS_ENABLED  = String(process.env.MODBUS_ENABLED  ?? 'true').toLowerCase() === 'true';
@@ -251,7 +251,7 @@ if (NODERED_ENABLED) {
 }
 const WSSDash = new WebSocket.Server ({port:wsDashPORT, host: '0.0.0.0' });
 
-console.log(`WebSocket servers are running nodeRed ws port:${wsRedPORT} and DashBoard (client) ws port:${wsDashPOR}`);
+console.log(`WebSocket servers are running nodeRed ws port:${wsRedPORT}`);
 console.log(`WebSocket servers are running  DashBoard (client) ws port:${wsDashPORT}`);
 
 // ✅ ЗАПУСКАЕМ HEARTBEAT ДЛЯ ВСЕХ WebSocket СОЕДИНЕНИЙ
