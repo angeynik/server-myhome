@@ -251,7 +251,8 @@ if (NODERED_ENABLED) {
 }
 const WSSDash = new WebSocket.Server ({port:wsDashPORT, host: '0.0.0.0' });
 
-//console.log(`WebSocket servers are running on nodeRed ws port:${wsRedPORT} and DashBoard (client) ws port:${wsDashPORT}`);
+console.log(`WebSocket servers are running nodeRed ws port:${wsRedPORT} and DashBoard (client) ws port:${wsDashPOR}`);
+console.log(`WebSocket servers are running  DashBoard (client) ws port:${wsDashPORT}`);
 
 // ✅ ЗАПУСКАЕМ HEARTBEAT ДЛЯ ВСЕХ WebSocket СОЕДИНЕНИЙ
 wsManager.startHeartbeat('VUE_connections', 180000, 370000); // Для Dashboard соединений
