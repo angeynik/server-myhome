@@ -10,16 +10,14 @@
 //
 // Конфигурация (conf.env):
 //   MODBUS_DID     — dID пользователя, в чей файл .configData/<dID>.json пишем.
-//                    Обязателен. Fallback: "dID" в корне modbusMap.json.
-//                    Может быть переопределён у отдельного тега: "dID" в теге.
 //   MODBUS_DEVICE  — id устройства из MODBUS_DEVICES, к которому привязана карта.
-//                    Обязателен. Fallback: "deviceId" в корне modbusMap.json.
-//                    Может быть переопределён у отдельного тега: "deviceId" в теге.
 //
-// Логирование (logger.js):
-//   logInfoMessage  - загрузка карты тегов, старт/стоп блоков опроса, приём команды от VUE, результат записи
-//   logDevMessage   - декодирование каждого блока, публикация значений, детали кодирования при записи
-//   logErrorMessage - ошибки карты тегов, ошибки опроса, ошибки записи
+// Формат публикации:
+//   item_type приводится к VUE-контракту:
+//     dTemp|dHum|xStatus -> 'num'
+//     dBool              -> 'bool'
+//   Так VUE-компонент MainBody корректно отображает значения (иначе getSensorValue
+//   возвращает null для неизвестных типов, и карточка остаётся без значения).
 
 'use strict';
 
@@ -31,7 +29,7 @@ const { addMessageToQueue } = require('./messageStore.js');
 const logger = require('./logger.js');
 logger.initLogging();
 
-const BRIDGE_ID = 'modbus-bridge'; // исключается из рассылки как "отправитель"
+const BRIDGE_ID = 'modbus-bridge';
 
 const TABLES = {
   coil:     { read: 'readCoils',            bits: true,  maxSpan: 1000, writable: true  },
@@ -43,37 +41,46 @@ const WIDTH = { bool: 1, uint16: 1, int16: 1, uint32: 2, int32: 2, float32: 2 };
 
 let cfg = { pollInterval: 1000, republishMs: 60000, maxGap: 0 };
 let broadcastFn = null;
-let broadcastTargets;             // undefined -> значение по умолчанию функции broadcast
-const tagIndex = new Map();       // "dID|request|room|item_name" -> tag
-const blocks = new Map();         // "deviceId:blockName" -> { start, end, table, tags }
-const pollErrors = new Map();     // чтобы не спамить лог одинаковыми ошибками
+let broadcastTargets;
+const tagIndex = new Map();
+const blocks = new Map();
+const pollErrors = new Map();
+
+// ---------------------------------------------------------------------------
+// Конвертация item_type -> VUE-тип ('num' | 'bool')
+// ---------------------------------------------------------------------------
+// VUE-компоненты (MainBody → getSensorValue) распознают только 'num' и 'bool'.
+// Всё остальное они возвращают как null (карточка без значения).
+// Здесь приводим физические типы тегов к контракту VUE.
+function toVueType(itemType) {
+  switch (itemType) {
+    case 'dTemp':
+    case 'dHum':
+    case 'xStatus':
+    case 'sTemp':
+    case 'sHum':
+      return 'num';
+    case 'dBool':
+      return 'bool';
+    default:
+      // Если тег уже в формате VUE ('num'/'bool'/...) — оставляем как есть
+      return itemType;
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Теги
 // ---------------------------------------------------------------------------
 const tagKey = (dID, request, room, item) => `${dID}|${request}|${room}|${item}`;
 
-/**
- * Собирает и проверяет описание тега.
- * @param {object} raw              запись из modbusMap.json
- * @param {number} i                индекс записи (для сообщений об ошибках)
- * @param {object} [scaling]        дефолты масштабирования уровня карты, применяются
- *   ТОЛЬКО если raw.scale/raw.offset не заданы явно у самого тега.
- * @param {string} defaultDID       dID по умолчанию (env > map.dID)
- * @param {string} defaultDeviceId  deviceId по умолчанию (env > map.deviceId)
- */
 function normalizeTag(raw, i, { scale: defaultScale = 1, offset: defaultOffset = 0 } = {}, defaultDID, defaultDeviceId) {
   const t = {
     request: 'sensors', dataType: null, decimals: 3,
     deadband: 0, writable: false, wordOrder: 'BE', item_type: '', title: '', group: '',
     ...raw
   };
-  // scale/offset берём из самого тега (raw), а не из общих значений по умолчанию,
-  // чтобы дефолт карты не мог незаметно подменить коэффициент конкретного регистра
   t.scale  = raw.scale  ?? defaultScale;
   t.offset = raw.offset ?? defaultOffset;
-
-  // dID и deviceId: тег может переопределить, иначе — дефолт из env
   t.dID      = raw.dID      ?? defaultDID;
   t.deviceId = raw.deviceId ?? defaultDeviceId;
 
@@ -96,19 +103,15 @@ function normalizeTag(raw, i, { scale: defaultScale = 1, offset: defaultOffset =
   if (!Number.isFinite(t.scale) || t.scale === 0) return fail(`scale должен быть ненулевым числом, получено: ${t.scale}`);
   if (!Number.isFinite(t.offset)) return fail(`offset должен быть числом, получено: ${t.offset}`);
 
-  // ── Setpoints: приводим к контракту VUE ──────────────────────────────
-  // VUE пишет setpoints как 'num'|'bool' (см. handlePost → case 'setpoints').
-  // Если Modbus опубликует 'sTemp' — VUE не отрендерит поле, а handlePostNodeRED
-  // сохранит несовместимый type. Поэтому здесь, на входе в мост, приводим
-  // item_type к тому, что ждёт клиент. Общий handlePostNodeRED не трогаем.
   if (t.request === 'setpoints') {
-    if (!/^s\d+$/.test(t.item_name)) {
+    // VUE ищет уставку через 's' + clearKey (startsWith). Для dTemp01 → sTemp → sTemp01.
+    // Ключ setpoints должен начинаться с 's' и типа уставки.
+    if (!/^s[A-Za-z_][A-Za-z0-9_]*$/.test(t.item_name)) {
       logger.logErrorMessage(
-        `[modbusBridge] - тег #${i}: для setpoints item_name должен быть s<число> ` +
-        `(получено "${t.item_name}") — команды от VUE не найдут этот тег`
+        `[modbusBridge] - тег #${i}: для setpoints item_name должен начинаться с "s" + тип ` +
+        `(например "sTemp01"), получено "${t.item_name}"`
       );
     }
-    t.item_type = tbl.bits ? 'bool' : 'num';
   }
 
   t.width = WIDTH[t.dataType];
@@ -116,13 +119,13 @@ function normalizeTag(raw, i, { scale: defaultScale = 1, offset: defaultOffset =
   logger.logDevMessage(
     `[modbusBridge] - тег #${i} нормализован: ${t.deviceId}/${t.table}[${t.address}] -> ` +
     `${t.dID}/${t.request}/${t.room}/${t.item_name} ` +
-    `(type=${t.item_type || t.dataType}, scale=${t.scale}, offset=${t.offset})`
+    `(type=${t.item_type || t.dataType}, vueType=${toVueType(t.item_type)}, scale=${t.scale}, offset=${t.offset})`
   );
   return t;
 }
 
 // ---------------------------------------------------------------------------
-// Кодирование / декодирование
+// Кодирование / декодирование (без изменений)
 // ---------------------------------------------------------------------------
 function decode(tag, regs) {
   if (tag.dataType === 'bool') return Boolean(regs[0]);
@@ -142,9 +145,6 @@ function decode(tag, regs) {
 
   if (!Number.isFinite(raw)) return null;
 
-  // Конвертация в boolean для тегов с item_type === 'dBool'
-  // (независимо от dataType — работает и для int16, и для uint16).
-  // Setpoints сюда не попадают: у них item_type принудительно 'num'/'bool'.
   if (tag.item_type === 'dBool') {
     return raw !== 0;
   }
@@ -176,20 +176,22 @@ function encode(tag, value) {
 const toBool = (v) => v === true || v === 1 || v === '1' || v === 'true' || v === 'on';
 
 // ---------------------------------------------------------------------------
-// Публикация в существующий поток сообщений
+// Публикация в существующий поток сообщений (item_type приводим к VUE-контракту)
 // ---------------------------------------------------------------------------
 function publish(tag, value, { toClients = true } = {}) {
   tag._last = { value, ts: Date.now() };
 
+  const vueType = toVueType(tag.item_type);
+
   const message = {
     type: 'post',
     request: tag.request,
-    name: tag.dID,                       // dID всегда задан (env / карта / тег)
+    name: tag.dID,
     payload: {
       room: tag.room,
       item_name: tag.item_name,
       item_value: value,
-      item_type: tag.item_type,
+      item_type: vueType,          // ← маппинг dTemp/dBool/xStatus -> num/bool
       title: tag.title,
       group: tag.group
     }
@@ -197,11 +199,11 @@ function publish(tag, value, { toClients = true } = {}) {
 
   logger.logDevMessage(
     `[modbusBridge] - 📬 публикация ${tag.dID}/${tag.request}/${tag.room}/${tag.item_name} = ${value} ` +
-    `(toClients=${toClients})`
+    `(type=${vueType}, toClients=${toClients})`
   );
 
   try {
-    addMessageToQueue(tag.dID, message); // сохранит в config-файл через handlePostNodeRED
+    addMessageToQueue(tag.dID, message);
     if (toClients && broadcastFn) {
       broadcastFn(BRIDGE_ID, tag.dID, { ...message, payload: { ...message.payload } }, broadcastTargets);
     }
@@ -219,12 +221,11 @@ function publishIfNeeded(tag, value) {
     : Math.abs(value - last.value) > tag.deadband;
 
   if (changed) return publish(tag, value);
-  // значение не менялось, но периодически обновляем lastUpdate в файле (без рассылки клиентам)
   if (Date.now() - last.ts >= cfg.republishMs) publish(tag, value, { toClients: false });
 }
 
 // ---------------------------------------------------------------------------
-// Опрос
+// Опрос (без изменений)
 // ---------------------------------------------------------------------------
 function onData({ deviceId, name, values }) {
   const key = `${deviceId}:${name}`;
@@ -251,7 +252,6 @@ function onPollError({ deviceId, name, error }) {
   logger.logErrorMessage(`[modbusBridge] - ❌ ошибка опроса ${key}: ${error.message}`);
 }
 
-// Объединяем теги в минимальное число запросов: (устройство, таблица, интервал) -> диапазоны
 function buildBlocks() {
   const groups = new Map();
   for (const tag of tagIndex.values()) {
@@ -301,23 +301,28 @@ function buildBlocks() {
 // ---------------------------------------------------------------------------
 // Команды от VUE
 // ---------------------------------------------------------------------------
+// VUE отправляет setpoints с payload { key: 'Temp', setKey: 'sTemp01', ... }.
+// Приоритет — setKey (полное имя уставки), затем item_name, и только потом
+// fallback на 's' + key (для обратной совместимости с nodeRED).
 function findTag(message) {
   const p = message?.payload || {};
   const room = Array.isArray(p.room) ? p.room[0] : p.room;
-  const item = p.item_name ??
-    (message.request === 'setpoints' && p.key !== undefined ? `s${p.key}` : p.key);
+
+  let item;
+  if (message.request === 'setpoints') {
+    item = p.setKey ?? p.item_name ?? (p.key !== undefined ? `s${p.key}` : null);
+  } else {
+    item = p.item_name ?? p.key ?? null;
+  }
+  if (!item) return null;
+
   return tagIndex.get(tagKey(message.name, message.request, room, item));
 }
 
-/** true, если сообщение относится к Modbus-тегу (тогда его не надо пересылать в NodeRED) */
 function isModbusItem(message) {
   return Boolean(findTag(message));
 }
 
-/**
- * Обрабатывает команду от VUE. Возвращает true, если сообщение "забрал" Modbus.
- * Запись выполняется асинхронно; результат уходит клиентам через publish / sendToConnection.
- */
 function handleCommand(clientId, message) {
   const tag = findTag(message);
   if (!tag) return false;
@@ -341,7 +346,7 @@ function handleCommand(clientId, message) {
   writeTag(tag, input)
     .then((value) => {
       logger.logInfoMessage(`[modbusBridge] - ✅ записано ${tag.deviceId}/${tag.item_name} = ${value}`);
-      publish(tag, value); // подтверждение всем VUE, включая отправителя; опрос затем сверит факт
+      publish(tag, value);
     })
     .catch((err) => {
       logger.logErrorMessage(`[modbusBridge] - ❌ запись ${tag.deviceId}/${tag.item_name}: ${err.message}`);
@@ -362,30 +367,22 @@ async function writeTag(tag, input) {
   if (!Number.isFinite(num)) throw new Error(`Некорректное значение: ${input}`);
 
   const words = encode(tag, num);
-  logger.logDevMessage(`[modbusBridge] - кодирование ${tag.item_name}: ${input} -> регистры [${words}] (scale=${tag.scale}, offset=${tag.offset})`);
+  logger.logDevMessage(`[modbusBridge] - кодирование ${tag.item_name}: ${input} -> регистры [${words}]`);
   if (words.length === 1) {
     await modbusManager.call(tag.deviceId, 'writeSingleRegister', tag.address, words[0]);
   } else {
     await modbusManager.call(tag.deviceId, 'writeMultipleRegisters', tag.address, words);
   }
-  return decode(tag, words); // значение с учётом округления/масштаба
+  return decode(tag, words);
 }
 
 // ---------------------------------------------------------------------------
 // Жизненный цикл
 // ---------------------------------------------------------------------------
-/**
- * @param {object}   opts
- * @param {Function} opts.broadcast  функция broadcast из serverapp.js
- * @param {string}  [opts.mapFile]   путь к карте тегов (по умолчанию MODBUS_MAP_FILE или ./modbusMap.json)
- * @param {string[]}[opts.targets]   кому рассылать, по умолчанию ['VUE_connections','nRED_connections']
- */
 function init({ broadcast, targets } = {}) {
   broadcastFn = broadcast;
   broadcastTargets = targets;
 
-  // DATA_DIR — тот же env, что использует configStore.js (по умолчанию '.configData').
-  // Читаем в момент init(), а не при require, чтобы dotenv успел отработать.
   const dataDir = process.env.DATA_DIR || '.configData';
   const file = path.resolve(dataDir, 'modbusMap.json');
   logger.logInfoMessage(`[modbusBridge] - читаем карту тегов: ${file}`);
@@ -398,7 +395,6 @@ function init({ broadcast, targets } = {}) {
     return 0;
   }
 
-  // ── Дефолты: env > корень карты > ошибка ──────────────────────────────
   const defaultDID      = process.env.MODBUS_DID    || map.dID      || null;
   const defaultDeviceId = process.env.MODBUS_DEVICE || map.deviceId || null;
 
@@ -421,9 +417,7 @@ function init({ broadcast, targets } = {}) {
     return 0;
   }
 
-  logger.logInfoMessage(
-    `[modbusBridge] - дефолты: deviceId=${defaultDeviceId}, dID=${defaultDID}`
-  );
+  logger.logInfoMessage(`[modbusBridge] - дефолты: deviceId=${defaultDeviceId}, dID=${defaultDID}`);
 
   cfg = {
     pollInterval: Number(map.pollInterval) || cfg.pollInterval,
