@@ -18,5 +18,10 @@ data/auth.key
 # Папка data/ должна существовать, но её содержимое — локальное
 data/*
 !data/.gitkeep
-.configData/
-configData/
+
+# Папка .configData должна существовать, но её содержимое — локальное
+.configData/*
+!.configData/.gitkeep
+
+configData/*
+!configData/.gitkeep
