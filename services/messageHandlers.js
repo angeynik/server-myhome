@@ -255,6 +255,7 @@ const handlePost = async (clientId, data) => {
   const id     = pay.id;
   const value_type = pay.value_type;
   const updated = pay.updated;
+  const item_name = pay.item_name;
 
   let fileUpdateNeeded = false;
   let filePath         = '';

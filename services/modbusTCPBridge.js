@@ -8,6 +8,14 @@
 // Формат сообщений полностью совпадает с тем, что присылает NodeRED,
 // поэтому VUE и handlePostNodeRED ничего не знают про Modbus.
 //
+// Конфигурация (conf.env):
+//   MODBUS_DID     — dID пользователя, в чей файл .configData/<dID>.json пишем.
+//                    Обязателен. Fallback: "dID" в корне modbusMap.json.
+//                    Может быть переопределён у отдельного тега: "dID" в теге.
+//   MODBUS_DEVICE  — id устройства из MODBUS_DEVICES, к которому привязана карта.
+//                    Обязателен. Fallback: "deviceId" в корне modbusMap.json.
+//                    Может быть переопределён у отдельного тега: "deviceId" в теге.
+//
 // Логирование (logger.js):
 //   logInfoMessage  - загрузка карты тегов, старт/стоп блоков опроса, приём команды от VUE, результат записи
 //   logDevMessage   - декодирование каждого блока, публикация значений, детали кодирования при записи
@@ -47,26 +55,27 @@ const tagKey = (dID, request, room, item) => `${dID}|${request}|${room}|${item}`
 
 /**
  * Собирает и проверяет описание тега.
- * @param {object} raw  запись из modbusMap.json
- * @param {number} i    индекс записи (для сообщений об ошибках)
- * @param {object} [scaling]  дефолты масштабирования уровня карты, применяются
- *   ТОЛЬКО если raw.scale/raw.offset не заданы явно у самого тега. Значение из
- *   raw для конкретного регистра всегда в приоритете — это тот "исходный,
- *   родной" коэффициент устройства для данного регистра, а не глобальная заглушка.
- * @param {number} [scaling.scale=1]
- * @param {number} [scaling.offset=0]
+ * @param {object} raw              запись из modbusMap.json
+ * @param {number} i                индекс записи (для сообщений об ошибках)
+ * @param {object} [scaling]        дефолты масштабирования уровня карты, применяются
+ *   ТОЛЬКО если raw.scale/raw.offset не заданы явно у самого тега.
+ * @param {string} defaultDID       dID по умолчанию (env > map.dID)
+ * @param {string} defaultDeviceId  deviceId по умолчанию (env > map.deviceId)
  */
-
 function normalizeTag(raw, i, { scale: defaultScale = 1, offset: defaultOffset = 0 } = {}, defaultDID, defaultDeviceId) {
   const t = {
     request: 'sensors', dataType: null, decimals: 3,
     deadband: 0, writable: false, wordOrder: 'BE', item_type: '', title: '', group: '',
     ...raw
   };
-  t.scale    = raw.scale    ?? defaultScale;
-  t.offset   = raw.offset   ?? defaultOffset;
+  // scale/offset берём из самого тега (raw), а не из общих значений по умолчанию,
+  // чтобы дефолт карты не мог незаметно подменить коэффициент конкретного регистра
+  t.scale  = raw.scale  ?? defaultScale;
+  t.offset = raw.offset ?? defaultOffset;
+
+  // dID и deviceId: тег может переопределить, иначе — дефолт из env
   t.dID      = raw.dID      ?? defaultDID;
-  t.deviceId = raw.deviceId ?? defaultDeviceId;   // ← новое
+  t.deviceId = raw.deviceId ?? defaultDeviceId;
 
   const fail = (msg) => {
     logger.logErrorMessage(`[modbusBridge] - тег #${i} (${raw?.item_name}): ${msg}`);
@@ -87,33 +96,34 @@ function normalizeTag(raw, i, { scale: defaultScale = 1, offset: defaultOffset =
   if (!Number.isFinite(t.scale) || t.scale === 0) return fail(`scale должен быть ненулевым числом, получено: ${t.scale}`);
   if (!Number.isFinite(t.offset)) return fail(`offset должен быть числом, получено: ${t.offset}`);
 
+  // ── Setpoints: приводим к контракту VUE ──────────────────────────────
+  // VUE пишет setpoints как 'num'|'bool' (см. handlePost → case 'setpoints').
+  // Если Modbus опубликует 'sTemp' — VUE не отрендерит поле, а handlePostNodeRED
+  // сохранит несовместимый type. Поэтому здесь, на входе в мост, приводим
+  // item_type к тому, что ждёт клиент. Общий handlePostNodeRED не трогаем.
+  if (t.request === 'setpoints') {
+    if (!/^s\d+$/.test(t.item_name)) {
+      logger.logErrorMessage(
+        `[modbusBridge] - тег #${i}: для setpoints item_name должен быть s<число> ` +
+        `(получено "${t.item_name}") — команды от VUE не найдут этот тег`
+      );
+    }
+    t.item_type = tbl.bits ? 'bool' : 'num';
+  }
+
   t.width = WIDTH[t.dataType];
   t._last = null;
-  logger.logDevMessage(`[modbusBridge] - тег #${i} нормализован: ${t.deviceId}/${t.table}[${t.address}] -> ${t.dID}/${t.room}/${t.item_name} (scale=${t.scale}, offset=${t.offset})`);
+  logger.logDevMessage(
+    `[modbusBridge] - тег #${i} нормализован: ${t.deviceId}/${t.table}[${t.address}] -> ` +
+    `${t.dID}/${t.request}/${t.room}/${t.item_name} ` +
+    `(type=${t.item_type || t.dataType}, scale=${t.scale}, offset=${t.offset})`
+  );
   return t;
 }
 
 // ---------------------------------------------------------------------------
 // Кодирование / декодирование
 // ---------------------------------------------------------------------------
-// function decode(tag, regs) {
-//   if (tag.dataType === 'bool') return Boolean(regs[0]);
-
-//   const buf = Buffer.alloc(tag.width * 2);
-//   const words = tag.wordOrder === 'LE' ? [...regs].reverse() : regs;
-//   words.forEach((w, i) => buf.writeUInt16BE(w, i * 2));
-
-//   let raw;
-//   switch (tag.dataType) {
-//     case 'uint16':  raw = buf.readUInt16BE(0); break;
-//     case 'int16':   raw = buf.readInt16BE(0); break;
-//     case 'uint32':  raw = buf.readUInt32BE(0); break;
-//     case 'int32':   raw = buf.readInt32BE(0); break;
-//     case 'float32': raw = buf.readFloatBE(0); break;
-//   }
-//   if (!Number.isFinite(raw)) return null;
-//   return Number((raw * tag.scale + tag.offset).toFixed(tag.decimals));
-// }
 function decode(tag, regs) {
   if (tag.dataType === 'bool') return Boolean(regs[0]);
 
@@ -132,8 +142,9 @@ function decode(tag, regs) {
 
   if (!Number.isFinite(raw)) return null;
 
-  // ✅ Конвертация в boolean для тегов с item_type === 'dBool'
-  //    (независимо от dataType — работает и для int16, и для uint16)
+  // Конвертация в boolean для тегов с item_type === 'dBool'
+  // (независимо от dataType — работает и для int16, и для uint16).
+  // Setpoints сюда не попадают: у них item_type принудительно 'num'/'bool'.
   if (tag.item_type === 'dBool') {
     return raw !== 0;
   }
@@ -173,7 +184,7 @@ function publish(tag, value, { toClients = true } = {}) {
   const message = {
     type: 'post',
     request: tag.request,
-    name: tag.dID,
+    name: tag.dID,                       // dID всегда задан (env / карта / тег)
     payload: {
       room: tag.room,
       item_name: tag.item_name,
@@ -184,7 +195,10 @@ function publish(tag, value, { toClients = true } = {}) {
     }
   };
 
-  logger.logDevMessage(`[modbusBridge] - 📬 публикация ${tag.dID}/${tag.room}/${tag.item_name} = ${value} (toClients=${toClients})`);
+  logger.logDevMessage(
+    `[modbusBridge] - 📬 публикация ${tag.dID}/${tag.request}/${tag.room}/${tag.item_name} = ${value} ` +
+    `(toClients=${toClients})`
+  );
 
   try {
     addMessageToQueue(tag.dID, message); // сохранит в config-файл через handlePostNodeRED
@@ -370,7 +384,14 @@ function init({ broadcast, mapFile, targets } = {}) {
   broadcastFn = broadcast;
   broadcastTargets = targets;
 
-  const file = path.resolve(mapFile || process.env.MODBUS_MAP_FILE || './modbusMap.json');
+  // DATA_DIR — тот же env, что использует configStore.js (по умолчанию '.configData').
+  // Читаем в момент init(), а не при require, чтобы dotenv успел отработать.
+  const dataDir = process.env.DATA_DIR || '.configData';
+  const file = path.resolve(
+    mapFile
+    || process.env.MODBUS_MAP_FILE
+    || path.join(dataDir, 'modbusMap.json')
+  );
   logger.logInfoMessage(`[modbusBridge] - читаем карту тегов: ${file}`);
 
   let map;
@@ -381,9 +402,9 @@ function init({ broadcast, mapFile, targets } = {}) {
     return 0;
   }
 
-  // ── Резолвим дефолты: env > корень карты > ошибка ──────────────────────
-  const defaultDID      = process.env.MODBUS_DID      || map.dID      || null;
-  const defaultDeviceId = process.env.MODBUS_DEVICE   || map.deviceId || null;
+  // ── Дефолты: env > корень карты > ошибка ──────────────────────────────
+  const defaultDID      = process.env.MODBUS_DID    || map.dID      || null;
+  const defaultDeviceId = process.env.MODBUS_DEVICE || map.deviceId || null;
 
   if (!defaultDID) {
     logger.logErrorMessage(
@@ -408,7 +429,12 @@ function init({ broadcast, mapFile, targets } = {}) {
     `[modbusBridge] - дефолты: deviceId=${defaultDeviceId}, dID=${defaultDID}`
   );
 
-  cfg = { /* как было */ };
+  cfg = {
+    pollInterval: Number(map.pollInterval) || cfg.pollInterval,
+    republishMs: Number(map.republishMs) || cfg.republishMs,
+    maxGap: Number.isInteger(map.maxGap) ? map.maxGap : cfg.maxGap
+  };
+
   const scaling = { scale: map.defaultScale ?? 1, offset: map.defaultOffset ?? 0 };
 
   (map.tags || []).forEach((raw, i) => {
