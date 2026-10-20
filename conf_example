@@ -5,7 +5,7 @@ MODBUS_ENABLED=true
 LOCAL_URL=127.0.0.1
 #EXT_URL - задает адрес WS сокет для обмена - Должен соответствовать VUE_APP_EXP клиента
 #EXT_URL=http://192.168.1.119
-EXT_URL=129.47.1.60
+#EXT_URL=129.47.1.60
 
 SERVER_PORT=3010
 WSR_PORT_IN=9200
@@ -44,11 +44,13 @@ TRUST_PROXY=FALSE
 DEFAULT_USER_NAME='poddy'
 DEFAULT_USER_PASSWORD='poddyPASS'
 DEFAULT_USER_DID='poddy_base'
-DEFAULT_USER_LEVEL=3
+DEFAULT_USER_LEVEL=1
 DEFAULT_USER_SOURCE='PoddyBase'
 
 DATA_DIR='./configData'
 
+MODBUS_DID=igumen # dID совпадающий с dID пользователя Имя файла сохранения данных
+MODBUS_DEVICE=pr205 # Наименование modbus устройства
 MODBUS_TIMEOUT=3000
 MODBUS_RECONNECT_MIN=1000
 MODBUS_RECONNECT_MAX=30000

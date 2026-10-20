@@ -56,16 +56,17 @@ const tagKey = (dID, request, room, item) => `${dID}|${request}|${room}|${item}`
  * @param {number} [scaling.scale=1]
  * @param {number} [scaling.offset=0]
  */
-function normalizeTag(raw, i, { scale: defaultScale = 1, offset: defaultOffset = 0 } = {}) {
+
+function normalizeTag(raw, i, { scale: defaultScale = 1, offset: defaultOffset = 0 } = {}, defaultDID, defaultDeviceId) {
   const t = {
     request: 'sensors', dataType: null, decimals: 3,
     deadband: 0, writable: false, wordOrder: 'BE', item_type: '', title: '', group: '',
     ...raw
   };
-  // scale/offset берём из самого тега (raw), а не из общих значений по умолчанию,
-  // чтобы дефолт карты не мог незаметно подменить коэффициент конкретного регистра
-  t.scale = raw.scale ?? defaultScale;
-  t.offset = raw.offset ?? defaultOffset;
+  t.scale    = raw.scale    ?? defaultScale;
+  t.offset   = raw.offset   ?? defaultOffset;
+  t.dID      = raw.dID      ?? defaultDID;
+  t.deviceId = raw.deviceId ?? defaultDeviceId;   // ← новое
 
   const fail = (msg) => {
     logger.logErrorMessage(`[modbusBridge] - тег #${i} (${raw?.item_name}): ${msg}`);
@@ -380,16 +381,38 @@ function init({ broadcast, mapFile, targets } = {}) {
     return 0;
   }
 
-  cfg = {
-    pollInterval: Number(map.pollInterval) || cfg.pollInterval,
-    republishMs: Number(map.republishMs) || cfg.republishMs,
-    maxGap: Number.isInteger(map.maxGap) ? map.maxGap : cfg.maxGap
-  };
+  // ── Резолвим дефолты: env > корень карты > ошибка ──────────────────────
+  const defaultDID      = process.env.MODBUS_DID      || map.dID      || null;
+  const defaultDeviceId = process.env.MODBUS_DEVICE   || map.deviceId || null;
 
+  if (!defaultDID) {
+    logger.logErrorMessage(
+      '[modbusBridge] - ❌ dID не задан. Установите MODBUS_DID в conf.env или "dID" в корне modbusMap.json'
+    );
+    return 0;
+  }
+  if (!defaultDeviceId) {
+    logger.logErrorMessage(
+      '[modbusBridge] - ❌ deviceId не задан. Установите MODBUS_DEVICE в conf.env или "deviceId" в корне modbusMap.json'
+    );
+    return 0;
+  }
+  if (!modbusManager.hasDevice(defaultDeviceId)) {
+    logger.logErrorMessage(
+      `[modbusBridge] - ❌ deviceId "${defaultDeviceId}" отсутствует в MODBUS_DEVICES — опрос не стартует`
+    );
+    return 0;
+  }
+
+  logger.logInfoMessage(
+    `[modbusBridge] - дефолты: deviceId=${defaultDeviceId}, dID=${defaultDID}`
+  );
+
+  cfg = { /* как было */ };
   const scaling = { scale: map.defaultScale ?? 1, offset: map.defaultOffset ?? 0 };
 
   (map.tags || []).forEach((raw, i) => {
-    const tag = normalizeTag(raw, i, scaling);
+    const tag = normalizeTag(raw, i, scaling, defaultDID, defaultDeviceId);
     if (!tag) return;
     const key = tagKey(tag.dID, tag.request, tag.room, tag.item_name);
     if (tagIndex.has(key)) {
@@ -403,7 +426,10 @@ function init({ broadcast, mapFile, targets } = {}) {
   modbusManager.on('pollError', onPollError);
   buildBlocks();
 
-  logger.logInfoMessage(`[modbusBridge] - ✅ инициализация завершена: тегов ${tagIndex.size}, блоков опроса ${blocks.size}`);
+  logger.logInfoMessage(
+    `[modbusBridge] - ✅ инициализация завершена: тегов ${tagIndex.size}, ` +
+    `блоков опроса ${blocks.size}, deviceId=${defaultDeviceId}, dID=${defaultDID}`
+  );
   return tagIndex.size;
 }
 

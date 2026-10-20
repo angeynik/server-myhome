@@ -4,8 +4,6 @@
   "maxGap": 0,
   "tags": [
     {
-      "deviceId": "pr205",
-      "dID": "poddy_base",
       "room": "room02",
       "request": "setpoints",
       "item_name": "Спальня",
@@ -22,8 +20,6 @@
       "comment": "Уставка Спальня"
     },
     {
-      "deviceId": "pr205",
-      "dID": "poddy_base",
       "room": "room03",
       "request": "setpoints",
       "item_name": "Детская 1",
@@ -40,8 +36,6 @@
       "comment": "Уставка Детская 1"
     },
     {
-      "deviceId": "pr205",
-      "dID": "poddy_base",
       "room": "room01",
       "request": "setpoints",
       "item_name": "Гостиная",
@@ -58,8 +52,6 @@
       "comment": "Уставка Гостиная"
     },
     {
-      "deviceId": "pr205",
-      "dID": "poddy_base",
       "room": "room02",
       "request": "sensors",
       "item_name": "Средняя Т - К2",
@@ -76,8 +68,6 @@
       "comment": "Средняя температура К2"
     },
     {
-      "deviceId": "pr205",
-      "dID": "poddy_base",
       "room": "room04",
       "request": "setpoints",
       "item_name": "Детская 2",
@@ -94,8 +84,6 @@
       "comment": "Уставка Детская 2"
     },
     {
-      "deviceId": "pr205",
-      "dID": "poddy_base",
       "room": "common",
       "request": "system",
       "item_name": "System",
@@ -109,8 +97,6 @@
       "comment": "net_System - состояние системы"
     },
     {
-      "deviceId": "pr205",
-      "dID": "poddy_base",
       "room": "common",
       "request": "system",
       "item_name": "userSeason",
@@ -124,8 +110,6 @@
       "comment": "net_userSeason - сезон, выбранный пользователем"
     },
     {
-      "deviceId": "pr205",
-      "dID": "poddy_base",
       "room": "room02",
       "request": "system",
       "item_name": "K2_status",
@@ -139,8 +123,6 @@
       "comment": "net_K2_status - K2: статус"
     },
     {
-      "deviceId": "pr205",
-      "dID": "poddy_base",
       "room": "room02",
       "request": "system",
       "item_name": "K2_mode",
@@ -154,8 +136,6 @@
       "comment": "net_K2mode - K2: режим"
     },
     {
-      "deviceId": "pr205",
-      "dID": "poddy_base",
       "room": "room02",
       "request": "system",
       "item_name": "K2_fanSpeed",
@@ -169,8 +149,6 @@
       "comment": "net_K2fanSpeed - K2: скорость вентилятора"
     },
     {
-      "deviceId": "pr205",
-      "dID": "poddy_base",
       "room": "room02",
       "request": "sensors",
       "item_name": "K2 уставка температуры",
@@ -184,8 +162,6 @@
       "comment": "net_K2SetTemp - K2: уставка температуры"
     },
     {
-      "deviceId": "pr205",
-      "dID": "poddy_base",
       "room": "room01",
       "request": "system",
       "item_name": "K1_status",
@@ -199,8 +175,6 @@
       "comment": "net_K1status - K1: статус"
     },
     {
-      "deviceId": "pr205",
-      "dID": "poddy_base",
       "room": "room01",
       "request": "system",
       "item_name": "K1_mode",
@@ -214,8 +188,6 @@
       "comment": "net_K1_mode - K1: режим"
     },
     {
-      "deviceId": "pr205",
-      "dID": "poddy_base",
       "room": "room01",
       "request": "system",
       "item_name": "K1_fanSpeed",
@@ -229,8 +201,6 @@
       "comment": "net_K1_fanSpeed - K1: скорость вентилятора"
     },
     {
-      "deviceId": "pr205",
-      "dID": "poddy_base",
       "room": "room01",
       "request": "sensors",
       "item_name": "K1 уставка температуры",
@@ -244,8 +214,6 @@
       "comment": "net_K1_SetTemp - K1: уставка температуры"
     },
     {
-      "deviceId": "pr205",
-      "dID": "poddy_base",
       "room": "room01",
       "request": "sensors",
       "item_name": "K1_tempRoom",
@@ -259,8 +227,6 @@
       "comment": "net_K1_TempRoom - K1: температура в помещении"
     },
     {
-      "deviceId": "pr205",
-      "dID": "poddy_base",
       "room": "room01",
       "request": "system",
       "item_name": "K1_connect",
@@ -274,8 +240,6 @@
       "comment": "net_K1Connect - K1: связь"
     },
     {
-      "deviceId": "pr205",
-      "dID": "poddy_base",
       "room": "room02",
       "request": "system",
       "item_name": "K2_connect",
@@ -289,8 +253,6 @@
       "comment": "net_K2Connect - K2: связь"
     },
     {
-      "deviceId": "pr205",
-      "dID": "poddy_base",
       "room": "room01",
       "request": "system",
       "item_name": "K1 статус ошибки",
@@ -304,8 +266,6 @@
       "comment": "net_K1_errStatus - K1: статус ошибки"
     },
     {
-      "deviceId": "pr205",
-      "dID": "poddy_base",
       "room": "room01",
       "request": "system",
       "item_name": "K1 код ошибки",
@@ -319,8 +279,6 @@
       "comment": "net_K1_errCode - K1: код ошибки"
     },
     {
-      "deviceId": "pr205",
-      "dID": "poddy_base",
       "room": "room02",
       "request": "system",
       "item_name": "K2 статус ошибки",
@@ -334,8 +292,6 @@
       "comment": "net_K2_errStatus - K2: статус ошибки"
     },
     {
-      "deviceId": "pr205",
-      "dID": "poddy_base",
       "room": "room02",
       "request": "system",
       "item_name": "K2 код ошибки",
@@ -349,8 +305,6 @@
       "comment": "net_K2_errCode - K2: код ошибки"
     },
     {
-      "deviceId": "pr205",
-      "dID": "poddy_base",
       "room": "common",
       "request": "system",
       "item_name": "Разрешение на работу ПИД регулятора",
@@ -364,8 +318,6 @@
       "comment": "net_PidStart - запуск ПИД"
     },
     {
-      "deviceId": "pr205",
-      "dID": "poddy_base",
       "room": "common",
       "request": "system",
       "item_name": "Текущий сезон",
@@ -379,8 +331,6 @@
       "comment": "net_Season - текущий сезон"
     },
     {
-      "deviceId": "pr205",
-      "dID": "poddy_base",
       "room": "room02",
       "request": "sensors",
       "item_name": "K2 температура в помещении",
