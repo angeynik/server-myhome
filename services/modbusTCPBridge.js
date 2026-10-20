@@ -380,18 +380,14 @@ async function writeTag(tag, input) {
  * @param {string}  [opts.mapFile]   путь к карте тегов (по умолчанию MODBUS_MAP_FILE или ./modbusMap.json)
  * @param {string[]}[opts.targets]   кому рассылать, по умолчанию ['VUE_connections','nRED_connections']
  */
-function init({ broadcast, mapFile, targets } = {}) {
+function init({ broadcast, targets } = {}) {
   broadcastFn = broadcast;
   broadcastTargets = targets;
 
   // DATA_DIR — тот же env, что использует configStore.js (по умолчанию '.configData').
   // Читаем в момент init(), а не при require, чтобы dotenv успел отработать.
   const dataDir = process.env.DATA_DIR || '.configData';
-  const file = path.resolve(
-    mapFile
-    || process.env.MODBUS_MAP_FILE
-    || path.join(dataDir, 'modbusMap.json')
-  );
+  const file = path.resolve(dataDir, 'modbusMap.json');
   logger.logInfoMessage(`[modbusBridge] - читаем карту тегов: ${file}`);
 
   let map;

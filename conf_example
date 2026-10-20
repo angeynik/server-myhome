@@ -51,6 +51,7 @@ DATA_DIR='./configData'
 
 MODBUS_DID=igumen # dID совпадающий с dID пользователя Имя файла сохранения данных
 MODBUS_DEVICE=pr205 # Наименование modbus устройства
+
 MODBUS_TIMEOUT=3000
 MODBUS_RECONNECT_MIN=1000
 MODBUS_RECONNECT_MAX=30000
