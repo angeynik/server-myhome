@@ -1,0 +1,235 @@
+{
+  "init": {
+    "title": "",
+    "dID": "igumen",
+    "limits": {
+      "Default": {
+        "low": 14,
+        "high": 30,
+        "step": 1
+      },
+      "dTemp": {
+        "low": 0,
+        "high": 50,
+        "step": 0.5
+      },
+      "sTemp": {
+        "low": 8,
+        "high": 36,
+        "step": 0.5
+      },
+      "dHum": {
+        "low": 14,
+        "high": 60,
+        "step": 1
+      },
+      "dActuator": {
+        "low": 0,
+        "high": 100,
+        "step": 0.1
+      },
+      "dBool": {
+        "low": 0,
+        "high": 1,
+        "step": 1
+      },
+      "xStatus": {
+        "low": 0,
+        "high": 10,
+        "step": 1
+      },
+      "hours": {
+        "low": 0,
+        "high": 23,
+        "step": 1
+      },
+      "minutes": {
+        "low": 0,
+        "high": 59,
+        "step": 1
+      }
+    }
+  },
+  "room02": {
+    "id": 0,
+    "title": "Уставка",
+    "group": "Спальня",
+    "setpoints": {
+      "sTemp02": {
+        "value": 20.5,
+        "type": "num",
+        "lastUpdate": "21.10.2026, 07:09:54"
+      }
+    },
+    "sensors": {
+      "dTemp02": {
+        "value": 0,
+        "type": "num",
+        "lastUpdate": "21.10.2026, 07:09:54"
+      },
+      "dCurSetpoint01": {
+        "value": 0,
+        "type": "num",
+        "lastUpdate": "21.10.2026, 07:09:55"
+      },
+      "dTemp05": {
+        "value": 0,
+        "type": "num",
+        "lastUpdate": "21.10.2026, 07:09:55"
+      }
+    },
+    "system": {
+      "dStat03": {
+        "value": 0,
+        "type": "bool",
+        "lastUpdate": "21.10.2026, 07:09:55"
+      },
+      "dStat04": {
+        "value": 0,
+        "type": "num",
+        "lastUpdate": "21.10.2026, 07:09:55"
+      },
+      "dStat05": {
+        "value": 0,
+        "type": "num",
+        "lastUpdate": "21.10.2026, 07:09:55"
+      },
+      "dStat10": {
+        "value": 0,
+        "type": "bool",
+        "lastUpdate": "21.10.2026, 07:09:55"
+      },
+      "dStat13": {
+        "value": 0,
+        "type": "num",
+        "lastUpdate": "21.10.2026, 07:09:55"
+      },
+      "dStat14": {
+        "value": 0,
+        "type": "num",
+        "lastUpdate": "21.10.2026, 07:09:55"
+      }
+    }
+  },
+  "room03": {
+    "id": 1,
+    "title": "Уставка",
+    "group": "Детская 1",
+    "setpoints": {
+      "sTemp03": {
+        "value": 21.5,
+        "type": "num",
+        "lastUpdate": "21.10.2026, 07:09:54"
+      }
+    },
+    "sensors": {
+      "dTemp03": {
+        "value": 0,
+        "type": "num",
+        "lastUpdate": "21.10.2026, 07:09:54"
+      }
+    }
+  },
+  "room01": {
+    "id": 2,
+    "title": "Уставка",
+    "group": "Гостиная",
+    "setpoints": {
+      "sTemp01": {
+        "value": 20,
+        "type": "num",
+        "lastUpdate": "21.10.2026, 07:09:54"
+      }
+    },
+    "system": {
+      "dStat06": {
+        "value": 0,
+        "type": "bool",
+        "lastUpdate": "21.10.2026, 07:09:55"
+      },
+      "dStat07": {
+        "value": 0,
+        "type": "num",
+        "lastUpdate": "21.10.2026, 07:09:55"
+      },
+      "dStat08": {
+        "value": 0,
+        "type": "num",
+        "lastUpdate": "21.10.2026, 07:09:55"
+      },
+      "dStat09": {
+        "value": 0,
+        "type": "bool",
+        "lastUpdate": "21.10.2026, 07:09:55"
+      },
+      "dStat11": {
+        "value": 0,
+        "type": "num",
+        "lastUpdate": "21.10.2026, 07:09:55"
+      },
+      "dStat12": {
+        "value": 0,
+        "type": "num",
+        "lastUpdate": "21.10.2026, 07:09:55"
+      }
+    },
+    "sensors": {
+      "dCurSetpoint02": {
+        "value": 0,
+        "type": "num",
+        "lastUpdate": "21.10.2026, 07:09:55"
+      },
+      "dTemp01": {
+        "value": 0,
+        "type": "num",
+        "lastUpdate": "21.10.2026, 07:09:55"
+      }
+    }
+  },
+  "room04": {
+    "id": 3,
+    "title": "Средняя T K2",
+    "group": "Детская 2",
+    "sensors": {
+      "dTemp04": {
+        "value": 0,
+        "type": "num",
+        "lastUpdate": "21.10.2026, 07:09:54"
+      }
+    },
+    "setpoints": {
+      "sTemp04": {
+        "value": 20.5,
+        "type": "num",
+        "lastUpdate": "21.10.2026, 07:09:54"
+      }
+    }
+  },
+  "common": {
+    "id": 4,
+    "title": "Общие настройки",
+    "group": "Общие настройки",
+    "system": {
+      "dStat01": {
+        "value": 0,
+        "type": "num",
+        "lastUpdate": "21.10.2026, 07:09:54"
+      },
+      "dStat02": {
+        "value": 1,
+        "type": "bool",
+        "lastUpdate": "21.10.2026, 07:09:54"
+      },
+      "dStat15": {
+        "value": 1,
+        "type": "bool",
+        "lastUpdate": "21.10.2026, 07:09:55"
+      },
+      "dStat16": {
+        "value": 0,
+        "type": "bool",
+        "lastUpdate": "21.10.2026, 07:09:55"
+      }
+    }
+  }
+}
