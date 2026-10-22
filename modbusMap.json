@@ -35,7 +35,7 @@
     {
       "room": "room01",
       "request": "system",
-      "item_name": "dStat06",
+      "item_name": "dStatus06",
       "item_type": "bool",
       "title": "K1_status",
       "group": "K1",
@@ -48,7 +48,7 @@
     {
       "room": "room01",
       "request": "system",
-      "item_name": "dStat07",
+      "item_name": "dMode07",
       "item_type": "num",
       "title": "net_K1_mode",
       "group": "K1",
@@ -61,7 +61,7 @@
     {
       "room": "room01",
       "request": "system",
-      "item_name": "dStat08",
+      "item_name": "dFanSp08",
       "item_type": "num",
       "title": "net_K1fanSpeed",
       "group": "K1",
@@ -87,7 +87,7 @@
     {
       "room": "room01",
       "request": "system",
-      "item_name": "dStat09",
+      "item_name": "dConnect09",
       "item_type": "bool",
       "title": "K1_connect",
       "group": "K1",
@@ -100,7 +100,7 @@
     {
       "room": "room01",
       "request": "system",
-      "item_name": "dStat11",
+      "item_name": "dErrStat11",
       "item_type": "num",
       "title": "K1_errStatus",
       "group": "K1",
@@ -113,7 +113,7 @@
     {
       "room": "room01",
       "request": "system",
-      "item_name": "dStat12",
+      "item_name": "dErrCode12",
       "item_type": "num",
       "title": "K1_errCode",
       "group": "K1",
@@ -158,7 +158,7 @@
     {
       "room": "room02",
       "request": "system",
-      "item_name": "dStat03",
+      "item_name": "dStatus03",
       "item_type": "bool",
       "title": "K2_status",
       "group": "K2",
@@ -171,7 +171,7 @@
     {
       "room": "room02",
       "request": "system",
-      "item_name": "dStat04",
+      "item_name": "dMode04",
       "item_type": "num",
       "title": "net_K2mode",
       "group": "K2",
@@ -184,7 +184,7 @@
     {
       "room": "room02",
       "request": "system",
-      "item_name": "dStat05",
+      "item_name": "dFanSp05",
       "item_type": "num",
       "title": "net_K2fanSpeed",
       "group": "K2",
@@ -210,7 +210,7 @@
     {
       "room": "room02",
       "request": "system",
-      "item_name": "dStat10",
+      "item_name": "dConnect10",
       "item_type": "bool",
       "title": "K2_connect",
       "group": "K2",
@@ -223,7 +223,7 @@
     {
       "room": "room02",
       "request": "system",
-      "item_name": "dStat13",
+      "item_name": "dErrStat13",
       "item_type": "num",
       "title": "K2_errStatus",
       "group": "K2",
@@ -236,7 +236,7 @@
     {
       "room": "room02",
       "request": "system",
-      "item_name": "dStat14",
+      "item_name": "dErrCode14",
       "item_type": "num",
       "title": "K2_errCode",
       "group": "K2",
@@ -326,7 +326,7 @@
     {
       "room": "common",
       "request": "system",
-      "item_name": "dStat01",
+      "item_name": "dStatus01",
       "item_type": "num",
       "title": "Общие настройки",
       "group": "Общие настройки",
@@ -339,7 +339,7 @@
     {
       "room": "common",
       "request": "system",
-      "item_name": "dStat02",
+      "item_name": "dStatus02",
       "item_type": "bool",
       "title": "userSeason",
       "group": "Общие настройки",
@@ -352,7 +352,7 @@
     {
       "room": "common",
       "request": "system",
-      "item_name": "dStat15",
+      "item_name": "dStatus15",
       "item_type": "bool",
       "title": "PidStart",
       "group": "Общие настройки",
@@ -365,7 +365,7 @@
     {
       "room": "common",
       "request": "system",
-      "item_name": "dStat16",
+      "item_name": "dStatus16",
       "item_type": "bool",
       "title": "Season",
       "group": "Общие настройки",
