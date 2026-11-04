@@ -106,16 +106,16 @@ async function readFileSafely(dID, typeConfig) {
                         title: "", 
                         dID, 
                         limits: { 
-                            Default: { low: 14, high: 30, step: 1 }, 
-                            dTemp: { low: 0, high: 50, step: 0.5 },
-                            sTemp: { low: 8,  high: 36,  step: 0.5 }, 
-                            dHum: { low: 14, high: 60, step: 1 },
-                            dActuator: { low: 0, high: 100, step: 0.1 },
-                            dBool: { low: 0, high: 1, step: 1 },
-                            xStatus: { low: 0,  high: 10, step: 1 }, 
+                            Default: { low: 8, high: 36, step: 1 }, 
+                            Temp: { low: 8, high: 36, step: 0.5 },
+                            CurSetpoint: { low: 8,  high: 36,  step: 0.5 }, 
+                            Hum: { low: 14, high: 60, step: 1 },
+                            Actuator: { low: 0, high: 100, step: 0.1 },
+                            Bool: { low: false, high: true, step: 1 },
+                            Switch: {high: 1, low: 0, step: 1},
+                            Status: { low: 0,  high: 10, step: 1 }, 
                             hours: { low: 0, high: 23, step: 1 },
                             minutes: { low: 0, high: 59, step: 1 },
-
                         }
                     }
                 };

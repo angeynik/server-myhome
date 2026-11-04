@@ -311,15 +311,25 @@ const handlePost = async (clientId, data) => {
     // ── Setpoints / System ──────────────────────────────────────────────
     case 'setpoints': {
       try {
-        const setpointKey = 's' + key;
+        const setpointKey = pay.setKey || ('s' + key);
         const { data: cfgData, filePath: cfgPath } = await readFileSafely(dID, 'config');
+
+        // if (cfgData[room]?.setpoints) {
+        //   cfgData[room].setpoints[setpointKey] = {
+        //     value,
+        //     type: (typeof value === 'boolean') ? 'bool' : 'num',
+        //     lastUpdate: new Date().toLocaleString('ru-RU', { timeZone: 'Europe/Moscow' }),
+        //   };
+        // }
         if (cfgData[room]?.setpoints) {
           cfgData[room].setpoints[setpointKey] = {
+            ...cfgData[room].setpoints[setpointKey],   // сохранить limits/type/прочее
             value,
             type: (typeof value === 'boolean') ? 'bool' : 'num',
             lastUpdate: new Date().toLocaleString('ru-RU', { timeZone: 'Europe/Moscow' }),
           };
         }
+
         ({ fileUpdateNeeded, filePath, dataToWrite, responseType, responseRequest, responsePayload }
           = buildFileResponse(cfgData, cfgPath, 'response', 'config'));
       } catch (error) {
