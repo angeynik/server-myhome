@@ -1,4 +1,4 @@
-# Инструкции для GitHub Copilot (serverApp)
+# Инструкции для (serverApp)
 
 - Используй Node.js (ES6+).
 - Для асинхронных операций используй async/await.
