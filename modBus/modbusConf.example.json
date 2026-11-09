@@ -1,0 +1,53 @@
+{
+  "role": "both",
+  "allowSharedPort": false,
+
+  "master": {
+    "port": "/dev/ttyS3",
+    "baudRate": 9600,
+    "dataBits": 8,
+    "stopBits": 1,
+    "parity": "none",
+    "pollIntervalMs": 2000,
+    "requestTimeoutMs": 300,
+    "interRequestDelayMs": 20,
+    "devices": [
+      {
+        "dID": "boiler1",
+        "room": "boiler_room",
+        "slaveId": 1,
+        "registers": [
+          { "name": "temperature", "type": "holding", "address": 0, "dataType": "int16", "scale": 0.1 },
+          { "name": "pump_state", "type": "coil", "address": 0, "dataType": "bool" },
+          { "name": "flow_rate", "type": "input", "address": 2, "dataType": "float32", "swapWords": true }
+        ]
+      },
+      {
+        "dID": "energy_meter1",
+        "room": "electrical_room",
+        "slaveId": 2,
+        "registers": [
+          { "name": "voltage_l1", "type": "holding", "address": 0, "dataType": "uint16", "scale": 0.1 },
+          { "name": "power_total", "type": "holding", "address": 10, "dataType": "int32", "scale": 0.01 }
+        ]
+      }
+    ]
+  },
+
+  "slave": {
+    "port": "/dev/ttyUSB0",
+    "baudRate": 9600,
+    "unitID": 10,
+    "dID": "orangepi_gate",
+    "holdingRegistersSize": 100,
+    "inputRegistersSize": 100,
+    "coilsSize": 100,
+    "discreteInputsSize": 100,
+    "registerMap": [
+      { "name": "door_sensor", "type": "discrete", "address": 0, "dataType": "bool", "dID": "orangepi_gate", "initial": false },
+      { "name": "lock_sensor", "type": "discrete", "address": 1, "dataType": "bool", "dID": "orangepi_gate", "initial": false },
+      { "name": "setpoint_temp", "type": "holding", "address": 0, "dataType": "int16", "scale": 0.1, "dID": "orangepi_gate", "initial": 220 },
+      { "name": "open_gate", "type": "coil", "address": 0, "dataType": "bool", "dID": "orangepi_gate", "initial": false }
+    ]
+  }
+}

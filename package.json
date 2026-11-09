@@ -1,0 +1,50 @@
+{
+  "name": "server-myhome",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "jest",
+    "test:unit": "jest tests/unit/",
+    "test:integration": "jest tests/integration/",
+    "test:all": "jest",
+    "start": "nodemon serverapp.js"
+  },
+  "nodemonConfig": {
+    "ignore": [
+      "configData/**/*",
+      "logs/**/*",
+      "*.log",
+      "temp/**/*"
+    ],
+    "watch": [
+      "services/",
+      "*.js",
+      "*.json"
+    ],
+    "ext": "js,json",
+    "delay": "1000"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^1.20.0",
+    "bcryptjs": "^3.0.2",
+    "body-parser": "^1.20.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.1",
+    "http": "^0.0.1-security",
+    "joi": "^17.13.3",
+    "jsonwebtoken": "^9.0.2",
+    "modbus-serial": "^8.0.25",
+    "nodemon": "^3.1.7",
+    "pg": "^8.13.1",
+    "uuid": "^10.0.0",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
+  }
+}

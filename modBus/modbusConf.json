@@ -1,0 +1,21 @@
+{
+  "role": "slave",
+  "allowSharedPort": false,
+
+  "slave": {
+    "port": "/dev/ttyUSB0",
+    "baudRate": 9600,
+    "unitId": 10,
+    "dID": "orangepi_gate",
+    "holdingRegistersSize": 100,
+    "inputRegistersSize": 100,
+    "coilsSize": 100,
+    "discreteInputsSize": 100,
+    "registerMap": [
+      { "name": "door_sensor", "type": "discrete", "address": 0, "dataType": "bool", "dID": "orangepi_gate", "initial": false },
+      { "name": "lock_sensor", "type": "discrete", "address": 1, "dataType": "bool", "dID": "orangepi_gate", "initial": false },
+      { "name": "setpoint_temp", "type": "holding", "address": 0, "dataType": "int16", "scale": 0.1, "dID": "orangepi_gate", "initial": 220 },
+      { "name": "open_gate", "type": "coil", "address": 0, "dataType": "bool", "dID": "orangepi_gate", "initial": false }
+    ]
+  }
+}
