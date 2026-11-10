@@ -19,13 +19,17 @@
 'use strict';
 
 const Joi = require('joi');
+const cfg = require('./authConfig');
+const notifyCfg = require('./notifyConfig');
+const logger = require('./logger.js');
+logger.initLogging();
 
 // ─────────────────────────────────────────────────────────────────────────
 // 1. validType — грубая проверка поля type
 // ─────────────────────────────────────────────────────────────────────────
 const schemaType = Joi.object({
   type: Joi.string()
-    .valid('response', 'config', 'post', 'get', 'req', 'set', 'init', 'auth', 'log')
+    .valid('response', 'config', 'post', 'get', 'req', 'set', 'init', 'auth', 'log', 'message')
     .required()
 }).unknown(true);
 
@@ -83,11 +87,40 @@ function validPost(message) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// 3. validConfig — заглушка для совместимости
+// 3. validMessage — входящее оповещение (type: 'message')
+// ─────────────────────────────────────────────────────────────────────────
+//   name          — dID группы получателей
+//   payload.level — минимальный уровень получателя (1..3), по умолчанию 1
+//   payload.message — текст оповещения
+const messageSchema = Joi.object({
+  type: Joi.string().valid('message').required(),
+  request: Joi.string().valid('notify').default('notify'),
+  name: Joi.string().pattern(cfg.DID_RE).required(),
+  payload: Joi.object({
+    level: Joi.number().integer().min(1).max(3).default(1),
+    message: Joi.string().trim().min(1).max(3500).required(),
+    title: Joi.string().trim().max(200).allow('').optional(),
+    severity: Joi.string().valid(...notifyCfg.SEVERITIES).default('info'),
+    room: Joi.string().max(64).allow('').optional(),
+    item_name: Joi.string().max(64).allow('').optional(),
+  }).required().prefs({ stripUnknown: true }),
+}).unknown(true);
+
+function validMessage(message) {
+  const { error, value } = messageSchema.validate(message);
+  if (error) {
+    logger.logDevMessage(`[validate] - validMessage: ${error.message}`);
+    return { error };
+  }
+  return { status: 'ok', value };
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// 4. validConfig — заглушка для совместимости
 // ─────────────────────────────────────────────────────────────────────────
 function validConfig(message) {
   console.log('Сообщение для валидации:', message);
   return 'ok';
 }
 
-module.exports = { validType, validConfig, validPost };
+module.exports = { validType, validConfig, validPost, validMessage };

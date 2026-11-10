@@ -9,6 +9,9 @@ const userStore = require('./userStore.js');
 const auth      = require('./auth');
 const cfg       = require('./authConfig');
 const wsManager = require('../classes/wsManager');
+const notifyService   = require('./notifyService.js');
+const telegramService = require('./telegramService.js');
+const videoStreamService = require('./videoStreamService.js');
 
 const {
   writeFileSafely,
@@ -151,6 +154,7 @@ const handleAuth = async (clientId, data) => {
           userlevel: result.userlevel,
           dID: result.dID,
           mustChangePassword: result.mustChangePassword,
+          profile: result.profile,
         });
         break;
       }
@@ -167,6 +171,7 @@ const handleAuth = async (clientId, data) => {
           userlevel: result.userlevel,
           dID: result.dID,
           mustChangePassword: result.mustChangePassword,
+          profile: result.profile,
         });
         break;
       }
@@ -188,6 +193,44 @@ const handleAuth = async (clientId, data) => {
         const result = await auth.changeOwnPassword(clientId, oldPassword, newPassword);
         if (result.error) return sendErr('changePasswordError', result.code || 'CHANGE_ERROR', result.error);
         sendOk('changePasswordSuccess', { token: result.token, message: result.message });
+        break;
+      }
+
+      case 'profile': {
+        const profile = await auth.getProfile(clientId);
+        if (!profile) return sendErr('profileError', 'NO_USER', 'Пользователь не найден');
+        sendOk('profile', { profile });
+        break;
+      }
+
+      case 'updateProfile': {
+        try {
+          const s = auth.getSession(clientId);
+          const { email, displayName, notify } = payload;
+          const profile = await userStore.updateOwnProfile(s.username, { email, displayName, notify });
+          sendOk('updateProfileSuccess', { profile });
+        } catch (e) {
+          return sendErr('updateProfileError', e.code || 'PROFILE_ERROR', e.message);
+        }
+        break;
+      }
+
+      case 'telegramLinkCode': {
+        const tg = telegramService.get();
+        if (!tg) return sendErr('telegramLinkError', 'TELEGRAM_DISABLED', 'Telegram не включён на сервере');
+        const s = auth.getSession(clientId);
+        sendOk('telegramLinkCode', tg.createLinkCode(s.username));
+        break;
+      }
+
+      case 'telegramUnlink': {
+        try {
+          const s = auth.getSession(clientId);
+          const profile = await userStore.clearTelegram(s.username);
+          sendOk('telegramUnlinkSuccess', { profile });
+        } catch (e) {
+          return sendErr('telegramUnlinkError', e.code || 'UNLINK_ERROR', e.message);
+        }
         break;
       }
 
@@ -232,6 +275,21 @@ const handleGet = async (clientId, data) => {
         sendResponse('statistics', statisticsData.data);
         break;
       }
+      case 'messages': {
+        const session = auth.getSession(clientId);
+        sendResponse('messages', { items: notifyService.getRecent(session.dID, session.level) });
+        break;
+      }
+      case 'videoSnapshot': {
+        const snapshot = videoStreamService.getLastSnapshot(auth.getSession(clientId));
+        if (!snapshot) return sendError('videoSnapshotError', 'Снимок недоступен', { code: 'NO_SNAPSHOT' });
+        sendResponse('videoSnapshot', snapshot);
+        break;
+      }
+      case 'videoStatus': {
+        sendResponse('videoStatus', videoStreamService.getStats());
+        break;
+      }
       default:
         break;
     }
@@ -247,6 +305,7 @@ const handlePost = async (clientId, data) => {
 
   const dID    = data.name;
   const pay    = data.payload || {};
+  const actor  = auth.getSession(clientId);
   const room   = pay.room;
   const key    = pay.key;
   const param  = pay.param;
@@ -274,11 +333,15 @@ const handlePost = async (clientId, data) => {
     // ── Пользователи ────────────────────────────────────────────────────
     case 'createUser': {
       try {
-        const { username, password, dataSource, permissionLevel } = pay;
-        if (!username || !password || !dataSource || !permissionLevel) {
-          throw new Error('Отсутствуют обязательные поля');
-        }
-        const res = await userStore.registerUser(username, password, permissionLevel, dataSource, dataSource);
+        const {
+          username, password, dataSource, permissionLevel,
+          email, displayName, notify, mustChangePassword,
+        } = pay;
+        if (!username || !password || !permissionLevel) throw new Error('Отсутствуют обязательные поля');
+        const res = await userStore.registerUser(
+          username, password, permissionLevel, dataSource, dataSource,
+          { email, displayName, notify, mustChangePassword: mustChangePassword === true }
+        );
         sendResponse('createUserSuccess', { user: res.user, userCreated: res.userCreated });
       } catch (e) {
         logger.logErrorMessage(`[messageHandlers] - createUser: ${e.message}`);
@@ -290,17 +353,75 @@ const handlePost = async (clientId, data) => {
     case 'linkUserToDataSource': {
       try {
         const { userId, dataSourceId } = pay;
-        const users = await userStore.fetchUsers();
-        if (!users.find(u => u.id === userId)) {
-          throw new Error(`Пользователь с id=${userId} не найден`);
-        }
-        sendResponse('linkUserToDataSourceSuccess', {
-          message: 'Связь уже установлена',
-          userId,
-          dataSourceId,
+        const res = await userStore.linkUserToDataSource(userId, dataSourceId);
+        if (res.revoked) auth.invalidateUserSessions(res.user.username);
+        sendResponse('linkUserToDataSourceSuccess', { user: res.user });
+      } catch (e) {
+        sendError('linkUserToDataSourceError', e.message, { code: e.code || 'LINK_ERROR' });
+      }
+      break;
+    }
+
+    case 'userConfigRequest': {
+      try {
+        sendResponse('userConfig', {
+          users: await userStore.listUsers(),
+          datasources: await userStore.listDataSources(),
         });
       } catch (e) {
-        sendError('linkUserToDataSourceError', e.message, { code: 'LINK_ERROR' });
+        sendError('userConfigError', e.message, { code: e.code || 'USER_CONFIG_ERROR' });
+      }
+      break;
+    }
+
+    case 'userConfigEdit': {
+      try {
+        const { username, patch } = pay;
+        if (!username || !patch || typeof patch !== 'object') throw new Error('Отсутствуют username/patch');
+        const isSelf = actor && String(actor.username).toLowerCase() === String(username).toLowerCase();
+        const lowersSelf = patch.disabled === true ||
+          (patch.permissionLevel !== undefined && Number(patch.permissionLevel) !== actor?.level);
+        if (isSelf && lowersSelf) {
+          const err = new Error('Нельзя менять собственный уровень или блокировать себя');
+          err.code = 'SELF_EDIT';
+          throw err;
+        }
+        const res = await userStore.updateUser(username, patch);
+        if (res.revoked) auth.invalidateUserSessions(username);
+        sendResponse('userConfigEditSuccess', { user: res.user, revoked: res.revoked });
+      } catch (e) {
+        sendError('userConfigEditError', e.message, { code: e.code || 'USER_EDIT_ERROR' });
+      }
+      break;
+    }
+
+    case 'resetUserPassword': {
+      try {
+        const { username, newPassword } = pay;
+        if (!username || !newPassword) throw new Error('Отсутствуют username/newPassword');
+        const user = await userStore.setPassword(username, newPassword, { mustChange: true });
+        auth.invalidateUserSessions(username);
+        sendResponse('resetUserPasswordSuccess', { user });
+      } catch (e) {
+        sendError('resetUserPasswordError', e.message, { code: e.code || 'RESET_PASSWORD_ERROR' });
+      }
+      break;
+    }
+
+    case 'deleteUser': {
+      try {
+        const { username } = pay;
+        if (!username) throw new Error('Отсутствует username');
+        if (actor && String(actor.username).toLowerCase() === String(username).toLowerCase()) {
+          const err = new Error('Нельзя удалить собственную учётную запись');
+          err.code = 'SELF_DELETE';
+          throw err;
+        }
+        const res = await userStore.deleteUser(username);
+        auth.invalidateUserSessions(username);
+        sendResponse('deleteUserSuccess', res);
+      } catch (e) {
+        sendError('deleteUserError', e.message, { code: e.code || 'DELETE_USER_ERROR' });
       }
       break;
     }

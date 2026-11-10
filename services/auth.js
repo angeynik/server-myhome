@@ -114,10 +114,14 @@ async function loginUser(clientId, username, password, ip = 'unknown') {
     return { error: 'Неверный логин или пароль', code: 'BAD_CREDENTIALS' };
   }
 
+  if (user.disabled) return { error: 'Учётная запись отключена', code: 'ACCOUNT_DISABLED' };
+
   clearLoginFailures(uname, ip);
   const token = issueToken(user);
+  userStore.recordLogin(user.username).catch((e) => logger.logErrorMessage(`[auth] - recordLogin: ${e.message}`));
   setSession(clientId, {
     userId: user.id,
+    uid: user.uid,
     username: user.username,
     dID: user.dID,
     level: user.permissionLevel,
@@ -132,6 +136,7 @@ async function loginUser(clientId, username, password, ip = 'unknown') {
     userlevel: user.permissionLevel,
     dID: user.dID,
     mustChangePassword: !!user.mustChangePassword,
+    profile: userStore.toPublic(user),
   };
 }
 
@@ -141,11 +146,13 @@ async function resumeSession(clientId, token) {
     const payload = verifyToken(token);
     const user = await userStore.findUser(payload.username);
     if (!user) return { error: 'Пользователь не найден', code: 'NO_USER' };
+    if (user.disabled) return { error: 'Учётная запись отключена', code: 'ACCOUNT_DISABLED' };
     if ((user.tokenVersion || 0) !== (payload.tv || 0)) {
       return { error: 'Токен отозван', code: 'TOKEN_REVOKED' };
     }
     setSession(clientId, {
       userId: user.id,
+      uid: user.uid,
       username: user.username,
       dID: user.dID,
       level: user.permissionLevel,
@@ -158,6 +165,7 @@ async function resumeSession(clientId, token) {
       userlevel: user.permissionLevel,
       dID: user.dID,
       mustChangePassword: !!user.mustChangePassword,
+      profile: userStore.toPublic(user),
     };
   } catch (e) {
     return { error: 'Недействительный токен', code: 'BAD_TOKEN' };
@@ -192,12 +200,32 @@ async function refresh(clientId) {
   if (!s) return { error: 'Нет активной сессии', code: 'NO_SESSION' };
   const user = await userStore.findUser(s.username);
   if (!user) return { error: 'Пользователь не найден', code: 'NO_USER' };
-  if ((user.tokenVersion || 0) !== s.tokenVersion) {
+  if (user.disabled || (user.tokenVersion || 0) !== s.tokenVersion) {
     clearSession(clientId);
     return { error: 'Токен отозван', code: 'TOKEN_REVOKED' };
   }
   touchSession(clientId);
   return { token: issueToken(user) };
+}
+
+// ── Профиль и сброс сессий ──────────────────────────────────────────────
+async function getProfile(clientId) {
+  const s = getSession(clientId);
+  if (!s) return null;
+  return userStore.toPublic(await userStore.findUser(s.username));
+}
+
+function invalidateUserSessions(username) {
+  const n = String(username || '').trim().toLowerCase();
+  let count = 0;
+  for (const [id, s] of sessions) {
+    if (String(s.username).toLowerCase() === n) {
+      sessions.delete(id);
+      count++;
+    }
+  }
+  if (count) logger.logInfoMessage(`[auth] - invalidateUserSessions: ${username}, сессий ${count}`);
+  return count;
 }
 
 // ── Права ───────────────────────────────────────────────────────────────
@@ -216,7 +244,7 @@ function hasLevel(clientId, type, request) {
 }
 
 // ── Главный middleware ──────────────────────────────────────────────────
-function checkMessageAccess(clientId, type, request) {
+function checkMessageAccess(clientId, type, request, name) {
   // 1. Публичные auth-запросы
   if (type === 'auth' && cfg.PUBLIC_AUTH_REQUESTS.has(request)) return { ok: true };
 
@@ -238,6 +266,10 @@ function checkMessageAccess(clientId, type, request) {
     clearSession(clientId);
     return { ok: false, code: 'TIMEOUT', message: 'Сессия истекла' };
   }
+  if (name !== undefined && s.level < 3 && name !== s.dID) {
+    logger.logErrorMessage(`[auth] - DID_MISMATCH: ${s.username} (${s.dID}) -> ${name}`);
+    return { ok: false, code: 'DID_MISMATCH', message: 'Нет доступа к чужому источнику данных' };
+  }
   if (!hasLevel(clientId, type, request)) {
     logger.logErrorMessage(`[auth] - FORBIDDEN: ${s.username} (level=${s.level}) -> ${type}/${request}`);
     return { ok: false, code: 'FORBIDDEN', message: 'Недостаточно прав' };
@@ -251,4 +283,5 @@ module.exports = {
   loginUser, resumeSession, logout, refresh, changeOwnPassword,
   getSession, setSession, clearSession, touchSession, isSessionTimedOut, cleanupSessions,
   hasLevel, requiredLevel, checkMessageAccess,
+  getProfile, invalidateUserSessions,
 };

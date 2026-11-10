@@ -12,6 +12,10 @@ const cfg = require('./services/authConfig');
 const wsManager = require('./classes/wsManager.js');
 const modbusManager = require('./classes/modBusTCPManager');
 const modbusBridge  = require('./services/modbusTCPBridge.js');
+const nc = require('./services/notifyConfig.js');
+const notifyService = require('./services/notifyService.js');
+const telegramService = require('./services/telegramService.js');
+const videoStreamService = require('./services/videoStreamService.js');
 
 //const { nodeRedClients, registerClient, getAllClients, getClient, startHeartbeat} = require('./services/clientsStore');
 const { addMessageToQueue, processAllQueues} = require('./services/messageStore.js');
@@ -23,7 +27,7 @@ dotenv.config({path: './conf.env'}); // Указываем путь к  файл
 
 
 // Подключаем функции модуля joi для валидации данных
-const { validType, validPost } = require('./services/validate');
+const { validType, validPost, validMessage } = require('./services/validate');
 
 const servPORT = process.env.SERVER_PORT || 3010;
 const wsRedPORT = process.env.WSR_PORT_IN|| 9200;
@@ -31,6 +35,7 @@ const wsDashPORT = process.env.WSD_PORT_IN|| 9202;
 // ── Флаги управления потоками ─────────────────────────────────────────
 const NODERED_ENABLED = String(process.env.NODERED_ENABLED ?? 'true').toLowerCase() === 'true';
 const MODBUS_ENABLED  = String(process.env.MODBUS_ENABLED  ?? 'true').toLowerCase() === 'true';
+const VIDEO_ENABLED   = String(process.env.VIDEO_ENABLED   ?? 'true').toLowerCase() === 'true';
 
 // const EXT_URL = process.env.EXT_URL || 'http://192.168.1.94:3020';
 // const LOCAL_URL = process.env.LOCAL_URL || 'http://localhost:3020';
@@ -42,7 +47,7 @@ const logger = require('./services/logger.js');
 logger.initLogging();
 logger.logInfoMessage(
   `[Serverapp] - потоки: VUE=ON, NodeRED=${NODERED_ENABLED ? 'ON' : 'OFF'}, ` +
-  `Modbus=${MODBUS_ENABLED ? 'ON' : 'OFF'}`
+  `Modbus=${MODBUS_ENABLED ? 'ON' : 'OFF'}, Video=${VIDEO_ENABLED ? 'ON' : 'OFF'}`
 );
 
 const app = express();
@@ -134,6 +139,10 @@ const handleShutdown = async () => {
     // 0. Останавливаем heartbeat мониторинг
     wsManager.stopHeartbeat();
     safeWrite('✅ Heartbeat monitoring stopped');
+    await telegramService.stop();
+    safeWrite('✅ Telegram остановлен');
+    await videoStreamService.stop();
+    safeWrite('✅ Видео остановлено');
     // modbusBridge.stop();
     // modbusManager.cleanup();
     if (MODBUS_ENABLED) {
@@ -271,6 +280,30 @@ if (MODBUS_ENABLED) {
   logger.logInfoMessage('[Serverapp] - Modbus отключён (MODBUS_ENABLED=false)');
 }
 
+if (VIDEO_ENABLED) {
+  if (videoStreamService.init()) videoStreamService.start();
+} else {
+  logger.logInfoMessage('[Serverapp] - Видео отключено (VIDEO_ENABLED=false)');
+}
+
+function forwardFromTelegram(data) {
+  if (!NODERED_ENABLED) return false;
+  if (wsManager.getUserConnections('nRED_connections', data.name).length === 0) return false;
+  broadcast('telegram', data.name, data, ['nRED_connections']);
+  return true;
+}
+
+if (nc.TELEGRAM_REQUESTED) {
+  if (!nc.TELEGRAM_ENABLED) {
+    logger.logErrorMessage('[Serverapp] - TELEGRAM_ENABLED=true, но TELEGRAM_BOT_TOKEN не задан');
+  } else {
+    telegramService.init({ forward: forwardFromTelegram }).start()
+      .catch((e) => logger.logErrorMessage(`[Serverapp] - Telegram: ${e.message}`));
+  }
+} else {
+  logger.logInfoMessage('[Serverapp] - Telegram отключён (TELEGRAM_ENABLED=false)');
+}
+
 // Запускаем обработчик очередей WebSocket сообщений каждые 5 секунд (можно чаще, например, каждую секунду)
 const QUEUE_PROCESS_INTERVAL = 15000;
 setInterval(async () => {
@@ -343,6 +376,13 @@ if (NODERED_ENABLED) {
                       wsManager.updateConnection('nRED_connections', connectionId, Date.now(), checkInputMessage.data.name);
                     }
                 break;
+              case 'message':
+                    notifyService.dispatch(checkInputMessage.data, { source: 'nodered' })
+                      .then((result) => {
+                        if (!result.ok) logger.logErrorMessage(`[Serverapp] - WSSNodeRED - message: ${result.error}`);
+                      })
+                      .catch((e) => logger.logErrorMessage(`[Serverapp] - WSSNodeRED - message: ${e.message}`));
+                break;
               case 'post':
                     logger.logDevMessage(`[Serverapp] - WSSNodeRED - Post -- Добавляем сообщение в очередь`);
                     const key = 
@@ -404,7 +444,7 @@ WSSDash.on('connection', (ws) => {
 
   
   ws.on('message', (message) => {
-  logger.logDevMessage(`[Serverapp] - WSSDash.on - Пришло сообщение: ${message}`);
+  logger.logDevMessage(`[Serverapp] - WSSDash.on - Пришло сообщение: ${logger.redactSecrets(message)}`);
   try {
     const dashData = checkMessage(message);
     if (dashData.status !== 'ok') return;
@@ -419,7 +459,7 @@ WSSDash.on('connection', (ws) => {
     }
 
     // 2) Auth-middleware: сессия + уровень доступа
-    const access = auth.checkMessageAccess(connectionId, type, request);
+    const access = auth.checkMessageAccess(connectionId, type, request, dashData.data?.name);
     if (!access.ok) {
       logger.logDevMessage(
         `[Serverapp] - WSSDash - доступ запрещён: ${access.code} (${type}/${request})`
@@ -444,7 +484,7 @@ WSSDash.on('connection', (ws) => {
 
       case 'post':
         handlePost(connectionId, dashData.data);
-        {
+        if (!cfg.NO_BROADCAST_POST.has(request)) {
           const dID = dashData.data.name;
           try {
             const handledByModbus =
@@ -561,12 +601,12 @@ function stringToJSON(message) {
 
 function checkMessage(message) {
   const data = stringToJSON(message);
-  logger.logDevMessage(`[Serverapp] - checkMessage получило сообщение: ${message}`);
+  logger.logDevMessage(`[Serverapp] - checkMessage получило сообщение: ${logger.redactSecrets(message)}`);
 
   // 1. Грубая проверка типа
   const { error } = validType(data);
   if (error) {
-    logger.logErrorMessage(`[Serverapp] - checkMessage - Некорректный type ${message} Ошибка: ${error.message}`);
+    logger.logErrorMessage(`[Serverapp] - checkMessage - Некорректный type ${logger.redactSecrets(message)} Ошибка: ${error.message}`);
     return error;
   }
 
@@ -574,9 +614,19 @@ function checkMessage(message) {
   if (data.type === 'post') {
     const postCheck = validPost(data);
     if (postCheck.error) {
-      logger.logErrorMessage(`[Serverapp] - checkMessage - Некорректный post. ${message} Ошибка: ${postCheck.error.message}`);
+      logger.logErrorMessage(`[Serverapp] - checkMessage - Некорректный post. ${logger.redactSecrets(message)} Ошибка: ${postCheck.error.message}`);
       return postCheck.error;
     }
+  }
+
+  // 3. Для оповещений — проверка и приведение к каноническому виду
+  if (data.type === 'message') {
+    const msgCheck = validMessage(data);
+    if (msgCheck.error) {
+      logger.logErrorMessage(`[Serverapp] - checkMessage - Некорректный message. Ошибка: ${msgCheck.error.message}`);
+      return msgCheck.error;
+    }
+    return { status: 'ok', data: msgCheck.value };
   }
 
   return { status: 'ok', data: data };

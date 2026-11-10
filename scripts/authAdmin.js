@@ -16,7 +16,10 @@ async function main() {
       const { users, datasources } = await userStore.loadUsers();
       console.log('Пользователи:');
       for (const u of users) {
-        console.log(`  [${u.id}] ${u.username}  level=${u.permissionLevel}  dID=${u.dID}  mustChange=${!!u.mustChangePassword}`);
+        console.log(
+          `  [${u.id}] ${u.username}  level=${u.permissionLevel}  dID=${u.dID}  ` +
+          `disabled=${!!u.disabled}  mustChange=${!!u.mustChangePassword}  telegram=${u.telegram?.chatId ? 'yes' : 'no'}`
+        );
       }
       console.log('Источники данных:');
       for (const d of datasources) {
@@ -111,14 +114,62 @@ async function main() {
       break;
     }
 
+    case 'show': {
+      const [username] = args;
+      if (!username) throw new Error('usage: show <username>');
+      const u = await userStore.findUser(username);
+      if (!u) throw new Error('Пользователь не найден');
+      console.log(JSON.stringify(userStore.toPublic(u), null, 2));
+      break;
+    }
+
+    case 'setLevel': {
+      const [username, level] = args;
+      if (!username || !level) throw new Error('usage: setLevel <username> <1|2|3>');
+      const { user } = await userStore.updateUser(username, { permissionLevel: level });
+      console.log(`OK. "${user.username}": level=${user.permissionLevel}. Прежние JWT отозваны.`);
+      break;
+    }
+
+    case 'disable':
+    case 'enable': {
+      const [username] = args;
+      if (!username) throw new Error(`usage: ${cmd} <username>`);
+      const { user } = await userStore.updateUser(username, { disabled: cmd === 'disable' });
+      console.log(`OK. "${user.username}": disabled=${user.disabled}.`);
+      break;
+    }
+
+    case 'setEmail': {
+      const [username, email] = args;
+      if (!username) throw new Error('usage: setEmail <username> [email]');
+      const { user } = await userStore.updateUser(username, { email: email || null });
+      console.log(`OK. "${user.username}": email=${user.email || '—'}.`);
+      break;
+    }
+
+    case 'unlinkTelegram': {
+      const [username] = args;
+      if (!username) throw new Error('usage: unlinkTelegram <username>');
+      const user = await userStore.clearTelegram(username);
+      console.log(`OK. Telegram отвязан у "${user.username}".`);
+      break;
+    }
+
     default:
       console.log([
         'Usage:',
         '  node scripts/authAdmin.js list',
+        '  node scripts/authAdmin.js show <username>',
         '  node scripts/authAdmin.js setPassword <username> <newPassword>',
         '  node scripts/authAdmin.js setDID <username> <newDID> [sourceName]',
         '  node scripts/authAdmin.js createUser <username> <password> <level> [dID] [sourceName]',
         '  node scripts/authAdmin.js bump <username>',
+        '  node scripts/authAdmin.js setLevel <username> <1|2|3>',
+        '  node scripts/authAdmin.js disable <username>',
+        '  node scripts/authAdmin.js enable <username>',
+        '  node scripts/authAdmin.js setEmail <username> [email]',
+        '  node scripts/authAdmin.js unlinkTelegram <username>',
         '  node scripts/authAdmin.js deleteUser <username>',
         '  node scripts/authAdmin.js deleteDataSource <dID>',
         '  node scripts/authAdmin.js cleanDataSources',

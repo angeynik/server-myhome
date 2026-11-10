@@ -1,166 +1,109 @@
-const { loginUser, verifyToken } = require('../../auth');
-const DBManager = require('../../services/db');
 
-describe('Server-side Authentication', () => {
-  describe('loginUser', () => {
-    test('should login user successfully with valid credentials', async () => {
-      // Arrange
-      DBManager.findUser.mockResolvedValue(global.mockUserData.validUser);
+jest.mock('../services/userStore', () => ({
+  verifyCredentials: jest.fn(),
+  recordLogin: jest.fn(() => Promise.resolve()),
+  findUser: jest.fn(),
+  toPublic: jest.fn((u) => (u ? { username: u.username } : null)),
+}));
 
-      // Act
-      const result = await loginUser(
-        global.testRequests.validLogin.username,
-        global.testRequests.validLogin.password
-      );
+const userStore = require('../services/userStore');
+const auth = require('../services/auth');
 
-      // Assert
-      expect(result.success).toBe(true);
-      expect(result.token).toBe('mock-jwt-token');
-      expect(result.username).toBe('testuser');
-      expect(result.userlevel).toBe(1);
-      expect(result.dID).toBe('test-did-123');
-      
-      expect(DBManager.findUser).toHaveBeenCalledWith('testuser');
-      expect(require('bcryptjs').compare).toHaveBeenCalledWith(
-        'testpassword123',
-        '$2a$10$hashedpassword123'
-      );
-      expect(require('jsonwebtoken').sign).toHaveBeenCalledWith(
-        { id: 1 },
-        process.env.JWT_SECRET,
-        { expiresIn: '1h' }
-      );
-    });
+const session = (extra = {}) => ({
+  userId: 1, username: 'ivan', dID: 'd1', level: 1, tokenVersion: 0, mustChangePassword: false, ...extra,
+});
 
-    test('should reject login with invalid password', async () => {
-      // Arrange
-      DBManager.findUser.mockResolvedValue(global.mockUserData.validUser);
-      require('bcryptjs').compare.mockResolvedValueOnce(false);
-
-      // Act
-      const result = await loginUser('testuser', 'wrongpassword');
-
-      // Assert
-      expect(result.error).toBe('Invalid password');
-      expect(result.code).toBe('INVALID_PASSWORD');
-      expect(result.success).toBeUndefined();
-      
-      expect(DBManager.findUser).toHaveBeenCalledWith('testuser');
-      expect(require('bcryptjs').compare).toHaveBeenCalledWith(
-        'wrongpassword',
-        '$2a$10$hashedpassword123'
-      );
-    });
-
-    test('should reject login with non-existent user', async () => {
-      // Arrange
-      DBManager.findUser.mockResolvedValue(null);
-
-      // Act
-      const result = await loginUser('nonexistent', 'password');
-
-      // Assert
-      expect(result.error).toBe('User nonexistent not found'); // Исправлено здесь
-      expect(result.code).toBe('USER_NOT_FOUND');
-      
-      expect(DBManager.findUser).toHaveBeenCalledWith('nonexistent');
-      expect(require('bcryptjs').compare).not.toHaveBeenCalled();
-    });
-
-    test('should handle database errors gracefully', async () => {
-      // Arrange
-      DBManager.findUser.mockRejectedValue(global.testErrors.dbConnection);
-
-      // Act
-      const result = await loginUser('testuser', 'password');
-
-      // Assert
-      expect(result.error).toBe('Server error');
-      expect(result.code).toBe('SERVER_ERROR');
-    });
-
-    test('should handle bcrypt comparison errors', async () => {
-      // Arrange
-      DBManager.findUser.mockResolvedValue(global.mockUserData.validUser);
-      require('bcryptjs').compare.mockRejectedValueOnce(new Error('Bcrypt error'));
-
-      // Act
-      const result = await loginUser('testuser', 'password');
-
-      // Assert
-      expect(result.error).toBe('Server error');
-      expect(result.code).toBe('SERVER_ERROR');
-    });
+describe('auth.checkMessageAccess: изоляция по dID', () => {
+  beforeEach(() => {
+    auth.setSession('c1', session());
+    auth.setSession('admin', session({ username: 'boss', level: 3 }));
+  });
+  afterEach(() => {
+    auth.clearSession('c1');
+    auth.clearSession('admin');
   });
 
-  describe('verifyToken', () => {
-    test('should verify valid token successfully', () => {
-      // Act
-      const result = verifyToken('valid-token');
-
-      // Assert
-      expect(result).toEqual({ id: 1, username: 'testuser' });
-      expect(require('jsonwebtoken').verify).toHaveBeenCalledWith(
-        'valid-token',
-        process.env.JWT_SECRET
-      );
-    });
-
-    test('should throw error for invalid token', () => {
-      // Arrange
-      const jwt = require('jsonwebtoken');
-      jwt.verify.mockImplementationOnce(() => {
-        throw new Error('Invalid token');
-      });
-
-      // Act & Assert
-      expect(() => verifyToken('invalid-token')).toThrow('Invalid token');
-    });
-
-    test('should throw error for no token provided', () => {
-      // Act & Assert
-      expect(() => verifyToken()).toThrow('No token provided!');
-      expect(() => verifyToken(null)).toThrow('No token provided!');
-      expect(() => verifyToken('')).toThrow('No token provided!');
-    });
+  test('пользователь работает со своим dID', () => {
+    expect(auth.checkMessageAccess('c1', 'get', 'config', 'd1').ok).toBe(true);
   });
 
-  describe('Integration: Token generation and verification', () => {
-    test('should generate and verify token correctly', () => {
-      // Arrange
-      const jwt = require('jsonwebtoken');
-      const testPayload = { id: 1, username: 'testuser' };
-      
-      // Mock token generation
-      jwt.sign.mockReturnValueOnce('test-jwt-token');
-      
-      // Mock token verification to return the payload
-      jwt.verify.mockImplementationOnce((token, secret) => {
-        if (token === 'test-jwt-token') {
-          return testPayload;
-        }
-        throw new Error('Invalid token');
-      });
+  test('чужой dID блокируется', () => {
+    const res = auth.checkMessageAccess('c1', 'get', 'config', 'other');
+    expect(res).toMatchObject({ ok: false, code: 'DID_MISMATCH' });
+  });
 
-      // Act - Simulate token generation (not calling loginUser to avoid DB calls)
-      const token = jwt.sign(testPayload, process.env.JWT_SECRET, { expiresIn: '1h' });
-      
-      // Verify the token
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+  test('администратор (уровень 3) не ограничен', () => {
+    expect(auth.checkMessageAccess('admin', 'post', 'createUser', 'other').ok).toBe(true);
+  });
 
-      // Assert
-      expect(token).toBe('test-jwt-token');
-      expect(decoded).toEqual(testPayload);
-      
-      expect(jwt.sign).toHaveBeenCalledWith(
-        testPayload,
-        process.env.JWT_SECRET,
-        { expiresIn: '1h' }
-      );
-      expect(jwt.verify).toHaveBeenCalledWith(
-        'test-jwt-token',
-        process.env.JWT_SECRET
-      );
-    });
+  test('без name проверка dID не выполняется (совместимость)', () => {
+    expect(auth.checkMessageAccess('c1', 'get', 'config').ok).toBe(true);
+  });
+
+  test('уровня 1 недостаточно для управления пользователями и расписаний', () => {
+    expect(auth.checkMessageAccess('c1', 'post', 'deleteUser', 'd1').code).toBe('FORBIDDEN');
+    expect(auth.checkMessageAccess('c1', 'post', 'resetUserPassword', 'd1').code).toBe('FORBIDDEN');
+    expect(auth.checkMessageAccess('c1', 'get', 'schedules', 'd1').code).toBe('FORBIDDEN');
+    expect(auth.checkMessageAccess('c1', 'get', 'messages', 'd1').ok).toBe(true);
+  });
+
+  test('видео: снимок доступен с уровня 1, статус только администратору', () => {
+    expect(auth.checkMessageAccess('c1', 'get', 'videoSnapshot', 'd1').ok).toBe(true);
+    expect(auth.checkMessageAccess('c1', 'get', 'videoStatus', 'd1').code).toBe('FORBIDDEN');
+    expect(auth.checkMessageAccess('admin', 'get', 'videoStatus', 'd1').ok).toBe(true);
+  });
+
+  test('новые auth-запросы требуют сессию', () => {
+    expect(auth.checkMessageAccess('c1', 'auth', 'telegramLinkCode').ok).toBe(true);
+    expect(auth.checkMessageAccess('nobody', 'auth', 'telegramLinkCode').code).toBe('NO_SESSION');
+    expect(auth.checkMessageAccess('nobody', 'auth', 'login').ok).toBe(true);
+  });
+});
+
+describe('auth.invalidateUserSessions', () => {
+  test('удаляет все сессии пользователя без учёта регистра', () => {
+    auth.setSession('a', session({ username: 'Ivan' }));
+    auth.setSession('b', session({ username: 'ivan' }));
+    auth.setSession('c', session({ username: 'petr' }));
+    expect(auth.invalidateUserSessions('IVAN')).toBe(2);
+    expect(auth.getSession('a')).toBeNull();
+    expect(auth.getSession('c')).not.toBeNull();
+    auth.clearSession('c');
+  });
+});
+
+describe('auth.loginUser', () => {
+  const user = {
+    id: 1, uid: 'u-1', username: 'ivan', dID: 'd1', permissionLevel: 2, tokenVersion: 0, disabled: false,
+  };
+
+  test('успешный вход создаёт сессию и возвращает профиль', async () => {
+    userStore.verifyCredentials.mockResolvedValue(user);
+    const res = await auth.loginUser('cl-ok', 'ivan', 'pass', '1.1.1.1');
+    expect(res.token).toBeDefined();
+    expect(res.profile).toEqual({ username: 'ivan' });
+    expect(auth.getSession('cl-ok')).toMatchObject({ uid: 'u-1', level: 2 });
+    expect(userStore.recordLogin).toHaveBeenCalledWith('ivan');
+    auth.clearSession('cl-ok');
+  });
+
+  test('отключённая учётная запись не входит, сессия не создаётся', async () => {
+    userStore.verifyCredentials.mockResolvedValue({ ...user, disabled: true });
+    const res = await auth.loginUser('cl-off', 'ivan', 'pass', '2.2.2.2');
+    expect(res.code).toBe('ACCOUNT_DISABLED');
+    expect(auth.getSession('cl-off')).toBeNull();
+  });
+
+  test('неверный пароль', async () => {
+    userStore.verifyCredentials.mockResolvedValue(null);
+    const res = await auth.loginUser('cl-bad', 'ivan', 'nope', '3.3.3.3');
+    expect(res.code).toBe('BAD_CREDENTIALS');
+  });
+
+  test('resume отключённого пользователя отклоняется', async () => {
+    userStore.findUser.mockResolvedValue({ ...user, disabled: true });
+    const token = auth.issueToken(user);
+    const res = await auth.resumeSession('cl-res', token);
+    expect(res.code).toBe('ACCOUNT_DISABLED');
   });
 });

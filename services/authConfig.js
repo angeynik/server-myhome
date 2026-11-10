@@ -54,6 +54,9 @@ const REQUIRED_LEVEL = {
     statistics: 1,
     schedules: 2,
     notifications: 2,
+    messages: 1,
+    videoSnapshot: 1,
+    videoStatus: 3,
   },
   post: {
     _default: 1,
@@ -74,6 +77,8 @@ const REQUIRED_LEVEL = {
     linkUserToDataSource: 3,
     userConfigRequest: 3,
     userConfigEdit: 3,
+    deleteUser: 3,
+    resetUserPassword: 3,
   },
 };
 
@@ -105,5 +110,13 @@ module.exports = {
   REQUIRED_LEVEL,
   DASH_ALLOWED_TYPES: ['auth', 'get', 'post'],        // что вообще принимаем от Vue
   PUBLIC_AUTH_REQUESTS: new Set(['login', 'resume']), // доступны без сессии
-  SESSION_AUTH_REQUESTS: new Set(['logout', 'refresh', 'changePassword']),
+  SESSION_AUTH_REQUESTS: new Set([
+    'logout', 'refresh', 'changePassword',
+    'profile', 'updateProfile', 'telegramLinkCode', 'telegramUnlink',
+  ]),
+  // post-запросы, которые нельзя пересылать другим клиентам (содержат пароли и данные учёток)
+  NO_BROADCAST_POST: new Set([
+    'createUser', 'linkUserToDataSource', 'userConfigRequest', 'userConfigEdit',
+    'deleteUser', 'resetUserPassword', 'wsConnect',
+  ]),
 };

@@ -34,7 +34,14 @@ function logErrorMessage(message) {
   if (logError) console.error(`[ERROR] ${message}`);
 }
 
+const SECRET_RE = /("(?:password|oldPassword|newPassword|token)"\s*:\s*")(?:[^"\\]|\\.)*(")/g;
+
+function redactSecrets(text) {
+  return String(text).replace(SECRET_RE, '$1***$2');
+}
+
 module.exports = {
+  redactSecrets,
   logInfo: () => logInfo,
   logDev: () => logDev,
   logError: () => logError,

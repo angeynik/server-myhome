@@ -65,3 +65,52 @@ MODBUS_DEVICES='[{
     "unitId":1
     }]'
 MODBUS_MAP_FILE=./modbusMap.json
+
+# ── Видеонаблюдение ────────────────────────────────────────────────────
+VIDEO_ENABLED=true
+VIDEO_RTSP_URL=                    # rtsp://user:pass@host:554/stream (пароль кодируйте: @ → %40)
+VIDEO_DID=                         # dID, которому принадлежит камера (по умолчанию DEFAULT_USER_DID)
+VIDEO_MIN_LEVEL=1                  # минимальный уровень пользователя для просмотра
+
+# Снимки для Vue
+VIDEO_SNAPSHOT_INTERVAL_MS=5000    # минимум 500
+VIDEO_SNAPSHOT_QUALITY=3           # 2 (лучшее) … 31
+VIDEO_SNAPSHOT_MAX_WIDTH=640       # 0 — без масштабирования
+VIDEO_DECODE_KEYFRAMES_ONLY=false  # true — декодировать только ключевые кадры (меньше CPU, снимки не чаще GOP)
+
+# Сегменты MP4
+VIDEO_SEGMENT_DURATION_SEC=600
+VIDEO_FRAGMENTED_MP4=true          # читаемые файлы после обрыва питания
+VIDEO_TMP_DIR=./tmp/video
+VIDEO_TMP_MAX_MB=2048              # лимит локального архива, 0 — без лимита
+
+# Выгрузка и контроль
+VIDEO_UPLOAD_INTERVAL_SEC=300
+VIDEO_UPLOAD_MIN_AGE_SEC=30
+VIDEO_WATCHDOG_SEC=60              # перезапуск ffmpeg, если нет кадров
+FFMPEG_PATH=ffmpeg
+FFMPEG_EXTRA_ARGS=                 # входные опции ffmpeg (до -i)
+
+# MTS Cloud S3 (без этих параметров выгрузка отключена)
+MTS_S3_ENDPOINT=
+MTS_S3_REGION=ru-central-1
+MTS_S3_BUCKET=
+MTS_S3_ACCESS_KEY_ID=
+MTS_S3_SECRET_ACCESS_KEY=
+MTS_S3_PREFIX=video-archive
+MTS_S3_FORCE_PATH_STYLE=true
+
+# ── Оповещения (type: message) ─────────────────────────────────────────
+NOTIFY_DEDUP_TTL_MS=30000          # подавление одинаковых сообщений
+NOTIFY_HISTORY_SIZE=50             # сколько последних сообщений хранить на dID
+
+# ── Telegram ───────────────────────────────────────────────────────────
+TELEGRAM_ENABLED=false
+TELEGRAM_BOT_TOKEN=                # токен от @BotFather
+TELEGRAM_POLL_TIMEOUT_S=25
+TELEGRAM_LINK_TTL_MS=600000        # срок жизни кода привязки (10 минут)
+TELEGRAM_MAX_INPUT_LEN=1000        # максимум символов во входящем сообщении
+TELEGRAM_RATE_PER_MIN=20           # лимит входящих сообщений с одного чата
+TELEGRAM_BAD_CODE_LIMIT=5          # неверных кодов до блокировки чата
+TELEGRAM_BAD_CODE_LOCK_MS=900000
+#TELEGRAM_API_BASE=https://api.telegram.org

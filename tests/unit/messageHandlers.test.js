@@ -1,492 +1,220 @@
-// tests/unit/messageHandlers.test.js
-const WebSocket = require('ws');
-const {
-  handlePostNodeRED,
-  handleAuth,
-  handleGet,
-  handlePost,
-  handleResponse,
-  handleSet,
-  handleError
-} = require('../../services/messageHandlers');
-const DBManager = require('../../services/db');
-const { loginUser, verifyToken } = require('../../auth');
-const { writeFileSafely, readFileSafely } = require('../../services/configStore');
-const { nodeRedClients } = require('../../services/clientsStore');
-const wsManager = require('../../classes/wsManager');
 
-// Мокируем все зависимости
-jest.mock('../../services/db');
-jest.mock('../../auth');
-jest.mock('../../services/configStore');
-jest.mock('../../services/clientsStore');
-jest.mock('../../classes/wsManager');
-jest.mock('jsonwebtoken');
-jest.mock('bcryptjs');
-
-// Мокируем logger
-jest.mock('../../services/logger.js', () => ({
-  logDevMessage: jest.fn(),
-  logInfoMessage: jest.fn(),
-  logErrorMessage: jest.fn()
-}));
-const logger = require('../../services/logger.js');
-
-// Мокируем tableDB
-jest.mock('../../services/tableDB', () => ({
+jest.mock('../services/userStore', () => ({
   registerUser: jest.fn(),
-  linkDataSourceToUser: jest.fn()
+  updateUser: jest.fn(),
+  updateOwnProfile: jest.fn(),
+  clearTelegram: jest.fn(),
+  setPassword: jest.fn(),
+  deleteUser: jest.fn(),
+  linkUserToDataSource: jest.fn(),
+  listUsers: jest.fn(),
+  listDataSources: jest.fn(),
+  fetchUsers: jest.fn(),
 }));
-const tableDB = require('../../services/tableDB');
+jest.mock('../services/auth', () => ({
+  getSession: jest.fn(),
+  invalidateUserSessions: jest.fn(),
+  getProfile: jest.fn(),
+  loginUser: jest.fn(),
+}));
+jest.mock('../classes/wsManager', () => ({
+  sendToConnection: jest.fn(),
+  updateConnection: jest.fn(),
+}));
+jest.mock('../services/notifyService', () => ({ getRecent: jest.fn(() => [{ payload: { message: 'm' } }]) }));
+jest.mock('../services/telegramService', () => ({ get: jest.fn() }));
+jest.mock('../services/videoStreamService', () => ({ getLastSnapshot: jest.fn(), getStats: jest.fn() }));
+jest.mock('../services/configStore', () => ({
+  writeFileSafely: jest.fn(),
+  readFileSafely: jest.fn(),
+  saveNamedConfig: jest.fn(),
+  namedConfigExists: jest.fn(),
+}));
+jest.mock('../services/clientsStore', () => ({ nodeRedClients: new Map() }));
 
-describe('messageHandlers', () => {
-  let mockWs;
-  let mockClientId;
+const userStore = require('../services/userStore');
+const auth = require('../services/auth');
+const wsManager = require('../classes/wsManager');
+const notifyService = require('../services/notifyService');
+const telegramService = require('../services/telegramService');
+const videoStreamService = require('../services/videoStreamService');
+const { handlePost, handleAuth, handleGet } = require('../services/messageHandlers');
 
-  beforeEach(() => {
-    // Создаем mock WebSocket и clientId
-    mockWs = {
-      send: jest.fn(),
-      readyState: WebSocket.OPEN
-    };
+const post = (request, payload) => handlePost('c1', { type: 'post', request, name: 'd1', payload });
+const sent = (request) => wsManager.sendToConnection.mock.calls.find((c) => c[3] === request);
 
-    mockClientId = global.mockWebSocketData.clientId;
+beforeEach(() => {
+  jest.clearAllMocks();
+  auth.getSession.mockReturnValue({ username: 'boss', level: 3, dID: 'd1' });
+});
 
-    // Настраиваем моки
-    jest.clearAllMocks();
-    
-    // Моки для клиентов store
-    nodeRedClients.get = jest.fn().mockReturnValue({ output: mockWs });
-    
-    // Моки для auth
-    loginUser.mockResolvedValue({
-      success: true,
-      token: 'mock-jwt-token',
-      username: 'testuser',
-      userlevel: 1,
-      dID: 'test-did-123'
+describe('handlePost: пользователи', () => {
+  test('createUser передаёт email, имя и настройки', async () => {
+    userStore.registerUser.mockResolvedValue({ user: { username: 'ivan' }, userCreated: true });
+    await post('createUser', {
+      username: 'ivan', password: 'longpassword', permissionLevel: 1, dataSource: 'h1',
+      email: 'a@b.co', displayName: 'Иван', notify: { telegram: false },
     });
-
-    // Моки для configStore
-    readFileSafely.mockResolvedValue({
-      data: global.mockConfigData.validConfig,
-      dataDir: process.env.DATA_DIR,
-      filePath: `${process.env.DATA_DIR}/test-device-123.json`
-    });
-
-    writeFileSafely.mockResolvedValue();
-
-    // Моки для DBManager методов
-    DBManager.fetchUsers = jest.fn();
-    DBManager.fetchDataSources = jest.fn();
-    DBManager.createDB = jest.fn();
-    DBManager.createTableDID = jest.fn();
-    DBManager.query = jest.fn();
-    DBManager.checkTableExists = jest.fn();
-    DBManager.checkRecordExists = jest.fn();
-
-    // Моки для wsManager
-    wsManager.sendToConnection = jest.fn();
-    wsManager.updateConnection = jest.fn();
+    expect(userStore.registerUser).toHaveBeenCalledWith(
+      'ivan', 'longpassword', 1, 'h1', 'h1',
+      { email: 'a@b.co', displayName: 'Иван', notify: { telegram: false }, mustChangePassword: false }
+    );
+    expect(sent('createUserSuccess')).toBeDefined();
   });
 
-  describe('handlePostNodeRED', () => {
-    test('должен успешно обрабатывать запрос sensor от NodeRED', async () => {
-      const message = {
-        name: 'test-device-123',
-        request: 'sensor',
-        payload: {
-          room: 'living_room',
-          item_name: 'temperature',
-          item_value: 22.5,
-          item_type: 'number',
-          title: 'Living Room',
-          group: 'climate'
-        }
-      };
-
-      const result = await handlePostNodeRED(mockClientId, message);
-
-      expect(result).toBe('ok');
-      expect(readFileSafely).toHaveBeenCalledWith('test-device-123');
-      expect(writeFileSafely).toHaveBeenCalled();
-    });
-
-    test('должен создавать новую комнату если она не существует', async () => {
-      const message = {
-        name: 'test-device-123',
-        request: 'sensor',
-        payload: {
-          room: 'new_room',
-          item_name: 'humidity',
-          item_value: 45,
-          item_type: 'number'
-        }
-      };
-
-      const result = await handlePostNodeRED(mockClientId, message);
-
-      expect(result).toBe('ok');
-      expect(writeFileSafely).toHaveBeenCalled();
-    });
-
-    test('должен возвращать ошибку при отсутствии обязательных полей', async () => {
-      const message = {
-        name: 'test-device-123',
-        request: 'sensor',
-        payload: {
-          room: '',
-          item_name: '',
-          item_value: undefined
-        }
-      };
-
-      await expect(handlePostNodeRED(mockClientId, message))
-        .rejects
-        .toThrow('Missing required fields');
-    });
+  test('createUser без dataSource допустим (dID выводится из имени)', async () => {
+    userStore.registerUser.mockResolvedValue({ user: {}, userCreated: true });
+    await post('createUser', { username: 'ivan', password: 'longpassword', permissionLevel: 1 });
+    expect(userStore.registerUser.mock.calls[0].slice(3, 5)).toEqual([undefined, undefined]);
   });
 
-  describe('handleAuth', () => {
-    test('должен успешно обрабатывать login запрос', async () => {
-      const data = {
-        request: 'login',
-        name: 'test-device',
-        payload: {
-          username: 'testuser',
-          password: 'testpassword123'
-        }
-      };
-
-      await handleAuth(mockClientId, data);
-
-      expect(loginUser).toHaveBeenCalledWith('testuser', 'testpassword123');
-      expect(wsManager.updateConnection).toHaveBeenCalledWith(
-        'VUE_connections',
-        mockClientId,
-        expect.any(Number),
-        'test-did-123'
-      );
-      expect(wsManager.sendToConnection).toHaveBeenCalledWith(
-        'VUE_connections',
-        mockClientId,
-        'response',
-        'loginSuccess',
-        'test-did-123',
-        expect.objectContaining({
-          token: 'mock-jwt-token',
-          username: 'testuser',
-          userlevel: 1
-        })
-      );
-    });
-
-    test('должен отправлять ошибку при неудачном login', async () => {
-      loginUser.mockResolvedValueOnce({
-        error: 'Invalid credentials',
-        code: 'AUTH_ERROR',
-        dID: 'test-device'
-      });
-
-      const data = {
-        request: 'login',
-        name: 'test-device',
-        payload: {
-          username: 'testuser',
-          password: 'wrongpassword'
-        }
-      };
-
-      await handleAuth(mockClientId, data);
-
-      expect(wsManager.sendToConnection).toHaveBeenCalledWith(
-        'VUE_connections',
-        mockClientId,
-        'error',
-        'loginError',
-        'test-device',
-        expect.objectContaining({
-          code: 'AUTH_ERROR',
-          message: 'Invalid credentials'
-        })
-      );
-    });
+  test('createUser без обязательных полей — ошибка', async () => {
+    await post('createUser', { username: 'ivan' });
+    expect(userStore.registerUser).not.toHaveBeenCalled();
+    expect(sent('createUserError')).toBeDefined();
   });
 
-  describe('handleGet', () => {
-    test('должен успешно обрабатывать fetchUsers запрос', async () => {
-      const mockUsers = [{ id: 1, username: 'user1' }, { id: 2, username: 'user2' }];
-      DBManager.fetchUsers.mockResolvedValue(mockUsers);
-
-      const data = {
-        request: 'fetchUsers',
-        name: 'test-device'
-      };
-
-      await handleGet(mockClientId, data);
-
-      expect(DBManager.fetchUsers).toHaveBeenCalled();
-      expect(wsManager.sendToConnection).toHaveBeenCalledWith(
-        'VUE_connections',
-        mockClientId,
-        'response',
-        'fetchUsersSuccess',
-        'test-device',
-        { users: mockUsers }
-      );
-    });
-
-    test('должен успешно обрабатывать config запрос', async () => {
-      const data = {
-        request: 'config',
-        name: 'test-device-123'
-      };
-
-      await handleGet(mockClientId, data);
-
-      expect(readFileSafely).toHaveBeenCalledWith('test-device-123');
-      expect(wsManager.sendToConnection).toHaveBeenCalledWith(
-        'VUE_connections',
-        mockClientId,
-        'response',
-        'config',
-        'test-device-123',
-        global.mockConfigData.validConfig
-      );
-    });
-
-    test('должен отправлять ошибку при отсутствии имени конфига', async () => {
-      const data = {
-        request: 'config',
-        name: null
-      };
-
-      await handleGet(mockClientId, data);
-
-      expect(wsManager.sendToConnection).toHaveBeenCalledWith(
-        'VUE_connections',
-        mockClientId,
-        'error',
-        'configError',
-        null,
-        expect.objectContaining({
-          message: '[messageHandlers] - Не указано имя конфига в запросе',
-          code: 'config_read_error'
-        })
-      );
-    });
+  test('userConfigRequest возвращает пользователей и источники', async () => {
+    userStore.listUsers.mockResolvedValue([{ username: 'a' }]);
+    userStore.listDataSources.mockResolvedValue([{ did: 'd1' }]);
+    await post('userConfigRequest', {});
+    expect(sent('userConfig')[5]).toEqual({ users: [{ username: 'a' }], datasources: [{ did: 'd1' }] });
   });
 
-  describe('handlePost', () => {
-    test('должен успешно обрабатывать createUser запрос', async () => {
-      const mockNewUser = { id: 3, username: 'newuser' };
-      tableDB.registerUser.mockResolvedValue({ user: mockNewUser });
-
-      DBManager.createDB.mockResolvedValue();
-      DBManager.createTableDID.mockResolvedValue();
-
-      const data = {
-        request: 'createUser',
-        name: 'test-device',
-        payload: {
-          username: 'newuser',
-          password: 'password123',
-          dataSource: 'new_db',
-          permissionLevel: 1
-        }
-      };
-
-      await handlePost(mockClientId, data);
-
-      expect(tableDB.registerUser).toHaveBeenCalled();
-      expect(DBManager.createDB).toHaveBeenCalled();
-      expect(DBManager.createTableDID).toHaveBeenCalled();
-      expect(wsManager.sendToConnection).toHaveBeenCalledWith(
-        'VUE_connections',
-        mockClientId,
-        'response',
-        'createUserSuccess',
-        'test-device',
-        { user: mockNewUser }
-      );
-    });
-
-    test('должен обрабатывать setpoint запрос', async () => {
-      const data = {
-        request: 'setpoints',
-        name: 'test-device-123',
-        payload: {
-          room: 'living_room',
-          param: 'target_temperature',
-          value: 24
-        }
-      };
-
-      await handlePost(mockClientId, data);
-
-      expect(readFileSafely).toHaveBeenCalledWith('test-device-123');
-      expect(writeFileSafely).toHaveBeenCalled();
-    });
+  test('userConfigEdit: отзыв сессий при revoked', async () => {
+    userStore.updateUser.mockResolvedValue({ user: { username: 'ivan' }, revoked: true });
+    await post('userConfigEdit', { username: 'ivan', patch: { permissionLevel: 2 } });
+    expect(auth.invalidateUserSessions).toHaveBeenCalledWith('ivan');
+    expect(sent('userConfigEditSuccess')).toBeDefined();
   });
 
-  describe('handleResponse', () => {
-    test('должен успешно обрабатывать config response', async () => {
-      const configData = global.mockConfigData.validConfig;
-      const data = {
-        request: 'config',
-        name: 'test-device-123',
-        payload: { thermostat: configData }
-      };
-
-      DBManager.checkRecordExists.mockResolvedValue({ exists: false });
-      DBManager.query.mockResolvedValue({
-        rows: [{ id: 1, name: 'thermostat', update_date: new Date() }]
-      });
-
-      await handleResponse(mockClientId, data);
-
-      expect(DBManager.checkRecordExists).toHaveBeenCalled();
-      expect(DBManager.query).toHaveBeenCalled();
-      expect(wsManager.sendToConnection).toHaveBeenCalledWith(
-        'nRED_connections',
-        mockClientId,
-        'response',
-        'configSaved',
-        'test-device-123',
-        expect.any(Object)
-      );
-    });
-
-    test('должен отправлять configExists если конфиг уже существует', async () => {
-      const data = {
-        request: 'config',
-        name: 'test-device-123',
-        payload: { thermostat: global.mockConfigData.validConfig }
-      };
-
-      DBManager.checkRecordExists.mockResolvedValue({ exists: true, id: 42 });
-
-      await handleResponse(mockClientId, data);
-
-      expect(wsManager.sendToConnection).toHaveBeenCalledWith(
-        'nRED_connections',
-        mockClientId,
-        'response',
-        'configExists',
-        'test-device-123',
-        expect.objectContaining({
-          exists: true,
-          id: 42
-        })
-      );
-    });
+  test('userConfigEdit: нельзя понизить или заблокировать себя', async () => {
+    await post('userConfigEdit', { username: 'BOSS', patch: { permissionLevel: 1 } });
+    await post('userConfigEdit', { username: 'boss', patch: { disabled: true } });
+    expect(userStore.updateUser).not.toHaveBeenCalled();
+    expect(wsManager.sendToConnection.mock.calls.filter((c) => c[3] === 'userConfigEditError')).toHaveLength(2);
+    expect(sent('userConfigEditError')[5].code).toBe('SELF_EDIT');
   });
 
-  describe('handleSet и handleError', () => {
-    test('handleSet должен логировать вызов', async () => {
-      const data = { request: 'test' };
-
-      await handleSet(mockClientId, data);
-
-      expect(logger.logDevMessage).toHaveBeenCalledWith(
-        '[messageHandlers] - handleSet - Переходим к проверке сообщения типа set.'
-      );
-    });
-
-    test('handleError должен логировать вызов', async () => {
-      const data = { request: 'test' };
-
-      await handleError(mockClientId, data);
-
-      expect(logger.logDevMessage).toHaveBeenCalledWith(
-        '[messageHandlers] - handleError - Переходим к проверке сообщения типа Error'
-      );
-    });
+  test('userConfigEdit: свои настройки оповещений менять можно', async () => {
+    userStore.updateUser.mockResolvedValue({ user: {}, revoked: false });
+    await post('userConfigEdit', { username: 'boss', patch: { notify: { telegram: false } } });
+    expect(userStore.updateUser).toHaveBeenCalled();
+    expect(auth.invalidateUserSessions).not.toHaveBeenCalled();
   });
 
-  describe('Интеграционные тесты с глобальными данными', () => {
-    test('должен использовать глобальные mock данные для config', async () => {
-      const data = {
-        request: 'config',
-        name: global.mockDeviceIDs[0] // thermostat-living-room
-      };
-
-      await handleGet(mockClientId, data);
-
-      expect(readFileSafely).toHaveBeenCalledWith(global.mockDeviceIDs[0]);
-    });
-
-    test('должен использовать глобальные mock данные для auth', async () => {
-      const data = {
-        request: 'login',
-        name: 'test-device',
-        payload: global.testRequests.validLogin
-      };
-
-      await handleAuth(mockClientId, data);
-
-      expect(loginUser).toHaveBeenCalledWith(
-        global.testRequests.validLogin.username,
-        global.testRequests.validLogin.password
-      );
-    });
-
-    test('должен обрабатывать различные device IDs', async () => {
-      for (const deviceId of global.mockDeviceIDs.slice(0, 3)) {
-        const data = {
-          request: 'config',
-          name: deviceId
-        };
-
-        await handleGet(mockClientId, data);
-        expect(readFileSafely).toHaveBeenCalledWith(deviceId);
-      }
-    });
+  test('userConfigEdit: ошибка store возвращается с кодом', async () => {
+    userStore.updateUser.mockRejectedValue(Object.assign(new Error('last'), { code: 'LAST_ADMIN' }));
+    await post('userConfigEdit', { username: 'other', patch: { disabled: true } });
+    expect(sent('userConfigEditError')[5].code).toBe('LAST_ADMIN');
   });
 
-  describe('Обработка ошибок', () => {
-    test('должен обрабатывать ошибки БД в handleGet', async () => {
-      DBManager.fetchUsers.mockRejectedValue(new Error('Database error'));
+  test('resetUserPassword ставит mustChange и сбрасывает сессии', async () => {
+    userStore.setPassword.mockResolvedValue({ username: 'ivan' });
+    await post('resetUserPassword', { username: 'ivan', newPassword: 'newlongpassword' });
+    expect(userStore.setPassword).toHaveBeenCalledWith('ivan', 'newlongpassword', { mustChange: true });
+    expect(auth.invalidateUserSessions).toHaveBeenCalledWith('ivan');
+    expect(JSON.stringify(sent('resetUserPasswordSuccess')[5])).not.toContain('newlongpassword');
+  });
 
-      const data = {
-        request: 'fetchUsers',
-        name: 'test-device'
-      };
+  test('deleteUser: себя удалить нельзя', async () => {
+    await post('deleteUser', { username: 'boss' });
+    expect(userStore.deleteUser).not.toHaveBeenCalled();
+    expect(sent('deleteUserError')[5].code).toBe('SELF_DELETE');
+  });
 
-      await handleGet(mockClientId, data);
+  test('deleteUser: удаляет и сбрасывает сессии', async () => {
+    userStore.deleteUser.mockResolvedValue({ username: 'ivan', dID: 'd1', otherUsersOnSameDID: 0 });
+    await post('deleteUser', { username: 'ivan' });
+    expect(auth.invalidateUserSessions).toHaveBeenCalledWith('ivan');
+    expect(sent('deleteUserSuccess')).toBeDefined();
+  });
 
-      expect(wsManager.sendToConnection).toHaveBeenCalledWith(
-        'VUE_connections',
-        mockClientId,
-        'error',
-        'fetchUsersError',
-        'test-device',
-        expect.objectContaining({
-          message: 'Database error'
-        })
-      );
+  test('linkUserToDataSource сбрасывает сессии при смене dID', async () => {
+    userStore.linkUserToDataSource.mockResolvedValue({ user: { username: 'ivan' }, revoked: true });
+    await post('linkUserToDataSource', { userId: 2, dataSourceId: 3 });
+    expect(auth.invalidateUserSessions).toHaveBeenCalledWith('ivan');
+    expect(sent('linkUserToDataSourceSuccess')).toBeDefined();
+  });
+});
+
+describe('handleAuth: профиль и Telegram', () => {
+  const run = (request, payload = {}) => handleAuth('c1', { type: 'auth', request, name: 'd1', payload });
+
+  test('login отдаёт profile', async () => {
+    auth.loginUser.mockResolvedValue({
+      token: 't', username: 'ivan', userlevel: 1, dID: 'd1', mustChangePassword: false, profile: { uid: 'u' },
     });
+    await run('login', { username: 'ivan', password: 'x' });
+    expect(sent('loginSuccess')[5].profile).toEqual({ uid: 'u' });
+  });
 
-    test('должен обрабатывать ошибки чтения конфига', async () => {
-      readFileSafely.mockRejectedValue(new Error('File read error'));
+  test('telegramLinkCode: Telegram выключен', async () => {
+    telegramService.get.mockReturnValue(null);
+    await run('telegramLinkCode');
+    expect(sent('telegramLinkError')[5].code).toBe('TELEGRAM_DISABLED');
+  });
 
-      const data = {
-        request: 'config',
-        name: 'test-device-123'
-      };
+  test('telegramLinkCode: код выдаётся текущему пользователю', async () => {
+    const createLinkCode = jest.fn(() => ({ code: 'ABCD2345' }));
+    telegramService.get.mockReturnValue({ createLinkCode });
+    await run('telegramLinkCode');
+    expect(createLinkCode).toHaveBeenCalledWith('boss');
+    expect(sent('telegramLinkCode')[5]).toEqual({ code: 'ABCD2345' });
+  });
 
-      await handleGet(mockClientId, data);
+  test('telegramUnlink отвязывает чат текущего пользователя', async () => {
+    userStore.clearTelegram.mockResolvedValue({ username: 'boss' });
+    await run('telegramUnlink');
+    expect(userStore.clearTelegram).toHaveBeenCalledWith('boss');
+    expect(sent('telegramUnlinkSuccess')).toBeDefined();
+  });
 
-      expect(wsManager.sendToConnection).toHaveBeenCalledWith(
-        'VUE_connections',
-        mockClientId,
-        'error',
-        'configError',
-        'test-device-123',
-        expect.objectContaining({
-          message: 'File read error'
-        })
-      );
-    });
+  test('updateProfile: только свои поля, ошибки с кодом', async () => {
+    userStore.updateOwnProfile.mockRejectedValue(Object.assign(new Error('bad'), { code: 'BAD_EMAIL' }));
+    await run('updateProfile', { email: 'x', level: 3 });
+    expect(userStore.updateOwnProfile).toHaveBeenCalledWith('boss', { email: 'x', displayName: undefined, notify: undefined });
+    expect(sent('updateProfileError')[5].code).toBe('BAD_EMAIL');
+  });
+
+  test('profile', async () => {
+    auth.getProfile.mockResolvedValue({ username: 'boss' });
+    await run('profile');
+    expect(sent('profile')[5]).toEqual({ profile: { username: 'boss' } });
+  });
+});
+
+describe('handleGet: messages', () => {
+  test('история берётся по dID и уровню сессии, а не по name из сообщения', async () => {
+    auth.getSession.mockReturnValue({ username: 'ivan', level: 2, dID: 'mine' });
+    await handleGet('c1', { type: 'get', request: 'messages', name: 'someone_else' });
+    expect(notifyService.getRecent).toHaveBeenCalledWith('mine', 2);
+    expect(sent('messages')[5].items).toHaveLength(1);
+  });
+});
+
+describe('handleGet: видео', () => {
+  const get = (request) => handleGet('c1', { type: 'get', request, name: 'd1' });
+
+  test('videoSnapshot отдаёт последний кадр с учётом сессии', async () => {
+    const session = { username: 'ivan', level: 1, dID: 'd1' };
+    auth.getSession.mockReturnValue(session);
+    videoStreamService.getLastSnapshot.mockReturnValue({ image: 'AAA', mimeType: 'image/jpeg' });
+    await get('videoSnapshot');
+    expect(videoStreamService.getLastSnapshot).toHaveBeenCalledWith(session);
+    expect(sent('videoSnapshot')[5]).toEqual({ image: 'AAA', mimeType: 'image/jpeg' });
+  });
+
+  test('videoSnapshot: нет кадра или нет доступа — ошибка NO_SNAPSHOT', async () => {
+    videoStreamService.getLastSnapshot.mockReturnValue(null);
+    await get('videoSnapshot');
+    expect(sent('videoSnapshotError')[5].code).toBe('NO_SNAPSHOT');
+    expect(sent('videoSnapshot')).toBeUndefined();
+  });
+
+  test('videoStatus возвращает статистику', async () => {
+    videoStreamService.getStats.mockReturnValue({ isRunning: true });
+    await get('videoStatus');
+    expect(sent('videoStatus')[5]).toEqual({ isRunning: true });
   });
 });
