@@ -25,3 +25,9 @@ data/*
 
 configData/*
 !configData/.gitkeep
+
+# ── Артефакты сборки и системы ──────────────────────────────────────────
+coverage/
+.DS_Store
+# Видеоархив до выгрузки в S3 (VIDEO_TMP_DIR)
+tmp/
