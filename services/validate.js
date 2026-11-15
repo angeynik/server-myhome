@@ -62,7 +62,8 @@ function validType(message) {
 const postSchema = Joi.object({
   type:    Joi.string().valid('post').required(),
   request: Joi.string().min(1).max(64).required(),
-  name:    Joi.string().min(1).max(64).required(),
+  // name — dID: он попадает в имена файлов, поэтому только безопасный алфавит
+  name:    Joi.string().pattern(cfg.DID_RE).required(),
 
   // payload должен быть именно объектом. Пустой объект тоже допустим:
   // некоторые request'ы (wsConnect, sensors) приходят без полезной нагрузки.
@@ -115,12 +116,4 @@ function validMessage(message) {
   return { status: 'ok', value };
 }
 
-// ─────────────────────────────────────────────────────────────────────────
-// 4. validConfig — заглушка для совместимости
-// ─────────────────────────────────────────────────────────────────────────
-function validConfig(message) {
-  console.log('Сообщение для валидации:', message);
-  return 'ok';
-}
-
-module.exports = { validType, validConfig, validPost, validMessage };
+module.exports = { validType, validPost, validMessage };

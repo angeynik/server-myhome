@@ -1,10 +1,11 @@
+// serverapp.js — точка входа: HTTP-сервер (Express + CORS), WS-серверы Dashboard и NodeRED,
+// маршрутизация сообщений и запуск сервисов (Modbus TCP, видео, Telegram, GPIO).
+// Бизнес-логики не содержит: она в services/ и classes/. Протокол — rules.md.
+'use strict';
+
 const express = require('express');
 const http = require('http');
-//const axios = require('axios');
 const cors = require('cors');
-//const path = require('path');
-const bodyParser = require('body-parser');
-//const fs = require('fs');
 const userStore = require('./services/userStore.js');
 const auth = require('./services/auth');
 const cfg = require('./services/authConfig');
@@ -12,82 +13,46 @@ const cfg = require('./services/authConfig');
 const wsManager = require('./classes/wsManager.js');
 const modbusManager = require('./classes/modBusTCPManager');
 const modbusBridge  = require('./services/modbusTCPBridge.js');
+const modbusRtuBridge = require('./services/modbusRTUBridge.js'); // modbus-serial грузится только при init()
 const nc = require('./services/notifyConfig.js');
 const notifyService = require('./services/notifyService.js');
 const telegramService = require('./services/telegramService.js');
 const videoStreamService = require('./services/videoStreamService.js');
 
-//const { nodeRedClients, registerClient, getAllClients, getClient, startHeartbeat} = require('./services/clientsStore');
 const { addMessageToQueue, processAllQueues} = require('./services/messageStore.js');
-const { handleAuth, handleGet, handlePost, handleResponse, handleSet, handleError} = require('./services/messageHandlers.js'); // Подключаем обработку входящих по WS сообщений
+const { handleAuth, handleGet, handlePost } = require('./services/messageHandlers.js');
 
-const dotenv = require('dotenv'); // Подключаем .ENV файл с переменными окружения
-dotenv.config({path: './conf.env'}); // Указываем путь к  файлу .env
-//const { loginUser, verifyToken } = require('./auth'); // Импортируем функции авторизации
+// conf.env загружается в services/authConfig.js (подключён выше)
 
 
-// Подключаем функции модуля joi для валидации данных
 const { validType, validPost, validMessage } = require('./services/validate');
 
 const servPORT = process.env.SERVER_PORT || 3010;
 const wsRedPORT = process.env.WSR_PORT_IN|| 9200;
+const wsRedHOST = process.env.WSR_HOST || '127.0.0.1';
 const wsDashPORT = process.env.WSD_PORT_IN|| 9202;
 // ── Флаги управления потоками ─────────────────────────────────────────
 const NODERED_ENABLED = String(process.env.NODERED_ENABLED ?? 'true').toLowerCase() === 'true';
 const MODBUS_ENABLED  = String(process.env.MODBUS_ENABLED  ?? 'true').toLowerCase() === 'true';
 const VIDEO_ENABLED   = String(process.env.VIDEO_ENABLED   ?? 'true').toLowerCase() === 'true';
-
-// const EXT_URL = process.env.EXT_URL || 'http://192.168.1.94:3020';
-// const LOCAL_URL = process.env.LOCAL_URL || 'http://localhost:3020';
-// const pingInterval = process.env.WS_PING_INTERVAL || 150000;
-// const timeOut = process.env.WS_TIME_OUT || 300000;
+// Modbus RTU (RS-485, modBus/): по умолчанию выключен, конфигурация — MODBUS_RTU_CONF
+const MODBUS_RTU_ENABLED = String(process.env.MODBUS_RTU_ENABLED ?? 'false').toLowerCase() === 'true';
 
 
 const logger = require('./services/logger.js');
 logger.initLogging();
 logger.logInfoMessage(
   `[Serverapp] - потоки: VUE=ON, NodeRED=${NODERED_ENABLED ? 'ON' : 'OFF'}, ` +
-  `Modbus=${MODBUS_ENABLED ? 'ON' : 'OFF'}, Video=${VIDEO_ENABLED ? 'ON' : 'OFF'}`
+  `Modbus TCP=${MODBUS_ENABLED ? 'ON' : 'OFF'}, Modbus RTU=${MODBUS_RTU_ENABLED ? 'ON' : 'OFF'}, ` +
+  `Video=${VIDEO_ENABLED ? 'ON' : 'OFF'}`
 );
 
 const app = express();
-app.set(servPORT);
 const server = http.createServer(app);
 app.use(cors());
-// app.use(cors({
-//   origin: [EXT_URL, LOCAL_URL],
-//   credentials: true
-// }));
 app.use(express.json());
-app.use(bodyParser.json());
 
 
-
-
-
-// Инициализация сервера
-// const initialize = async () => {
-//   const envInit = process.env.INIT_DB;
-//   logger.logDevMessage(`[Serverapp] - envInit - инициализация сервера - ${envInit}`);
-//   if (envInit === 'TRUE') {
-//     try {
-//       await initServer(); // Выполняем инициализацию
-//       await initUsers(); // Проверяем существование таблицы Users
-//       await initDefaulUser();  // Проверяем наличие пользователя по умолчанию
-//       await initDB_dID(); // Проверяем есть ли база для пользователя по умолчанию Имя для базы - DEFAULT_USER_DID 
-//       logger.logDevMessage(`[Serverapp] - Инициализация сервера завершена успешно.`);
-//     } catch (error) {
-//       logger.logErrorMessage(`[Serverapp] - Ошибка при инициализации сервера: ${error}`);
-//       //console.error('[Serverapp] - Ошибка при инициализации сервера:', error);
-//     }
-//   } else {
-//     logger.logInfoMessage(`[Serverapp] - Инициализация сервера запрещена INIT_DB - ${envInit}`);
-//     //console.log('[Serverapp] - Инициализация сервера запрещена INIT_DB - ', envInit);
-//   }
-
-
-// };
-// initialize(); // Выполняем инициализацию сервера
 // ── Инициализация ─────────────────────────────────────────────────────────
 
 
@@ -119,10 +84,9 @@ app.use(bodyParser.json());
   // Запуск сервера
   server.listen(servPORT, () => {
     logger.logInfoMessage(`[Serverapp] - MyHome Server is running on port ${servPORT}`);
-    //console.log(`[Serverapp] - MyHome Server is running on port ${servPORT}`);
   });
 
-  // Корректное завершение работы сервера и закрытие соединения с базой данных //////////////////////////////////////////////////////
+// ── Корректное завершение работы ──────────────────────────────────────────
 let isShuttingDown = false;
 let forceShutdownTimer;
 
@@ -143,12 +107,14 @@ const handleShutdown = async () => {
     safeWrite('✅ Telegram остановлен');
     await videoStreamService.stop();
     safeWrite('✅ Видео остановлено');
-    // modbusBridge.stop();
-    // modbusManager.cleanup();
     if (MODBUS_ENABLED) {
       modbusBridge.stop();
       modbusManager.cleanup();
       safeWrite('✅ Modbus остановлен');
+    }
+    if (MODBUS_RTU_ENABLED) {
+      modbusRtuBridge.stop();
+      safeWrite('✅ Modbus RTU остановлен');
     }
 
     // 2. Закрываем WebSocket-серверы и их соединения через wsManager
@@ -159,7 +125,6 @@ const handleShutdown = async () => {
       // Очищаем все соединения через wsManager
       const cleanupResults = [
         { name: 'Dashboard connections', result: wsManager.cleanup('VUE_connections') },
-        // { name: 'NodeRED connections', result: wsManager.cleanup('nRED_connections') },
       ];
       if (NODERED_ENABLED) {
         cleanupResults.push({ name: 'NodeRED connections', result: wsManager.cleanup('nRED_connections') });
@@ -247,14 +212,14 @@ process.on('SIGTERM', () => handleShutdown());
 
 
 const WebSocket = require('ws');
-//const { mkdir } = require('fs');
-//const { error } = require('console');
 
 //устанавливаем соединение через Web Socket
-//const WSSNodeRED = new WebSocket.Server ({port:wsRedPORT});
 let WSSNodeRED = null;
 if (NODERED_ENABLED) {
-  WSSNodeRED = new WebSocket.Server({ port: wsRedPORT });
+  // Канал NodeRED без аутентификации: по умолчанию слушаем только локальный интерфейс.
+  // Если NodeRED на другой машине — WSR_HOST=<адрес интерфейса> и ограничение файрволом.
+  WSSNodeRED = new WebSocket.Server({ port: wsRedPORT, host: wsRedHOST });
+  logger.logInfoMessage(`[Serverapp] - NodeRED WS слушает ${wsRedHOST}:${wsRedPORT}`);
 } else {
   logger.logInfoMessage('[Serverapp] - NodeRED отключён (NODERED_ENABLED=false)');
 }
@@ -265,12 +230,10 @@ console.log(`WebSocket servers are running  DashBoard (client) ws port:${wsDashP
 
 // ✅ ЗАПУСКАЕМ HEARTBEAT ДЛЯ ВСЕХ WebSocket СОЕДИНЕНИЙ
 wsManager.startHeartbeat('VUE_connections', 180000, 370000); // Для Dashboard соединений
-//wsManager.startHeartbeat('nRED_connections', 240000, 500000); // Для NodeRED соединений
 if (NODERED_ENABLED) {
   wsManager.startHeartbeat('nRED_connections', 240000, 500000);
 }
 logger.logDevMessage('[Serverapp] - Heartbeat monitoring started for all WebSocket  connections');
-// console.log('[Serverapp] - Heartbeat monitoring started for all WebSocket connections');
 
 if (MODBUS_ENABLED) {
   modbusManager.loadFromEnv();
@@ -278,6 +241,15 @@ if (MODBUS_ENABLED) {
   logger.logInfoMessage('[Serverapp] - Запускаем modbusBridge TCP');
 } else {
   logger.logInfoMessage('[Serverapp] - Modbus отключён (MODBUS_ENABLED=false)');
+}
+
+if (MODBUS_RTU_ENABLED) {
+  // Ошибка RTU (нет порта, неверный конфиг) не мешает работе остального сервера
+  modbusRtuBridge.init({ broadcast })
+    .then(({ master, slave }) => logger.logInfoMessage(`[Serverapp] - Modbus RTU запущен: тегов Master ${master}, Slave ${slave}`))
+    .catch((e) => logger.logErrorMessage(`[Serverapp] - Modbus RTU не запущен: ${e.message}`));
+} else {
+  logger.logInfoMessage('[Serverapp] - Modbus RTU отключён (MODBUS_RTU_ENABLED=false)');
 }
 
 if (VIDEO_ENABLED) {
@@ -320,20 +292,30 @@ setInterval(async () => {
   }
 }, QUEUE_PROCESS_INTERVAL).unref();
 
-// 2) Очистка истёкших сессий и записей rate-limit (один таймер на процесс)
-const SESSION_CLEANUP_INTERVAL = 60_000; // 1 мин
+// 2) Очистка rate-limit и закрытие соединений Dashboard, которые дольше
+//    AUTH_TIMEOUT_MS остаются без входа (один таймер на процесс).
+//    Сессии вошедших пользователей по бездействию не истекают.
+const SESSION_CLEANUP_INTERVAL = Math.min(60_000, Math.max(5_000, Math.floor((cfg.AUTH_TIMEOUT_MS || 60_000) / 4)));
+const AUTH_TIMEOUT_CLOSE_CODE = 4401;
 
 setInterval(() => {
   try {
-    auth.cleanupSessions();
+    for (const clientId of auth.cleanupSessions()) {
+      wsManager.sendToConnection(
+        'VUE_connections', clientId,
+        'error', 'accessError', 'unknown',
+        { code: 'TIMEOUT', message: 'Время на вход истекло' }
+      );
+      wsManager.removeConnection('VUE_connections', clientId, {
+        code: AUTH_TIMEOUT_CLOSE_CODE,
+        reason: 'auth timeout',
+      });
+    }
   } catch (e) {
     logger.logErrorMessage(`[Serverapp] - cleanupSessions: ${e.message}`);
   }
 }, SESSION_CLEANUP_INTERVAL).unref();
 
-// Блок с переменными
-//let sendToRed = false;
-//const reconnectInterval = 100;
 
 // Работаем с NodeRED
 if (NODERED_ENABLED) {
@@ -346,7 +328,6 @@ if (NODERED_ENABLED) {
     const params = new URLSearchParams(req.url.replace(/^.*\?/, ""));
     const id = params.get("id");
     logger.logInfoMessage(`[Serverapp] - WSSNodeRED.on - id: ${id}`);
-    //console.log(`Подключился клиент: id = ${id}`);
 
 
   logger.logDevMessage(`Client connected to NodeRED on port ${wsRedPORT}`);
@@ -356,10 +337,14 @@ if (NODERED_ENABLED) {
         try {
           const checkInputMessage = checkMessage(message);
           logger.logDevMessage(`[Serverapp] - WSSNodeRED - checkInputMessage - ${JSON.stringify(checkInputMessage, null, 2)}`);
-          //console.log(`[Serverapp] - WSSNodeRED - checkInputMessage - ${JSON.stringify(checkInputMessage, null, 2)}`);
           if(checkInputMessage.status === 'ok') {
 
             const dID = checkInputMessage.data.name;
+            // dID попадает в имена файлов и выбор получателей: недопустимый — отбрасываем сообщение
+            if (dID !== undefined && !cfg.isValidDID(dID)) {
+              logger.logErrorMessage(`[Serverapp] - WSSNodeRED - недопустимый dID, сообщение отброшено (${checkInputMessage.data.type}/${checkInputMessage.data.request})`);
+              return;
+            }
             if (dID) {
               const conn = wsManager.nRED_connections.get(connectionId);
               if (conn && !conn.dID) {
@@ -385,13 +370,6 @@ if (NODERED_ENABLED) {
                 break;
               case 'post':
                     logger.logDevMessage(`[Serverapp] - WSSNodeRED - Post -- Добавляем сообщение в очередь`);
-                    const key = 
-                    `${checkInputMessage.data.type}|
-                    ${checkInputMessage.data.name}|
-                    ${checkInputMessage.data.request}|
-                    ${checkInputMessage.data.payload.room}|
-                    ${checkInputMessage.data.payload.item_name}|
-                    ${checkInputMessage.data.payload.item_value}`;
                     addMessageToQueue(dID , checkInputMessage.data);
                     
                     try {
@@ -413,12 +391,10 @@ if (NODERED_ENABLED) {
 
   ws.on('close', () => {
     logger.logInfoMessage(`[Serverapp] - WSSNodeRED - WebSocket connection closed`);
-    //console.log('[Serverapp] - WebSocket connection closed');
   });
 
   ws.on('error', (error) => {
     logger.logErrorMessage(`[Serverapp] - WSSNodeRED - WebSocket error: ${error.message}`);
-    //console.error(`[Serverapp] - WebSocket error: ${error.message}`);
   });
   });
 }
@@ -427,6 +403,7 @@ if (NODERED_ENABLED) {
 WSSDash.on('connection', (ws) => {
   logger.logInfoMessage(`[Serverapp] - WSSDash.on - Новое подключение Dashboard (VUE)`);
   const connectionId = wsManager.registerConnection(ws, 'dashboard', null);
+  auth.trackConnection(connectionId); // отсчёт AUTH_TIMEOUT_MS до входа
 
   logger.logDevMessage(`[Serverapp] - WSSDash.on - VUE соединение зарегистрировано: ${connectionId}`);
 
@@ -488,7 +465,8 @@ WSSDash.on('connection', (ws) => {
           const dID = dashData.data.name;
           try {
             const handledByModbus =
-              MODBUS_ENABLED && modbusBridge.handleCommand(connectionId, dashData.data);
+              (MODBUS_ENABLED && modbusBridge.handleCommand(connectionId, dashData.data)) ||
+              (MODBUS_RTU_ENABLED && modbusRtuBridge.handleCommand(connectionId, dashData.data));
 
             if (!handledByModbus && NODERED_ENABLED) {
               broadcast(connectionId, dID, dashData.data);
@@ -507,21 +485,14 @@ WSSDash.on('connection', (ws) => {
   }
 });
   ws.on('error', (error) => {
-    logger
-      //console.error('[Serverapp] - WebSocket error on Dashboard:', error);
+    logger.logErrorMessage(`[Serverapp] - WSSDash - WebSocket error: ${error.message}`);
   });
 
   ws.on('close', () => {
-    auth.clearSession(connectionId); 
+    auth.forgetConnection(connectionId);
     logger.logInfoMessage(`[Serverapp] - WSSDash - WebSocket connection closed`);
-      //console.info('[Serverapp] - Dash WebSocket connection closed');
   });
 });
-
-
-
-//console.log(`WebSocket servers are running on nodeRed ws port:${wsRedPORT} and DashBoard (client) ws port:${wsDashPORT}`);
-
 
 
 function broadcast(excludeClientId, dID, data, targets = null) {
@@ -531,7 +502,6 @@ function broadcast(excludeClientId, dID, data, targets = null) {
       : ['VUE_connections'];
   }
   logger.logDevMessage('[Serverapp] - broadcast - excludeClientId =', excludeClientId, 'dID =', dID, 'targets =', targets, 'data =', data);
-  //console.log('[Serverapp] - broadcast: excludeClientId =', excludeClientId, 'dID =', dID, 'targets =', targets, 'data =', data);
   
   // Добавляем временную метку
   data.time = new Date().toString();
@@ -545,7 +515,6 @@ function broadcast(excludeClientId, dID, data, targets = null) {
       
       if (userConnections.length === 0) {
         logger.logDevMessage(`[Serverapp] - broadcast - Нет активных соединений типа ${targetType} с dID: ${dID}`);
-        //console.log(`[Serverapp] - broadcast - Нет активных соединений типа ${targetType} с dID: ${dID}`);
         return;
       }
       
@@ -556,7 +525,6 @@ function broadcast(excludeClientId, dID, data, targets = null) {
         logger.logDevMessage(`[Serverapp] - broadcast - Начинаем рассылку`);
         if (clientId === excludeClientId) {
           logger.logDevMessage(`[Serverapp] - broadcast - Пропускаем отправителя: ${clientId}`);
-          //console.log(`[Serverapp] - broadcast - Пропускаем отправителя: ${clientId}`);
           return;
         }
         
@@ -575,20 +543,16 @@ function broadcast(excludeClientId, dID, data, targets = null) {
         }
       });
      logger.logDevMessage(`[Serverapp] - broadcast - Отправлено ${typeSent}/${userConnections.length} сообщений для ${targetType} с dID: ${dID}`);
-      //console.log(`[Serverapp] - broadcast - Отправлено ${typeSent}/${userConnections.length} сообщений для ${targetType} с dID: ${dID}`);
     });
     
     if (totalSent === 0) {
       logger.logDevMessage(`[Serverapp] - broadcast - Нет активных клиентов для рассылки (dID: ${dID}, исключен: ${excludeClientId})`);
-      //console.log(`[Serverapp] - broadcast - Нет активных клиентов для рассылки (dID: ${dID}, исключен: ${excludeClientId})`);
     } else {
       logger.logDevMessage(`[Serverapp] - broadcast - Всего отправлено ${totalSent} сообщений для dID: ${dID}`);
-      //console.log(`[Serverapp] - broadcast - Всего отправлено ${totalSent} сообщений для dID: ${dID}`);
     }
     
   } catch (error) {
     logger.logErrorMessage(`[Serverapp] - broadcast - Ошибка рассылки: ${error.message}`);
-    //console.error('[Serverapp] - broadcast - Ошибка рассылки:', error);
   }
 };
 
@@ -634,7 +598,7 @@ function checkMessage(message) {
 
 // Работа с GPIO
 const deviceName = process.env.DEVICE_NAME;
-const manageDoor = process.env.MANAGE_DOOR === 'true'; // Преобразуем значение в boolean
+const manageDoor = String(process.env.MANAGE_DOOR ?? 'false').toLowerCase() === 'true';
 logger.logDevMessage(`[Serverapp] - deviceName: ${deviceName} MANAGE_DOOR: ${manageDoor}`);
 
 const GpioManager = require('./gpio.js');
@@ -652,11 +616,9 @@ if (manageDoor) {
     gpioManager.setupOutputPins();
     gpioManager.setupInputPins();
 
-    // Пример: Включение openPinGpio через 30 секунд
-    const openPinGpio = gpioManager.deviceConfig.outputPins[0];
-    setTimeout(() => {
-      gpioManager.writePin(openPinGpio, 1);
-    }, 30000);
+    // Безопасное состояние при старте: все выходы (открыть/закрыть замок) неактивны.
+    // Команды на замок при запуске не подаются — только по явному запросу.
+    gpioManager.deviceConfig.outputPins.forEach((pin) => gpioManager.writePin(pin, 0));
 
     // Отслеживание состояния входных пинов
     const sensorDoorPinGpio = gpioManager.deviceConfig.inputPins[0];

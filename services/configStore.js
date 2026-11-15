@@ -6,6 +6,7 @@ const path = require('path');
 const dotenv = require('dotenv');
 dotenv.config({ path: './conf.env' });
 const dataDir = process.env.DATA_DIR;
+const cfg = require('./authConfig');
 const logger = require('./logger.js');
 logger.initLogging();
 
@@ -13,22 +14,30 @@ logger.logDevMessage(`[ConfigStore] - ДИАГ: process.env.DATA_DIR="${process.
 // Объявляем кэш файлов
 const fileCache = new Map();
 
+// dID и имя конфига становятся частью имени файла, поэтому допускаем только
+// безопасный алфавит (cfg.isValidDID): никаких '/', '..' и прочих разделителей.
+const CONFIG_NAME_RE = /^[A-Za-z0-9_-]{1,64}$/;
+
+function storeError(code, message) {
+  const e = new Error(message);
+  e.code = code;
+  return e;
+}
+
 function resolveConfigPath(dID, typeConfig) {
+  if (!cfg.isValidDID(dID)) throw storeError('BAD_DID', 'Недопустимый dID');
+  if (typeof typeConfig !== 'string' || !CONFIG_NAME_RE.test(typeConfig)) {
+    throw storeError('BAD_CONFIG_NAME', 'Недопустимое имя конфигурации');
+  }
   const suffix = (typeConfig === 'config') ? '' : `_${typeConfig}`;
   return path.join(dataDir, `${dID}${suffix}.json`);
 }
 
-async function saveNamedConfig(dID, configName, configData) {
-  const filePath = resolveConfigPath(dID, configName);
-  await writeFileSafely(filePath, JSON.stringify(configData, null, 2));
-  logger.logDevMessage(`[ConfigStore] - saveNamedConfig - ${filePath}`);
-  return { filePath };
-}
-
-async function namedConfigExists(dID, configName) {
-  const filePath = resolveConfigPath(dID, configName);
-  try { await fs.access(filePath); return { exists: true, filePath }; }
-  catch { return { exists: false, filePath }; }
+// Все файлы конфигураций лежат прямо в DATA_DIR — запись в другое место запрещена
+function assertInsideDataDir(filePath) {
+  if (path.dirname(path.resolve(filePath)) !== path.resolve(dataDir)) {
+    throw storeError('BAD_PATH', 'Запись вне каталога данных запрещена');
+  }
 }
 
 // Общая функция для проверки/создания директории
@@ -46,41 +55,43 @@ async function ensureDataDir() {
     }
 }
 
-async function writeFileSafely(filePath, content) {
-    console.log(`[ConfigStore] - writeFileSafely - 📂 Записываем данные в ${filePath}`);
-    //console.log(`[ConfigStore] - writeFileSafely - 📂 Данные в ${content}`);
+// Записи в один файл выполняются строго по очереди, у каждой свой временный файл:
+// иначе параллельные записи (пачка команд от Vue, данные Modbus/NodeRED)
+// делили один .tmp, и вторая падала на rename с ENOENT.
+const writeChains = new Map();
+let tmpSeq = 0;
 
-    await ensureDataDir(); 
-    const tempPath = `${filePath}.tmp`;
+async function writeNow(filePath, content) {
+    await ensureDataDir();
+    const tempPath = `${filePath}.${process.pid}.${++tmpSeq}.tmp`;
     await fs.writeFile(tempPath, content);
     await fs.rename(tempPath, filePath);
     fileCache.set(filePath, JSON.parse(content));
 }
 
-async function readFileSafely(dID, typeConfig) {
-    console.log(` [ConfigStore] - readFileSafely - Читаем конфигурацию для ${typeConfig}`);
-    await ensureDataDir();
-    let filePath = '';
-    
-    switch (typeConfig) {
-        case 'config':
-            filePath = path.join(dataDir, `${dID}.json`);
-        break;
-        case 'schedules':
-            filePath = path.join(dataDir, `${dID}_${typeConfig}.json`);
-        break;
-        case 'notifications':
-            filePath = path.join(dataDir, `${dID}_${typeConfig}.json`);
-            //console.log(`[ConfigStore] - readFileSafely - 📂 Читаем данные для NOTIFICATIONS  из ${filePath}`);
-        break;
-        case 'statistics':
-            filePath = path.join(dataDir, `${dID}_${typeConfig}.json`);
-            //console.log(`[ConfigStore] - readFileSafely - 📂 Читаем данные для NOTIFICATIONS  из ${filePath}`);
-        break;
-        default:
-            // filePath = path.join(dataDir, `${dID}.json`);// По умолчанию основной конфиг
+async function writeFileSafely(filePath, content) {
+    assertInsideDataDir(filePath);
+    logger.logDevMessage(`[ConfigStore] - writeFileSafely - записываем ${filePath}`);
+
+    const prev = writeChains.get(filePath) || Promise.resolve();
+    const run = prev.catch(() => {}).then(() => writeNow(filePath, content));
+    writeChains.set(filePath, run);
+    try {
+        await run;
+    } finally {
+        if (writeChains.get(filePath) === run) writeChains.delete(filePath);
     }
-    console.log(`[ConfigStore] - readFileSafely - 📂 Читаем данные из ${filePath}`);
+}
+
+const CONFIG_TYPES = ['config', 'schedules', 'notifications', 'statistics'];
+
+async function readFileSafely(dID, typeConfig = 'config') {
+    if (!CONFIG_TYPES.includes(typeConfig)) {
+        throw new Error(`Неизвестный тип конфигурации: ${typeConfig}`);
+    }
+    await ensureDataDir();
+    const filePath = resolveConfigPath(dID, typeConfig);
+    logger.logDevMessage(`[ConfigStore] - readFileSafely - читаем ${filePath}`);
 
     // Проверяем кэш
     if (fileCache.has(filePath)) {
@@ -158,6 +169,5 @@ async function readFileSafely(dID, typeConfig) {
 
 
 module.exports = {
-  writeFileSafely, readFileSafely, fileCache,
-  saveNamedConfig, namedConfigExists, resolveConfigPath,
+  writeFileSafely, readFileSafely, fileCache, resolveConfigPath,
 };

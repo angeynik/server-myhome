@@ -1,8 +1,15 @@
-// gpio.test.js - исправленная версия
+// gpio.test.js
+// Синхронные методы fs подменяются: тест не должен трогать /sys/class/gpio.
+jest.mock('fs', () => ({
+  ...jest.requireActual('fs'),
+  readFileSync: jest.fn(),
+  writeFileSync: jest.fn(),
+  existsSync: jest.fn(),
+  unlinkSync: jest.fn(),
+}));
+
 const fs = require('fs');
 const GpioManager = require('../../gpio.js');
-
-// jest.mock('fs'); - УДАЛИТЬ эту строку, так как fs уже замокан в setup.js
 
 describe('GpioManager', () => {
   let gpioManager;

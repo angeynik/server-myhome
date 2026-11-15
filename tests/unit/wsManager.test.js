@@ -1217,7 +1217,7 @@ describe('WsManager', () => {
         
         // Эмулируем "мертвое" соединение
         const connection = wsManager.VUE_connections.get(clientId);
-        connection.meta.isAlive = false;
+        connection.ws.readyState = 3; // CLOSED: активность определяется по readyState
         
         const newTimestamp = Date.now() + 4000;
         
@@ -1345,7 +1345,7 @@ describe('WsManager', () => {
             expect(updatedConnection.meta.lastActivity).toBe(0);
         });
 
-        test('should handle empty string as dID', () => {
+        test('should keep existing dID when empty string is passed', () => {
             // Arrange
             const { clientId } = TestHelpers.createDashboardConnection(wsManager, {
             options: { dID: 'original-did' }
@@ -1354,13 +1354,12 @@ describe('WsManager', () => {
             // Act
             wsManager.updateConnection('VUE_connections', clientId, Date.now(), '');
             
-            // Assert
+            // Assert: dID обновляется только при явном непустом значении
             const updatedConnection = wsManager.VUE_connections.get(clientId);
-            expect(updatedConnection.dID).toBe('');
-            // meta.dID может не обновляться, проверяем только основное поле
+            expect(updatedConnection.dID).toBe('original-did');
         });
 
-        test('should handle null dID', () => {
+        test('should keep existing dID when null is passed', () => {
             // Arrange
             const { clientId } = TestHelpers.createDashboardConnection(wsManager, {
             options: { dID: 'original-did' }
@@ -1369,10 +1368,9 @@ describe('WsManager', () => {
             // Act
             wsManager.updateConnection('VUE_connections', clientId, Date.now(), null);
             
-            // Assert
+            // Assert: так heartbeat (pong без dID) не отвязывает соединение от пользователя
             const updatedConnection = wsManager.VUE_connections.get(clientId);
-            expect(updatedConnection.dID).toBe(null);
-            // meta.dID может не обновляться, проверяем только основное поле
+            expect(updatedConnection.dID).toBe('original-did');
         });
 
         test('should handle undefined timestamp', () => {
@@ -1701,15 +1699,10 @@ describe('WsManager', () => {
         // Arrange
         const { clientId } = TestHelpers.createDashboardConnection(wsManager);
         
-        // Act & Assert - АДАПТИРУЕМ ПОД РЕАЛЬНОЕ ПОВЕДЕНИЕ
-        // Функция может бросать ошибку при невалидном имени коллекции
-        // Это нормальное поведение - проверяем что ошибка понятная
-        
+        // Act & Assert: неизвестная коллекция игнорируется, соединение остаётся
         expect(() => {
         wsManager.removeConnection('INVALID_COLLECTION', clientId);
-        }).toThrow();
-        
-        // ИЛИ: если функция не должна бросать ошибку, проверяем что соединение осталось
+        }).not.toThrow();
         expect(wsManager.VUE_connections.has(clientId)).toBe(true);
     });
 
@@ -1750,8 +1743,8 @@ describe('WsManager', () => {
         
         // Assert
         expect(removeConnectionSpy).toHaveBeenCalledTimes(2);
-        expect(removeConnectionSpy).toHaveBeenCalledWith('VUE_connections', connections[0].clientId);
-        expect(removeConnectionSpy).toHaveBeenCalledWith('VUE_connections', connections[1].clientId);
+        expect(removeConnectionSpy).toHaveBeenCalledWith('VUE_connections', connections[0].clientId, { code: 1001, reason: 'server shutdown', force: true });
+        expect(removeConnectionSpy).toHaveBeenCalledWith('VUE_connections', connections[1].clientId, { code: 1001, reason: 'server shutdown', force: true });
         
         removeConnectionSpy.mockRestore();
         });
@@ -1864,7 +1857,7 @@ describe('WsManager', () => {
         
         // Делаем соединение неактивным
         const connection = wsManager.VUE_connections.get(clientId);
-        connection.meta.isAlive = false;
+        connection.ws.readyState = 3; // CLOSED: активность определяется по readyState
         
         // Act
         const result = wsManager.getConnection('VUE_connections', clientId);
@@ -2059,7 +2052,7 @@ describe('WsManager', () => {
         
         // Делаем одно соединение неактивным
         const inactiveConn = wsManager.VUE_connections.get(inactiveConnection.clientId);
-        inactiveConn.meta.isAlive = false;
+        inactiveConn.ws.readyState = 3; // CLOSED
         
         // Act
         const result = wsManager.getUserConnections('VUE_connections', dID);
@@ -2270,7 +2263,7 @@ describe('WsManager', () => {
         
         // Делаем соединение неактивным
         const connection = wsManager.VUE_connections.get(clientId);
-        connection.meta.isAlive = false;
+        connection.ws.readyState = 3; // CLOSED: активность определяется по readyState
         
         // Act - получаем соединения после изменения
         const connectionsAfter = wsManager.getUserConnections('VUE_connections', dID);
@@ -2386,7 +2379,7 @@ describe('WsManager', () => {
             // Делаем соединения неактивными
             inactiveConnections.forEach(({ clientId }) => {
             const connection = wsManager.VUE_connections.get(clientId);
-            connection.meta.isAlive = false;
+            connection.ws.readyState = 3; // CLOSED
             });
             
             // Act
@@ -2470,7 +2463,7 @@ describe('WsManager', () => {
         
         // Делаем соединение неактивным
         const connection = wsManager.VUE_connections.get(clientId);
-        connection.meta.isAlive = false;
+        connection.ws.readyState = 3; // CLOSED: активность определяется по readyState
         
         // Act
         const result = wsManager.sendToConnection(
@@ -2668,7 +2661,7 @@ describe('WsManager', () => {
       const logCalls = consoleLogSpy.mock.calls;
       const hasSendLog = logCalls.some(call => 
         call[0] && typeof call[0] === 'string' && 
-        call[0].includes('sendToConnection - 📨 Отправляем сообщение:')
+        call[0].includes('sendToConnection - 📨 Отправляем сообщение')
       );
       
       expect(hasSendLog).toBe(true);
@@ -2733,7 +2726,7 @@ describe('WsManager', () => {
         
         // Assert
         expect(result).toBe(false);
-        expect(removeConnectionSpy).toHaveBeenCalledWith('VUE_connections', clientId);
+        expect(removeConnectionSpy).toHaveBeenCalledWith('VUE_connections', clientId, { force: true });
         
         removeConnectionSpy.mockRestore();
         });
@@ -2995,8 +2988,8 @@ describe('WsManager', () => {
         wsManager.startHeartbeat('VUE_connections', 100, 200);
         
         // Assert
-        expect(wsManager.heartbeatInterval).toBeDefined();
-        expect(typeof wsManager.heartbeatInterval.unref).toBe('function');
+        expect(wsManager.heartbeatIntervals.get('VUE_connections')).toBeDefined();
+        expect(typeof wsManager.heartbeatIntervals.get('VUE_connections').unref).toBe('function');
         });
 
         test('should start heartbeat interval for nodeRED connections', () => {
@@ -3007,7 +3000,7 @@ describe('WsManager', () => {
         wsManager.startHeartbeat('nRED_connections', 150, 300);
         
         // Assert
-        expect(wsManager.heartbeatInterval).toBeDefined();
+        expect(wsManager.heartbeatIntervals.get('nRED_connections')).toBeDefined();
         });
 
         test('should clear existing interval before starting new one', () => {
@@ -3016,30 +3009,17 @@ describe('WsManager', () => {
         
         // Запускаем первый интервал
         wsManager.startHeartbeat('VUE_connections', 100, 200);
-        const firstInterval = wsManager.heartbeatInterval;
+        const firstInterval = wsManager.heartbeatIntervals.get('VUE_connections');
+        const clearSpy = jest.spyOn(global, 'clearInterval');
         
         // Act - запускаем второй интервал
         wsManager.startHeartbeat('VUE_connections', 200, 400);
         
         // Assert
-        expect(wsManager.heartbeatInterval).toBeDefined();
-        expect(wsManager.heartbeatInterval).not.toBe(firstInterval);
-        });
-
-        test('should log heartbeat start with parameters', () => {
-        // Arrange
-        const { ws, clientId } = TestHelpers.createDashboardConnection(wsManager);
-        const consoleLogSpy = jest.spyOn(console, 'log');
-        
-        // Act
-        wsManager.startHeartbeat('VUE_connections', 30000, 60000);
-        
-        // Assert
-        expect(consoleLogSpy).toHaveBeenCalledWith(
-            expect.stringContaining('[WsManager] - Heartbeat started: interval=30000ms, timeout=60000ms')
-        );
-        
-        consoleLogSpy.mockRestore();
+        expect(clearSpy).toHaveBeenCalledWith(firstInterval);
+        expect(wsManager.heartbeatIntervals.get('VUE_connections')).toBeDefined();
+        expect(wsManager.heartbeatIntervals.get('VUE_connections')).not.toBe(firstInterval);
+        clearSpy.mockRestore();
         });
 
         test('should use default parameters when not provided', () => {
@@ -3050,7 +3030,7 @@ describe('WsManager', () => {
         wsManager.startHeartbeat('VUE_connections');
         
         // Assert
-        expect(wsManager.heartbeatInterval).toBeDefined();
+        expect(wsManager.heartbeatIntervals.get('VUE_connections')).toBeDefined();
         });
     });
 
@@ -3122,7 +3102,7 @@ describe('WsManager', () => {
         wsManager.startHeartbeat('VUE_connections', 1, 10);
         
         // Assert
-        expect(wsManager.heartbeatInterval).toBeDefined();
+        expect(wsManager.heartbeatIntervals.get('VUE_connections')).toBeDefined();
         
         // Cleanup
         wsManager.stopHeartbeat();
@@ -3136,7 +3116,7 @@ describe('WsManager', () => {
         wsManager.startHeartbeat('VUE_connections', 3600000, 7200000); // 1 hour, 2 hours
         
         // Assert
-        expect(wsManager.heartbeatInterval).toBeDefined();
+        expect(wsManager.heartbeatIntervals.get('VUE_connections')).toBeDefined();
         
         // Cleanup
         wsManager.stopHeartbeat();
@@ -3261,7 +3241,7 @@ describe('WsManager', () => {
         // Arrange
         const { ws, clientId } = TestHelpers.createDashboardConnection(wsManager);
         wsManager.startHeartbeat('VUE_connections', 100, 200);
-        expect(wsManager.heartbeatInterval).toBeDefined();
+        expect(wsManager.heartbeatIntervals.get('VUE_connections')).toBeDefined();
         
         const consoleLogSpy = jest.spyOn(console, 'log');
         
@@ -3269,17 +3249,14 @@ describe('WsManager', () => {
         wsManager.stopHeartbeat();
         
         // Assert
-        expect(wsManager.heartbeatInterval).toBeNull();
-        expect(consoleLogSpy).toHaveBeenCalledWith(
-            expect.stringContaining('[WsManager] - Heartbeat stopped')
-        );
+        expect(wsManager.heartbeatIntervals.size).toBe(0);
         
         consoleLogSpy.mockRestore();
         });
 
         test('should not throw error when no heartbeat is running', () => {
         // Arrange
-        wsManager.heartbeatInterval = null;
+        wsManager.stopHeartbeat();
         
         // Act & Assert
         expect(() => {
@@ -3298,7 +3275,7 @@ describe('WsManager', () => {
         wsManager.stopHeartbeat();
         
         // Assert
-        expect(wsManager.heartbeatInterval).toBeNull();
+        expect(wsManager.heartbeatIntervals.size).toBe(0);
         });
     });
 
@@ -3333,7 +3310,7 @@ describe('WsManager', () => {
         wsManager.startHeartbeat('VUE_connections', 150, 300);
         
         // Assert
-        expect(wsManager.heartbeatInterval).toBeDefined();
+        expect(wsManager.heartbeatIntervals.get('VUE_connections')).toBeDefined();
         
         // Cleanup
         wsManager.stopHeartbeat();
@@ -3391,7 +3368,7 @@ describe('WsManager', () => {
         // Arrange
         const { ws, clientId } = TestHelpers.createDashboardConnection(wsManager);
         wsManager.startHeartbeat('VUE_connections', 100, 200);
-        expect(wsManager.heartbeatInterval).toBeDefined();
+        expect(wsManager.heartbeatIntervals.get('VUE_connections')).toBeDefined();
         
         const stopHeartbeatSpy = jest.spyOn(wsManager, 'stopHeartbeat');
         
@@ -3400,7 +3377,7 @@ describe('WsManager', () => {
         
         // Assert
         expect(stopHeartbeatSpy).toHaveBeenCalled();
-        expect(wsManager.heartbeatInterval).toBeNull();
+        expect(wsManager.heartbeatIntervals.has('VUE_connections')).toBe(false);
         
         stopHeartbeatSpy.mockRestore();
         });
@@ -3426,7 +3403,7 @@ describe('WsManager', () => {
         // Assert
         expect(removeConnectionSpy).toHaveBeenCalledTimes(2);
         connections.forEach(({ clientId }) => {
-            expect(removeConnectionSpy).toHaveBeenCalledWith('VUE_connections', clientId);
+            expect(removeConnectionSpy).toHaveBeenCalledWith('VUE_connections', clientId, { code: 1001, reason: 'server shutdown', force: true });
         });
         
         removeConnectionSpy.mockRestore();
@@ -3511,7 +3488,7 @@ describe('WsManager', () => {
         
         // Assert
         expect(wsManager.VUE_connections.size).toBe(0);
-        expect(wsManager.heartbeatInterval).toBeNull();
+        expect(wsManager.heartbeatIntervals.has('VUE_connections')).toBe(false);
         });
 
         test('should handle rapid consecutive cleanups', () => {

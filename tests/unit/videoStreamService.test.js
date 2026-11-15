@@ -3,11 +3,11 @@ const os = require('os');
 const path = require('path');
 const { EventEmitter } = require('events');
 
-const logger = require('../services/logger');
+const logger = require('../../services/logger');
 const {
   createVideoStreamService, createFrameParser, maskUrl,
-} = require('../services/videoStreamService');
-const { loadVideoConfig } = require('../services/videoConfig');
+} = require('../../services/videoStreamService');
+const { loadVideoConfig } = require('../../services/videoConfig');
 
 const jpeg = (n = 10) => Buffer.concat([Buffer.from([0xff, 0xd8]), Buffer.alloc(n, 1), Buffer.from([0xff, 0xd9])]);
 

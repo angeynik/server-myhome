@@ -1,5 +1,5 @@
 
-const TelegramBot = require('../classes/telegramBot');
+const TelegramBot = require('../../classes/telegramBot');
 
 const TOKEN = '123456:SECRET-TOKEN-VALUE';
 const okResponse = (result) => ({ ok: true, status: 200, json: async () => ({ ok: true, result }) });

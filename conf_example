@@ -1,31 +1,20 @@
-LOG_LEVEL=dev
+LOG_LEVEL=dev                      # error | info (по умолчанию, = production) | dev
 NODERED_ENABLED=true
 MODBUS_ENABLED=true
 
-LOCAL_URL=127.0.0.1
-#EXT_URL - задает адрес WS сокет для обмена - Должен соответствовать VUE_APP_EXP клиента
-#EXT_URL=http://192.168.1.119
-#EXT_URL=129.47.1.60
 
 SERVER_PORT=3010
 WSR_PORT_IN=9200
-WSR_PORT_OUT=9201
+WSR_HOST=127.0.0.1                  # интерфейс NodeRED WS (канал без аутентификации); 0.0.0.0 — все, только за файрволом
 WSD_PORT_IN=9202
-WSD_PORT_OUT=9203
-WS_PING_INTERVAL=20000
-WS_PING_TIMEOUT=45000
-WS_DEDUP_TTL=60000
 
 USERS_FILE=./data/users.enc
 AUTH_KEY_FILE=./data/auth.key
 # AUTH_MASTER_KEY=             # опционально, 64 hex-символа вместо файла
 
-LOG_DIRECTORY='./logs'
-PINO_LOG_LEVEL='debug'
 DEVICE_NAME='BMax'
-MANAGE_DOOR=FALSE
+MANAGE_DOOR=false                  # true — управление замком через GPIO (gpioConf.json)
 
-SENSOR_BUFF_NUMBER=10
 
 JWT_SECRET=''  # ≥32 символов для production
 JWT_EXPIRES=1d
@@ -37,7 +26,7 @@ AUTH_LOGIN_MAX_ATTEMPTS=5
 AUTH_LOGIN_IP_MAX_ATTEMPTS=20
 AUTH_LOGIN_WINDOW_MS=900000
 AUTH_LOGIN_LOCK_MS=900000
-AUTH_TIMEOUT_MS=3600000               # 1 час; 0 — не рвать сессии
+AUTH_TIMEOUT_MS=60000                 # сколько соединение Dashboard ждёт входа, потом закрывается; 0 — не закрывать
 AUTH_STRICT=FALSE
 TRUST_PROXY=FALSE
 
@@ -51,6 +40,12 @@ DATA_DIR='./configData'
 
 MODBUS_DID=igumen # dID совпадающий с dID пользователя Имя файла сохранения данных
 MODBUS_DEVICE=pr205 # Наименование modbus устройства
+# Карта тегов: $DATA_DIR/modbusMap.json (образец — modbusMap.json в корне проекта)
+
+# ── Modbus RTU (RS-485, modBus/) ───────────────────────────────────────
+MODBUS_RTU_ENABLED=false             # true — поднять Master/Slave RTU по MODBUS_RTU_CONF
+MODBUS_RTU_CONF=./modBus/modbusConf.json
+#MODBUS_ROLE=slave                   # переопределяет "role" из MODBUS_RTU_CONF: master | slave | both
 
 MODBUS_TIMEOUT=3000
 MODBUS_RECONNECT_MIN=1000
@@ -64,7 +59,6 @@ MODBUS_DEVICES='[{
     "port":502,
     "unitId":1
     }]'
-MODBUS_MAP_FILE=./modbusMap.json
 
 # ── Видеонаблюдение ────────────────────────────────────────────────────
 VIDEO_ENABLED=true

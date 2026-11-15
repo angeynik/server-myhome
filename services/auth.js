@@ -8,8 +8,17 @@ const logger = require('./logger.js');
 logger.initLogging();
 
 // ── Сессии, привязанные к clientId WS-соединения ────────────────────────
+// Сессия живёт, пока открыто соединение: по бездействию она не истекает и
+// заканчивается только при logout, отзыве (смена пароля, уровня, dID, блокировка)
+// или закрытии соединения. lastActivity хранится для диагностики.
 const sessions = new Map();
 // clientId -> { userId, username, dID, level, tokenVersion, mustChangePassword, lastActivity }
+
+// Открытые соединения без сессии: clientId -> с какого момента нет сессии.
+// Если за AUTH_TIMEOUT_MS вход не выполнен, cleanupSessions() возвращает
+// такое соединение, и serverapp его закрывает.
+const tracked = new Set();
+const unauthSince = new Map();
 
 // ── Rate-limit ──────────────────────────────────────────────────────────
 const loginAttempts = new Map(); // "u:<username>" -> { count, until }
@@ -31,29 +40,42 @@ function verifyToken(token) {
 
 // ── Сессии ──────────────────────────────────────────────────────────────
 const getSession   = (clientId) => sessions.get(clientId) || null;
-const clearSession = (clientId) => sessions.delete(clientId);
-const setSession   = (clientId, s) => sessions.set(clientId, { ...s, lastActivity: Date.now() });
 const touchSession = (clientId) => { const s = sessions.get(clientId); if (s) s.lastActivity = Date.now(); };
 
-function isSessionTimedOut(clientId) {
-  if (!cfg.AUTH_TIMEOUT_MS) return false;
-  const s = sessions.get(clientId);
-  if (!s) return false;
-  return Date.now() - s.lastActivity > cfg.AUTH_TIMEOUT_MS;
+function setSession(clientId, s) {
+  sessions.set(clientId, { ...s, lastActivity: Date.now() });
+  unauthSince.delete(clientId);
 }
 
-function cleanupSessions() {
-  // 1. Протухшие сессии
-  let n = 0;
-  if (cfg.AUTH_TIMEOUT_MS) {
-    const now = Date.now();
-    for (const [id, s] of sessions) {
-      if (now - s.lastActivity > cfg.AUTH_TIMEOUT_MS) { sessions.delete(id); n++; }
-    }
-  }
+// Соединение остаётся открытым, но без сессии: снова запускаем отсчёт времени на вход
+function markUnauthenticated(clientId) {
+  if (tracked.has(clientId)) unauthSince.set(clientId, Date.now());
+}
 
-  // 2. Rate-limit: снимаем протухшие записи (иначе карты растут вечно)
-  const now = Date.now();
+function clearSession(clientId) {
+  const had = sessions.delete(clientId);
+  markUnauthenticated(clientId);
+  return had;
+}
+
+// Новое WS-соединение Dashboard: до входа у него нет сессии
+function trackConnection(clientId) {
+  tracked.add(clientId);
+  if (!sessions.has(clientId)) unauthSince.set(clientId, Date.now());
+}
+
+// Соединение закрыто: забываем и сессию, и отсчёт
+function forgetConnection(clientId) {
+  tracked.delete(clientId);
+  unauthSince.delete(clientId);
+  sessions.delete(clientId);
+}
+
+// Периодическая очистка (один таймер на процесс, см. serverapp):
+//   1) снимает истёкшие записи rate-limit, иначе карты растут бесконечно;
+//   2) возвращает clientId соединений, которые дольше AUTH_TIMEOUT_MS остаются
+//      без сессии (0 — проверка выключена). Их закрывает вызывающая сторона.
+function cleanupSessions(now = Date.now()) {
   for (const [k, v] of loginAttempts) {
     if (v.until && v.until < now) loginAttempts.delete(k);
   }
@@ -61,8 +83,19 @@ function cleanupSessions() {
     if (v.until && v.until < now) ipAttempts.delete(k);
   }
 
-  if (n) logger.logInfoMessage(`[auth] - cleanupSessions: удалено сессий ${n}`);
-  return n;
+  const expired = [];
+  if (cfg.AUTH_TIMEOUT_MS) {
+    for (const [id, since] of unauthSince) {
+      if (now - since > cfg.AUTH_TIMEOUT_MS) {
+        unauthSince.delete(id);
+        expired.push(id);
+      }
+    }
+  }
+  if (expired.length) {
+    logger.logInfoMessage(`[auth] - cleanupSessions: соединений без входа дольше AUTH_TIMEOUT_MS: ${expired.length}`);
+  }
+  return expired;
 }
 
 // ── Rate-limit helpers ──────────────────────────────────────────────────
@@ -220,7 +253,7 @@ function invalidateUserSessions(username) {
   let count = 0;
   for (const [id, s] of sessions) {
     if (String(s.username).toLowerCase() === n) {
-      sessions.delete(id);
+      clearSession(id);
       count++;
     }
   }
@@ -252,19 +285,17 @@ function checkMessageAccess(clientId, type, request, name) {
   if (type === 'auth') {
     const s = getSession(clientId);
     if (!s) return { ok: false, code: 'NO_SESSION', message: 'Не авторизован' };
-    if (isSessionTimedOut(clientId)) {
-      clearSession(clientId);
-      return { ok: false, code: 'TIMEOUT', message: 'Сессия истекла' };
-    }
+    touchSession(clientId);
     return { ok: true };
   }
 
   // 3. Остальное — сессия + уровень
   const s = getSession(clientId);
   if (!s) return { ok: false, code: 'NO_SESSION', message: 'Не авторизован' };
-  if (isSessionTimedOut(clientId)) {
-    clearSession(clientId);
-    return { ok: false, code: 'TIMEOUT', message: 'Сессия истекла' };
+  // name используется как dID в именах файлов: недопустимый не пропускаем никому, включая уровень 3
+  if (name !== undefined && !cfg.isValidDID(name)) {
+    logger.logErrorMessage(`[auth] - недопустимый dID от ${s.username}`);
+    return { ok: false, code: 'DID_MISMATCH', message: 'Нет доступа к чужому источнику данных' };
   }
   if (name !== undefined && s.level < 3 && name !== s.dID) {
     logger.logErrorMessage(`[auth] - DID_MISMATCH: ${s.username} (${s.dID}) -> ${name}`);
@@ -281,7 +312,8 @@ function checkMessageAccess(clientId, type, request, name) {
 module.exports = {
   issueToken, verifyToken,
   loginUser, resumeSession, logout, refresh, changeOwnPassword,
-  getSession, setSession, clearSession, touchSession, isSessionTimedOut, cleanupSessions,
+  getSession, setSession, clearSession, touchSession, cleanupSessions,
+  trackConnection, forgetConnection,
   hasLevel, requiredLevel, checkMessageAccess,
   getProfile, invalidateUserSessions,
 };

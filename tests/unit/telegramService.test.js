@@ -1,5 +1,5 @@
 
-const { createTelegramService, formatNotification } = require('../services/telegramService');
+const { createTelegramService, formatNotification } = require('../../services/telegramService');
 
 const config = {
   TELEGRAM_LINK_TTL_MS: 1000,

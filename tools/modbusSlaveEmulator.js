@@ -64,9 +64,12 @@ function loadTags(mapFile) {
   const tags = [];
   (map.tags || []).forEach((raw, i) => {
     const t = {
-      request: 'sensors', dataType: null, scale: 1, offset: 0, decimals: 3,
+      request: 'sensors', dataType: null, decimals: 3,
       writable: false, wordOrder: 'BE', item_type: '', ...raw
     };
+    // масштаб и смещение по умолчанию берутся из корня карты — так же, как в мосте
+    t.scale = raw.scale ?? map.defaultScale ?? 1;
+    t.offset = raw.offset ?? map.defaultOffset ?? 0;
     if (!t.item_name || !t.table || !TABLE_BANK[t.table] || !Number.isInteger(t.address)) {
       console.error(`[emulator] пропущен тег #${i}: не хватает полей (item_name/table/address)`);
       return;
@@ -83,8 +86,12 @@ function loadTags(mapFile) {
 // ---------------------------------------------------------------------------
 // Кодирование / декодирование (как в модсте, но без привязки к его модулю)
 // ---------------------------------------------------------------------------
+// Логическое значение в регистре (item_type bool/dBool) — как isBoolItem в мосте
+const isBoolItem = (tag) => tag.dataType !== 'bool' && (tag.item_type === 'bool' || tag.item_type === 'dBool');
+
 function decode(tag, words) {
   if (tag.dataType === 'bool') return Boolean(words[0]);
+  if (isBoolItem(tag)) return words.some((w) => w !== 0);
   const buf = Buffer.alloc(tag.width * 2);
   const w = tag.wordOrder === 'LE' ? [...words].reverse() : words;
   w.forEach((v, i) => buf.writeUInt16BE(v, i * 2));
@@ -110,6 +117,11 @@ const INT_RANGE = {
 
 function encode(tag, value) {
   if (tag.dataType === 'bool') return [value ? 1 : 0];
+  if (isBoolItem(tag)) {
+    const words = new Array(tag.width).fill(0);
+    words[tag.wordOrder === 'LE' ? 0 : tag.width - 1] = value ? 1 : 0;
+    return words;
+  }
   let raw = (value - tag.offset) / tag.scale;
   if (tag.dataType !== 'float32') {
     raw = Math.round(raw);
@@ -132,11 +144,13 @@ function encode(tag, value) {
   return tag.wordOrder === 'LE' ? words.reverse() : words;
 }
 
-/** Джиттером имеет смысл трогать только "аналоговые" величины (scale != 1) -
- *  температуры и т.п. Флаги связи/статусы/режимы (обычно scale=1, целые коды)
- *  джиттером не трогаем - у них нет смысла "случайно меняться" самим по себе. */
+/** Джиттером трогаем только "аналоговые" датчики: float32, тег с масштабом
+ *  или по имени/типу похожий на температуру/влажность. Флаги, статусы, режимы
+ *  и уставки (целые коды) не трогаем - им незачем "случайно меняться". */
 function canJitter(tag) {
-  return tag.request === 'sensors' && tag.dataType !== 'bool' && tag.scale !== 1;
+  if (tag.request !== 'sensors' || tag.dataType === 'bool' || isBoolItem(tag)) return false;
+  if (/setpoint/i.test(tag.item_name)) return false;
+  return tag.dataType === 'float32' || tag.scale !== 1 || /temp|hum/i.test(`${tag.item_name} ${tag.item_type}`);
 }
 
 // разумное значение по умолчанию, чтобы дашборд сразу показывал что-то похожее на жизнь
@@ -205,7 +219,9 @@ function startJitter() {
     for (const t of tags) {
       if (!canJitter(t)) continue;
       const cur = getTagValue(t.item_name) ?? 0;
-      const step = (Math.random() - 0.5) * 2 * Math.max(t.scale, 0.1); // небольшой случайный шаг
+      // небольшой случайный шаг; для целых регистров без масштаба — не меньше единицы
+      const unit = t.dataType === 'float32' ? 0.1 : Math.abs(t.scale);
+      const step = (Math.random() - 0.5) * 2 * Math.max(unit, t.dataType === 'float32' ? 0.1 : 1);
       setTagValue(t.item_name, Number((cur + step).toFixed(t.decimals)), { silent: true });
     }
   }, 2000).unref();

@@ -11,9 +11,11 @@
 // событие 'write', на которое можно подписаться в serverapp.js и, например,
 // разослать это в Dashboard/NodeRED через существующий broadcast().
 
+'use strict';
+
 const EventEmitter = require('events');
 const ModbusRTU = require('modbus-serial');
-const { encodeToRegisters } = require('./modbusUtils');
+const { REGISTER_SIZE, encodeToRegisters, decodeRegisters, isValidRtuFrame } = require('./modbusUtils');
 const logger = require('../services/logger.js');
 
 class ModbusSlaveServer extends EventEmitter {
@@ -21,7 +23,7 @@ class ModbusSlaveServer extends EventEmitter {
    * @param {object} config
    * @param {string} config.port - путь к серийному порту, например '/dev/ttyUSB0'
    * @param {number} [config.baudRate=9600]
-   * @param {number} [config.unitID=1] - Modbus-адрес этого устройства (slave id)
+   * @param {number} [config.unitId=21] - Modbus-адрес этого устройства (slave id); допускается и unitID
    * @param {number} [config.holdingRegistersSize=100]
    * @param {number} [config.inputRegistersSize=100]
    * @param {number} [config.coilsSize=100]
@@ -35,7 +37,7 @@ class ModbusSlaveServer extends EventEmitter {
       throw new Error('[ModbusSlave] Не указан config.port для Slave-подключения');
     }
     this.config = config;
-    this.unitID = config.unitId || 21;
+    this.unitID = config.unitId ?? config.unitID ?? 21;
     this.registerMap = config.registerMap || [];
 
     this.holdingRegisters = new Uint16Array(config.holdingRegistersSize || 100);
@@ -44,6 +46,9 @@ class ModbusSlaveServer extends EventEmitter {
     this.discreteInputs = new Uint8Array(config.discreteInputsSize || 100);
 
     this.server = null;
+    // Проверка CRC входящих кадров (по умолчанию включена, отключается crcCheck: false)
+    this.crcCheck = config.crcCheck !== false;
+    this.stats = { frames: 0, crcErrors: 0 };
 
     // Применяем начальные значения из конфига, если заданы
     this.registerMap.forEach((reg) => {
@@ -53,8 +58,13 @@ class ModbusSlaveServer extends EventEmitter {
     });
   }
 
+  // Ищем тег, которому принадлежит регистр: 32-битные типы занимают два адреса подряд
   _findRegDef(type, addr) {
-    return this.registerMap.find((r) => r.type === type && r.address === addr);
+    return this.registerMap.find((r) => {
+      if (r.type !== type) return false;
+      const size = REGISTER_SIZE[r.dataType] || 1;
+      return addr >= r.address && addr < r.address + size;
+    });
   }
 
   _vector() {
@@ -84,34 +94,87 @@ class ModbusSlaveServer extends EventEmitter {
       address: addr,
       value,
       name: regDef ? regDef.name : undefined,
-      dID: regDef ? regDef.dID : this.config.dID,
+      dID: regDef?.dID ?? this.config.dID,
     });
   }
 
+  // ServerSerial из modbus-serial не проверяет CRC входящих запросов: он пересчитывает его
+  // и записывает поверх присланного, поэтому искажённый помехой кадр выполнялся бы как верный.
+  // Встаём перед его обработчиком кадров ('data' потока-нарезчика ServerSerial._server):
+  // кадр с неверным CRC отбрасывается без ответа (так требует Modbus RTU — Master
+  // получит таймаут и повторит запрос). Если внутреннее устройство ServerSerial
+  // изменилось (обновление библиотеки), лучше не стартовать, чем молча работать без проверки.
+  _installCrcCheck() {
+    const pipe = this.server && this.server._server;
+    const listeners = pipe && typeof pipe.listeners === 'function' ? pipe.listeners('data') : [];
+    if (listeners.length !== 1) {
+      throw new Error(
+        '[ModbusSlave] Не удалось включить проверку CRC: неожиданное устройство ServerSerial ' +
+        '(проверьте версию modbus-serial или отключите проверку crcCheck: false)'
+      );
+    }
+    const original = listeners[0];
+    pipe.removeListener('data', original);
+    pipe.on('data', (frame) => {
+      this.stats.frames++;
+      if (!isValidRtuFrame(frame)) {
+        this.stats.crcErrors++;
+        logger.logDevMessage(`[ModbusSlave] - отброшен кадр с неверным CRC (${frame.length} байт): ${frame.toString('hex')}`);
+        if (this.listenerCount('crcError') > 0) this.emit('crcError', { frame: Buffer.from(frame) });
+        return;
+      }
+      original.call(pipe, frame);
+    });
+  }
+
+  // modbus-serial (ServerSerial) сообщает о готовности событием 'initialized',
+  // а ошибку открытия порта передаёт только в openCallback — без него start() висел бы вечно.
   start() {
     return new Promise((resolve, reject) => {
+      let settled = false;
+      const done = (err) => {
+        if (settled) return;
+        settled = true;
+        if (err) reject(err);
+        else resolve();
+      };
+
       try {
         this.server = new ModbusRTU.ServerSerial(this._vector(), {
           path: this.config.port,
           baudRate: this.config.baudRate || 9600,
           unitID: this.unitID,
           debug: !!this.config.debug,
+          openCallback: (err) => {
+            if (!err) return;
+            logger.logErrorMessage(`[ModbusSlave] - Не удалось открыть ${this.config.port}: ${err.message}`);
+            done(err);
+          },
         });
+        if (this.crcCheck) this._installCrcCheck();
       } catch (err) {
-        return reject(err);
+        // порт мог уже начать открываться — не оставляем его занятым
+        if (this.server && typeof this.server.close === 'function') {
+          try { this.server.close(() => {}); } catch { /* уже закрыт */ }
+        }
+        this.server = null;
+        return done(err);
       }
 
-      this.server.on('open', () => {
+      this.server.on('initialized', () => {
         logger.logInfoMessage(
           `[ModbusSlave] - Slave-сервер запущен на ${this.config.port}, unitID=${this.unitID}`
         );
-        resolve();
+        done();
       });
 
-      this.server.on('error', (err) => {
+      const onError = (err) => {
         logger.logErrorMessage(`[ModbusSlave] - Ошибка Slave-сервера: ${err.message}`);
-        this.emit('error', err);
-      });
+        // emit('error') без подписчиков роняет процесс — пробрасываем, только если кто-то слушает
+        if (this.listenerCount('error') > 0) this.emit('error', err);
+      };
+      this.server.on('error', onError);
+      this.server.on('socketError', onError);
     });
   }
 
@@ -152,6 +215,34 @@ class ModbusSlaveServer extends EventEmitter {
       default:
         throw new Error(`[ModbusSlave] Неизвестный тип регистра: ${regDef.type}`);
     }
+  }
+
+  /**
+   * Текущее значение тега так, как его видит внешний Master: с учётом dataType, scale и swapWords.
+   * @param {object} regDef - описание регистра из registerMap
+   */
+  getValue(regDef) {
+    switch (regDef.type) {
+      case 'holding':
+      case 'input': {
+        const bank = regDef.type === 'holding' ? this.holdingRegisters : this.inputRegisters;
+        const size = REGISTER_SIZE[regDef.dataType] || 1;
+        const regs = Array.from(bank.subarray(regDef.address, regDef.address + size));
+        return decodeRegisters(regs, regDef.dataType, { swapWords: regDef.swapWords, scale: regDef.scale });
+      }
+      case 'coil':
+        return this.coils[regDef.address] === 1;
+      case 'discrete':
+        return this.discreteInputs[regDef.address] === 1;
+      default:
+        throw new Error(`[ModbusSlave] Неизвестный тип регистра: ${regDef.type}`);
+    }
+  }
+
+  getValueByName(name) {
+    const regDef = this.registerMap.find((r) => r.name === name);
+    if (!regDef) throw new Error(`[ModbusSlave] Регистр с именем "${name}" не найден в registerMap`);
+    return this.getValue(regDef);
   }
 
   /** Обновление значения по имени регистра из registerMap (удобнее, чем передавать regDef целиком) */

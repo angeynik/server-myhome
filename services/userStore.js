@@ -597,16 +597,6 @@ async function recordLogin(username) {
   });
 }
 
-async function fetchUsers() {
-  const { users } = await loadUsers();
-  return users.map((u) => ({ id: u.id, username: u.username }));
-}
-
-async function fetchDataSources() {
-  const { datasources } = await loadUsers();
-  return datasources.map((d) => ({ id: d.id, did: d.did }));
-}
-
 async function deleteUser(username) {
   const uname = String(username || '').trim();
   if (!uname) throw authError('BAD_USERNAME', 'Имя не указано');
@@ -681,8 +671,6 @@ module.exports = {
   recordLogin,
   listUsers,
   listDataSources,
-  fetchUsers,
-  fetchDataSources,
   toPublic,
   deleteUser,
   deleteDataSource,

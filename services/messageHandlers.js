@@ -1,9 +1,6 @@
 // services/messageHandlers.js
 'use strict';
 
-const dotenv = require('dotenv');
-dotenv.config({ path: './conf.env' });
-
 const logger    = require('./logger.js');
 const userStore = require('./userStore.js');
 const auth      = require('./auth');
@@ -13,14 +10,7 @@ const notifyService   = require('./notifyService.js');
 const telegramService = require('./telegramService.js');
 const videoStreamService = require('./videoStreamService.js');
 
-const {
-  writeFileSafely,
-  readFileSafely,
-  saveNamedConfig,
-  namedConfigExists,
-} = require('./configStore');
-
-const { nodeRedClients } = require('./clientsStore');
+const { writeFileSafely, readFileSafely } = require('./configStore');
 
 // ── Утилиты ─────────────────────────────────────────────────────────────
 function getClientIP(clientId) {
@@ -614,54 +604,9 @@ const handlePost = async (clientId, data) => {
   }
 };
 
-// ── Response (от NodeRED) ───────────────────────────────────────────────
-const handleResponse = async (clientId, data) => {
-  switch (data?.request) {
-    case 'config': {
-      try {
-        if (!data.payload) break;
-        const dID        = data.name;
-        const configName = Object.keys(data.payload)[0];
-        const configData = data.payload[configName];
-        if (!dID || !configName) throw new Error('handleResponse: нет dID или имени конфига');
-
-        const { exists, filePath } = await namedConfigExists(dID, configName);
-        if (exists) {
-          wsManager.sendToConnection('nRED_connections', clientId, 'response', 'configExists', dID, {
-            config: configName, exists: true, filePath,
-          });
-          break;
-        }
-        await saveNamedConfig(dID, configName, configData);
-        wsManager.sendToConnection('nRED_connections', clientId, 'response', 'configSaved', dID, {
-          config: configName, filePath,
-        });
-      } catch (error) {
-        logger.logErrorMessage(`[messageHandlers] - handleResponse: ${error.message}`);
-        wsManager.sendToConnection('nRED_connections', clientId, 'error', 'configError', data.name, {
-          message: error.message, code: error.code || 'FILE_ERROR',
-        });
-      }
-      break;
-    }
-    default: break;
-  }
-};
-
-// ── Заглушки ────────────────────────────────────────────────────────────
-const handleSet   = async (clientId, data) => {
-  logger.logDevMessage('[messageHandlers] - handleSet (не реализовано)');
-};
-const handleError = async (clientId, data) => {
-  logger.logDevMessage('[messageHandlers] - handleError');
-};
-
 module.exports = {
   handlePostNodeRED,
   handleAuth,
   handleGet,
   handlePost,
-  handleResponse,
-  handleSet,
-  handleError,
 };

@@ -21,6 +21,10 @@ jest.mock('modbus-serial', () => {
       this.vector = vector;
       this.options = options;
       this._closed = false;
+      // Как в настоящем ServerSerial: поток-нарезчик кадров с одним обработчиком 'data'
+      this._server = new EventEmitter();
+      this.handledFrames = [];
+      this._server.on('data', (frame) => this.handledFrames.push(frame));
       MockServerSerial.instances.push(this);
     }
 
@@ -38,6 +42,9 @@ jest.mock('modbus-serial', () => {
 
 // Мокаем modbusUtils: encodeToRegisters — простая детерминированная реализация
 jest.mock('../../modBus/modbusUtils', () => ({
+  REGISTER_SIZE: { bool: 1, int16: 1, uint16: 1, int32: 2, uint32: 2, float32: 2 },
+  isValidRtuFrame: jest.requireActual('../../modBus/modbusUtils').isValidRtuFrame,
+  decodeRegisters: jest.requireActual('../../modBus/modbusUtils').decodeRegisters,
   encodeToRegisters: jest.fn((value, dataType, opts = {}) => {
     const scale = opts.scale || 1;
     const scaled = Math.round(Number(value) / scale);
@@ -48,6 +55,13 @@ jest.mock('../../modBus/modbusUtils', () => ({
     // int16 / uint16 / bool — один регистр
     return [scaled & 0xffff];
   }),
+}));
+
+jest.mock('../../services/logger.js', () => ({
+  initLogging: jest.fn(),
+  logInfoMessage: jest.fn(),
+  logDevMessage: jest.fn(),
+  logErrorMessage: jest.fn(),
 }));
 
 const ModbusRTU = require('modbus-serial');
@@ -104,10 +118,10 @@ describe('modbusSlave.js - ModbusSlaveServer', () => {
       expect(slave.discreteInputs.length).toBe(100);
     });
 
-    test('Должен применить unitId из конфига (по умолчанию 1)', () => {
+    test('Должен применить unitId из конфига (по умолчанию 21)', () => {
       const cfg1 = { port: '/dev/ttyUSB0', registerMap: [] };
       const slave1 = new ModbusSlaveServer(cfg1);
-      expect(slave1.unitID).toBe(1);
+      expect(slave1.unitID).toBe(21);
 
       const cfg2 = { port: '/dev/ttyUSB0', unitId: 42, registerMap: [] };
       const slave2 = new ModbusSlaveServer(cfg2);
@@ -384,9 +398,10 @@ describe('modbusSlave.js - ModbusSlaveServer', () => {
         baudRate: 9600,
         unitID: 10,
         debug: false,
+        openCallback: expect.any(Function),
       });
 
-      instance.emit('open');
+      instance.emit('initialized');
       await startPromise;
 
       expect(logger.logInfoMessage).toHaveBeenCalledWith(
@@ -403,7 +418,7 @@ describe('modbusSlave.js - ModbusSlaveServer', () => {
 
       expect(instance.options.baudRate).toBe(9600);
 
-      instance.emit('open');
+      instance.emit('initialized');
       await startPromise;
     });
 
@@ -416,16 +431,16 @@ describe('modbusSlave.js - ModbusSlaveServer', () => {
 
       expect(instance.options.debug).toBe(true);
 
-      instance.emit('open');
+      instance.emit('initialized');
       await startPromise;
     });
 
-    test('Должен резолвить промис при событии open', async () => {
+    test('Должен резолвить промис при событии initialized (так ServerSerial сообщает об открытии порта)', async () => {
       const slave = new ModbusSlaveServer(baseConfig());
       const startPromise = slave.start();
       const instance = ModbusRTU.ServerSerial.instances[0];
 
-      instance.emit('open');
+      instance.emit('initialized');
       await expect(startPromise).resolves.toBeUndefined();
     });
 
@@ -446,7 +461,27 @@ describe('modbusSlave.js - ModbusSlaveServer', () => {
       );
 
       // Чтобы startPromise не остался висеть
-      instance.emit('open');
+      instance.emit('initialized');
+      await startPromise;
+    });
+
+    test('Должен реджектить промис, если порт не открылся (openCallback с ошибкой)', async () => {
+      const slave = new ModbusSlaveServer(baseConfig());
+      const startPromise = slave.start();
+      const instance = ModbusRTU.ServerSerial.instances[0];
+
+      instance.options.openCallback(new Error('No such file or directory'));
+      await expect(startPromise).rejects.toThrow('No such file or directory');
+    });
+
+    test('Ошибка сервера без подписчиков на error не роняет процесс', async () => {
+      const slave = new ModbusSlaveServer(baseConfig());
+      const startPromise = slave.start();
+      const instance = ModbusRTU.ServerSerial.instances[0];
+
+      expect(() => instance.emit('error', new Error('boom'))).not.toThrow();
+      expect(() => instance.emit('socketError', new Error('boom2'))).not.toThrow();
+      instance.emit('initialized');
       await startPromise;
     });
 
@@ -469,7 +504,7 @@ describe('modbusSlave.js - ModbusSlaveServer', () => {
       const slave = new ModbusSlaveServer(baseConfig());
       const startPromise = slave.start();
       const instance = ModbusRTU.ServerSerial.instances[0];
-      instance.emit('open');
+      instance.emit('initialized');
       await startPromise;
 
       slave.close();
@@ -542,5 +577,101 @@ describe('modbusSlave.js - ModbusSlaveServer', () => {
       expect(vector.getDiscreteInput(1)).toBe(false);
       expect(vector.getCoil(0)).toBe(false);
     });
+  });
+});
+describe('modbusSlave.js - адрес и запись многорегистровых тегов', () => {
+  test('принимает unitID (как в modbusConf.example.json) наравне с unitId', () => {
+    expect(new ModbusSlaveServer({ port: '/dev/ttyUSB0', unitID: 10 }).unitID).toBe(10);
+  });
+
+  test('запись во второй регистр float32 относится к тому же тегу, dID берётся из конфига', () => {
+    const slave = new ModbusSlaveServer({
+      port: '/dev/ttyUSB0', dID: 'gate',
+      registerMap: [{ name: 'flow', type: 'holding', address: 2, dataType: 'float32' }],
+    });
+    const events = [];
+    slave.on('write', (e) => events.push(e));
+    slave._emitWrite('holding', 3, 1, 10);
+    expect(events[0]).toMatchObject({ name: 'flow', dID: 'gate', address: 3 });
+  });
+});
+
+describe('modbusSlave.js - проверка CRC входящих кадров', () => {
+  const { crc16 } = jest.requireActual('../../modBus/modbusUtils');
+  const frame = (bytes) => {
+    const pdu = Buffer.from(bytes);
+    const out = Buffer.alloc(pdu.length + 2);
+    pdu.copy(out);
+    out.writeUInt16LE(crc16(pdu), pdu.length);
+    return out;
+  };
+  const start = async (cfg = {}) => {
+    const slave = new ModbusSlaveServer({ port: '/dev/ttyUSB0', unitId: 10, ...cfg });
+    const p = slave.start();
+    const instance = ModbusRTU.ServerSerial.instances[ModbusRTU.ServerSerial.instances.length - 1];
+    instance.emit('initialized');
+    await p;
+    return { slave, instance };
+  };
+
+  beforeEach(() => { ModbusRTU.ServerSerial.instances.length = 0; });
+
+  test('кадр с верным CRC передаётся обработчику библиотеки', async () => {
+    const { slave, instance } = await start();
+    const good = frame([10, 3, 0, 0, 0, 1]);
+    instance._server.emit('data', good);
+    expect(instance.handledFrames).toEqual([good]);
+    expect(slave.stats).toEqual({ frames: 1, crcErrors: 0 });
+  });
+
+  test('кадр с неверным CRC и обрывок кадра отбрасываются, эмитится crcError', async () => {
+    const { slave, instance } = await start();
+    const errors = [];
+    slave.on('crcError', (e) => errors.push(e));
+    const bad = frame([10, 6, 0, 0, 3, 0xe7]);
+    bad[4] ^= 1;
+    instance._server.emit('data', bad);
+    instance._server.emit('data', Buffer.from([10, 3]));
+    expect(instance.handledFrames).toEqual([]);
+    expect(slave.stats.crcErrors).toBe(2);
+    expect(errors).toHaveLength(2);
+  });
+
+  test('без подписчиков на crcError ошибка CRC не роняет процесс', async () => {
+    const { instance } = await start();
+    expect(() => instance._server.emit('data', Buffer.from([1, 2, 3, 4]))).not.toThrow();
+  });
+
+  test('crcCheck: false оставляет поведение библиотеки', async () => {
+    const { instance } = await start({ crcCheck: false });
+    instance._server.emit('data', Buffer.from([1, 2, 3, 4]));
+    expect(instance.handledFrames).toHaveLength(1);
+  });
+
+  test('неожиданное устройство ServerSerial: start() отклоняется и закрывает порт', async () => {
+    const OriginalMock = ModbusRTU.ServerSerial;
+    let created;
+    ModbusRTU.ServerSerial = jest.fn(function Fake() {
+      created = new OriginalMock();
+      created._server = new (require('events'))(); // нет обработчика 'data'
+      return created;
+    });
+    try {
+      const slave = new ModbusSlaveServer({ port: '/dev/ttyUSB0' });
+      await expect(slave.start()).rejects.toThrow(/проверку CRC/);
+      expect(created._closed).toBe(true);
+      expect(slave.server).toBeNull();
+    } finally {
+      ModbusRTU.ServerSerial = OriginalMock;
+    }
+  });
+
+  test('getValueByName декодирует значение с учётом scale', () => {
+    const slave = new ModbusSlaveServer({
+      port: '/dev/ttyUSB0',
+      registerMap: [{ name: 't', type: 'holding', address: 0, dataType: 'int16', scale: 0.1 }],
+    });
+    slave.holdingRegisters[0] = 235;
+    expect(slave.getValueByName('t')).toBe(23.5);
   });
 });

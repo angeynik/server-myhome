@@ -1,6 +1,6 @@
 
-const { createNotifyService } = require('../services/notifyService');
-const nc = require('../services/notifyConfig');
+const { createNotifyService } = require('../../services/notifyService');
+const nc = require('../../services/notifyConfig');
 
 const OPEN = 1;
 

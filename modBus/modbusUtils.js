@@ -2,6 +2,7 @@
 // Вспомогательные функции для преобразования "сырых" 16-битных регистров Modbus
 // в JS-значения (и обратно), с поддержкой масштаба и перестановки слов (swapWords)
 // для 32-битных типов (это часто требуется многим китайским счётчикам/датчикам).
+'use strict';
 
 const REGISTER_SIZE = {
   bool: 1,
@@ -55,7 +56,16 @@ function decodeRegisters(regs, dataType, { swapWords = false, scale = 1 } = {}) 
       throw new Error(`[modbusUtils] Неизвестный dataType: ${dataType}`);
   }
 
-  return scale !== 1 ? raw * scale : raw;
+  if (scale === 1) return raw;
+  // Округляем до точности масштаба (0.1 → 1 знак, 0.01 → 2), иначе 234 * 0.1 = 23.400000000000002
+  return Number((raw * scale).toFixed(scaleDecimals(scale)));
+}
+
+function scaleDecimals(scale) {
+  const text = String(scale);
+  if (text.includes('e-')) return Number(text.split('e-')[1]);
+  const dot = text.indexOf('.');
+  return dot === -1 ? 0 : text.length - dot - 1;
 }
 
 /**
@@ -104,4 +114,30 @@ function encodeToRegisters(value, dataType, { swapWords = false, scale = 1 } = {
   return regs;
 }
 
-module.exports = { REGISTER_SIZE, decodeRegisters, encodeToRegisters };
+/**
+ * CRC-16/MODBUS (полином 0xA001, начальное значение 0xFFFF).
+ * В кадре RTU записывается младшим байтом вперёд (writeUInt16LE).
+ * @param {Buffer} buf
+ * @returns {number}
+ */
+function crc16(buf) {
+  let crc = 0xffff;
+  for (const byte of buf) {
+    crc ^= byte;
+    for (let i = 0; i < 8; i++) {
+      crc = (crc & 1) ? (crc >>> 1) ^ 0xa001 : crc >>> 1;
+    }
+  }
+  return crc;
+}
+
+/**
+ * Кадр RTU цел: не короче адрес + функция + CRC (4 байта) и CRC совпадает.
+ * @param {Buffer} frame
+ */
+function isValidRtuFrame(frame) {
+  if (!Buffer.isBuffer(frame) || frame.length < 4) return false;
+  return frame.readUInt16LE(frame.length - 2) === crc16(frame.subarray(0, -2));
+}
+
+module.exports = { REGISTER_SIZE, decodeRegisters, encodeToRegisters, crc16, isValidRtuFrame };

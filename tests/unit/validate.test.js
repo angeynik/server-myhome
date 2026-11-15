@@ -1,5 +1,4 @@
-
-const { validType, validMessage } = require('../services/validate');
+const { validType, validMessage, validPost } = require('../../services/validate');
 
 const base = () => ({
   type: 'message',
@@ -51,5 +50,17 @@ describe('validate.validMessage', () => {
 describe('validate.validType', () => {
   test('допускает type message', () => {
     expect(validType({ type: 'message' }).error).toBeUndefined();
+  });
+});
+
+describe('validate.validPost: name — допустимый dID', () => {
+  const post = (name) => ({ type: 'post', request: 'sensors', name, payload: {} });
+
+  test('принимает обычный dID', () => {
+    expect(validPost(post('angey_bmax')).error).toBeUndefined();
+  });
+
+  test.each(['../etc/passwd', 'a/b', 'a.b', 'x'.repeat(65), ''])('отклоняет %j', (name) => {
+    expect(validPost(post(name)).error).toBeDefined();
   });
 });

@@ -1,3 +1,9 @@
+// gpio.js
+// Управление GPIO через sysfs (/sys/class/gpio): экспорт пинов, направление, запись выходов,
+// опрос входов с дебаунсом. Пины устройства задаются в gpioConf.json по DEVICE_NAME,
+// распиновка Orange Pi — в description.txt. Включается MANAGE_DOOR=true.
+'use strict';
+
 const fs = require('fs');
 
 class GpioManager {
@@ -167,7 +173,3 @@ class GpioManager {
 }
 
 module.exports = GpioManager;
-
-//module.exports = { gpioExport, gpioUnexport, gpioSetDirection, gpioReadValue, gpioWriteValue};
-
-// const { gpioExport, gpioUnexport, gpioSetDirection, gpioReadValue, gpioWriteValue } = require('./gpio.js');

@@ -1,30 +1,27 @@
+'use strict';
+
 module.exports = {
-  testEnvironment: 'node', // Устанавливаем окружение Node.js
+  testEnvironment: 'node',
   testMatch: [
     '**/tests/unit/**/*.test.js',
     '**/tests/integration/**/*.integration.js',
-    "**/tests/modbusRTU/**/*.test.js"
+    '**/tests/modbusRTU/**/*.test.js',
   ],
   collectCoverageFrom: [
-    'auth.js',
+    'serverapp.js',
+    'gpio.js',
     'services/**/*.js',
-    'routes/**/*.js',
-    'middleware/**/*.js'
+    'classes/**/*.js',
+    'modBus/**/*.js',
   ],
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov', 'clover'],
+  // Тихий лог и тестовые секреты; глобальных моков нет
   setupFilesAfterEnv: ['<rootDir>/tests/setup.js'],
-  // moduleNameMapper: {
-  //   '^@/(.*)$': '<rootDir>/$1'
-  // },
-  moduleNameMapper: {
-    '^@/(.*)$': '<rootDir>/src/$1',
-    '^services/(.*)$': '<rootDir>/services/$1',
-    '^classes/(.*)$': '<rootDir>/classes/$1'
-  },
+  // История вызовов моков очищается перед каждым тестом (реализации сохраняются)
+  clearMocks: true,
   testPathIgnorePatterns: [
     '/node_modules/',
-    '/coverage/'
-  ]
+    '/coverage/',
+  ],
 };
-  

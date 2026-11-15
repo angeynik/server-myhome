@@ -60,37 +60,63 @@ Modbus RTU — это half-duplex шина с одним ведущим. **Maste
 
 Скопируйте `modbusConf.example.json` → `modbusConf.json`, впишите свои устройства/регистры. Ключевые поля:
 
-- `role`: `"master"` | `"slave"` | `"both"` (можно переопределить переменной окружения `MODBUS_ROLE`)
+- `role`: `"master"` | `"slave"` | `"both"` (можно переопределить переменной окружения `MODBUS_ROLE`; по умолчанию `slave`)
+- `slave.unitId` (или `unitID`): адрес нашего Slave на шине, по умолчанию 21
 - `master.devices[].registers[]`: `name`, `type` (`holding`/`input`/`coil`/`discrete`), `address`, `dataType` (`bool`/`int16`/`uint16`/`int32`/`uint32`/`float32`), опционально `scale` и `swapWords` (для 32-битных типов, если устройство отдаёт слова в обратном порядке)
 - `slave.registerMap[]`: то же самое + `initial` (начальное значение) — что видит внешний Master, пока Orange Pi не обновит значение через `modbusManager.updateSlaveValueByName(...)`
 
-## 5. Переменные окружения (conf.env)
+## 5. Подключение к serverapp.js
 
+Включается в `conf.env`:
 ```
-MANAGE_MODBUS=true       # включить сервис (по аналогии с MANAGE_DOOR)
-MODBUS_ROLE=both         # необязательно, переопределяет "role" из modbusConf.json
+MODBUS_RTU_ENABLED=true
+MODBUS_RTU_CONF=./modBus/modbusConf.json   # путь к конфигу (по умолчанию этот)
+#MODBUS_ROLE=both                          # переопределяет "role" из конфига
 ```
+Связку с сервером выполняет `services/modbusRTUBridge.js` (аналог моста Modbus TCP):
+- значения опроса Master уходят в Vue как `post` в формате NodeRED (`request` из поля регистра, по умолчанию `sensors`;
+  `room` — регистра или устройства) и сохраняются в конфиг `dID` через общую очередь. Повтор без изменений
+  (с учётом `deadband`) клиентам не рассылается, раз в минуту только перезаписывается в файл;
+- команда Vue (`post` с тем же `name`/`request`/`room`/`item_name`, для уставок — `setKey`) на регистр с
+  `"writable": true` (coil/holding) пишется в устройство и подтверждается рассылкой; иначе — `error/modbusWriteError`
+  с кодом `READ_ONLY`, ошибка шины — `MODBUS_ERROR`;
+- запись внешнего Master в наш Slave уходит в Vue текущим декодированным значением тега (`request` по умолчанию `system`).
 
-## 6. Что уже подключено в serverapp.js
+Дополнительные поля регистра: `request`, `item_type` (`num` | `bool`), `writable`, `deadband`, `room`, `title`, `group`.
+`dID` устройства и Slave должен быть допустимым (`^[A-Za-z0-9_-]{1,64}$`), иначе теги пропускаются.
+Ошибка RTU (нет порта, неверный конфиг) пишется в лог и не мешает работе остального сервера.
 
-- при `MANAGE_MODBUS=true` поднимается `ModbusManager('./modbusConf.json')`
-- новые показания от Master уходят в `broadcast()` — так же, как остальные данные приложения (GPIO, БД) — Dashboard и NodeRED получают их без доработок на своей стороне
-- запись во внешние Modbus-устройства доступна с Dashboard командой:
-  ```json
-  { "type": "post", "request": "modbusWrite", "name": "boiler1",
-    "payload": { "item_name": "pump_state", "item_value": true } }
-  ```
-- если внешний Master (в режиме Slave) что-то пишет в Orange Pi — это тоже уходит в `broadcast()` с `request: 'modbusSlaveWrite'`
-- при остановке сервера (SIGINT/SIGTERM) serial-порт(ы) закрываются корректно
+## Проверка контрольной суммы (CRC)
+
+`ServerSerial` из `modbus-serial` не проверяет CRC входящих запросов — пересчитывает и записывает поверх.
+`modbusSlave.js` встаёт перед его обработчиком: кадр с неверным CRC или короче 4 байт отбрасывается без ответа
+(Master получит таймаут и повторит запрос), счётчик — `slave.stats.crcErrors`, событие — `crcError`.
+Отключить можно `"crcCheck": false` в секции `slave`. Если внутреннее устройство `ServerSerial` изменится
+(обновление библиотеки), Slave не стартует с понятной ошибкой, а не будет молча работать без проверки.
+Ответы Slave проверяет сама библиотека на стороне Master (`CRC error`).
+
+## Проверка без железа
+
+```bash
+node tools/modbusRtuCheck.js            # все сценарии: master, crc, manager
+node tools/modbusRtuCheck.js crc        # только CRC
+```
+Виртуальные порты создаёт `tools/ptyPair.py` (нужен python3, Linux/macOS).
+
+## 6. Формат событий Master
+
+Событие `data` на каждое прочитанное значение:
+```json
+{ "dID": "boiler1", "type": "post", "request": "modbusUpdate",
+  "payload": { "room": "boiler_room", "item_name": "temperature", "item_value": 21.5 } }
+```
 
 ## 7. Как передать данные с GPIO/БД во внешний Modbus-сервер (роль Slave)
 
 Там, где у вас в `serverapp.js` обновляется состояние GPIO-датчика (`gpioManager.watchPin` и т.п.), добавьте вызов:
 
 ```js
-if (modbusManager) {
-  modbusManager.updateSlaveValueByName('door_sensor', newState);
-}
+modbusRtuBridge.setSlaveValue('door_sensor', newState);
 ```
 
 Значение сразу станет видно внешнему Modbus Master при следующем опросе — никакого дополнительного опроса/поллинга с нашей стороны не требуется, чтение полностью пассивное.

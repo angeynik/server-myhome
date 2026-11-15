@@ -13,16 +13,20 @@
 - jQuery, DOM API и браузерные объекты не использовать.
 
 ## Логирование
-- Только `services/logger.js`: `logInfoMessage`, `logDevMessage`, `logErrorMessage`. Формат: `[Модуль] - функция - сообщение`.
+- Только `services/logger.js`: `logInfoMessage`, `logDevMessage`, `logErrorMessage`. Формат: `[Модуль] - функция - сообщение`. Функции принимают несколько аргументов (объекты выводятся через `util.inspect`).
+- Уровень `LOG_LEVEL`: `error` — только ошибки; `info` (по умолчанию) и `production` — ошибки и info; `dev` — всё; `none` — ничего (только для тестов). Каждый уровень включает более важные, поэтому ошибки вне тестов пишутся всегда.
 - `console.*` в новом коде не использовать.
 - Сырые входящие сообщения логировать только через `logger.redactSecrets()` (маскирует `password`, `oldPassword`, `newPassword`, `token`).
 
 ## Структура проекта
 - `serverapp.js` — точка входа: Express, WS-серверы, маршрутизация сообщений. Бизнес-логики не содержит.
-- `services/` — бизнес-логика: `auth`, `authConfig`, `userStore`, `notifyConfig`, `notifyService`, `telegramService`, `videoConfig`, `videoStreamService`, `messageHandlers`, `messageStore`, `configStore`, `validate`, `logger`, `clientsStore`, `modbusTCPBridge`.
+- `services/` — бизнес-логика: `auth`, `authConfig`, `userStore`, `notifyConfig`, `notifyService`, `telegramService`, `videoConfig`, `videoStreamService`, `messageHandlers`, `messageStore`, `configStore`, `validate`, `logger`, `modbusTCPBridge`, `modbusRTUBridge`.
 - `classes/` — классы: `wsManager`, `modBusTCPManager`, `telegramBot`.
 - `scripts/` — CLI администрирования (`authAdmin.js`).
-- `tests/` — Jest-тесты `<модуль>.test.js` и `setup.js`.
+- `tools/` — инструменты разработчика, не загружаются сервером: `modbusSlaveEmulator.js` (эмулятор Modbus TCP-устройства), `modbusDiag.js` (чтение всех тегов карты с устройства), `modbusRtuCheck.js` + `ptyPair.py` (проверка Modbus RTU на виртуальных портах).
+- `modBus/` — Modbus RTU (`modbusMaster`, `modbusSlave`, `modbusManager`, `modbusUtils`), к серверу подключается через `services/modbusRTUBridge.js` при `MODBUS_RTU_ENABLED=true` (конфиг `MODBUS_RTU_CONF`). Все обращения Master к шине идут через одну очередь: на RS-485 запросы не должны пересекаться. Slave проверяет CRC входящих кадров и отбрасывает искажённые без ответа.
+- `gpio.js` — GPIO через sysfs (замок, датчики двери), включается `MANAGE_DOOR`.
+- `tests/` — Jest: `unit/<модуль>.test.js`, `integration/*.integration.js`, `modbusRTU/*.test.js`, общий `setup.js`, помощники в `helpers/`.
 - Сервис с зависимостями оформляется как фабрика `createXService(deps)` плюс синглтон-обёртка. Так его можно тестировать с фейками.
 
 ## Обмен данными по WebSocket
@@ -33,9 +37,9 @@
 | Канал | Порт (env, по умолчанию) | Клиент | Аутентификация | Heartbeat (ping / таймаут) |
 |---|---|---|---|---|
 | Dashboard | `WSD_PORT_IN` (9202) | Vue 3 | JWT-сессия: `auth/login` или `auth/resume` | 180 с / 370 с |
-| NodeRED | `WSR_PORT_IN` (9200), включается `NODERED_ENABLED` | NodeRED | нет (доверенный канал) | 240 с / 500 с |
+| NodeRED | `WSR_PORT_IN` (9200) на `WSR_HOST` (127.0.0.1), включается `NODERED_ENABLED` | NodeRED | нет (доверенный канал) | 240 с / 500 с |
 
-- Порт NodeRED не защищён токеном (`AUTH_STRICT` пока не реализован). Его нужно закрывать на уровне сети: слушать только внутренний интерфейс или ограничить файрволом.
+- Порт NodeRED не защищён токеном (`AUTH_STRICT` пока не реализован), поэтому по умолчанию слушает только `127.0.0.1` (`WSR_HOST`). Если NodeRED работает на другой машине, задать `WSR_HOST` адресом внутреннего интерфейса и ограничить доступ файрволом.
 - Соединение регистрируется в `wsManager` (`VUE_connections`, `nRED_connections`) и получает `clientId`. Сессия Vue привязана к `clientId` и удаляется при закрытии соединения.
 - Получатели рассылок определяются по `dID` соединения. `dID` ставится при `auth/login` или `auth/resume` (Vue) и из первого сообщения (NodeRED). Соединение без `dID` рассылок не получает.
 
@@ -71,19 +75,21 @@
 ### Обработка входящего сообщения от Vue
 1. `JSON.parse` и `checkMessage`: `validType`, для `post` ещё `validPost`. Невалидное сообщение отбрасывается без ответа и логируется.
 2. Проверка, что `type` разрешён для Dashboard. Иначе сообщение отбрасывается без ответа.
-3. `auth.checkMessageAccess(clientId, type, request, name)`: сессия, таймаут `AUTH_TIMEOUT_MS`, уровень (`REQUIRED_LEVEL`), `name === dID` сессии (уровень 3 исключён). Отказ даёт `error/accessError` с `payload: { code, message, type, request }`, коды `NO_SESSION`, `TIMEOUT`, `FORBIDDEN`, `DID_MISMATCH`.
+3. `auth.checkMessageAccess(clientId, type, request, name)`: сессия, уровень (`REQUIRED_LEVEL`), `name === dID` сессии (уровень 3 исключён). Отказ даёт `error/accessError` с `payload: { code, message, type, request }`, коды `NO_SESSION`, `FORBIDDEN`, `DID_MISMATCH`.
 4. Маршрутизация: `auth` → `handleAuth`, `get` → `handleGet`, `post` → `handlePost`, затем пересылка (см. «Рассылка»).
 
 ### Обработка входящего сообщения от NodeRED
 1. `checkMessage`; при ошибке сообщение отбрасывается. Для `message` дополнительно `validMessage`.
-2. Если соединению ещё не назначен `dID`, он берётся из `name` первого валидного сообщения. Дальше `dID` не меняют.
+2. Сообщение с `name`, не прошедшим `cfg.isValidDID`, отбрасывается целиком. Если соединению ещё не назначен `dID`, он берётся из `name` первого валидного сообщения. Дальше `dID` не меняют.
 3. `init/init_ws` обновляет соединение; `post` ставится в очередь `messageStore` и пересылается клиентам Vue; `message` передаётся в `notifyService.dispatch`.
 
 ### Правила для клиента Vue 3
 - После подключения сервер отправляет `info/serverConnected`.
 - Первое сообщение: `auth/login` (`payload: { username, password }`) или `auth/resume` (`payload: { token }`). Успех приходит как `response/loginSuccess` с `token`, `username`, `userlevel`, `dID`, `mustChangePassword`, `profile`. До этого любой другой запрос получит `accessError/NO_SESSION`.
 - Во всех сообщениях `name` равен `dID` пользователя.
-- Сессия живёт, пока открыто соединение. После переподключения нужен новый `auth/resume` с сохранённым токеном. При `TOKEN_REVOKED`, `BAD_TOKEN` или `TIMEOUT` выполнить повторный вход.
+- Сессия живёт, пока открыто соединение: по бездействию она не истекает и заканчивается только при `auth/logout`, отзыве (смена пароля, уровня, dID, блокировка, удаление) или закрытии соединения. После переподключения нужен новый `auth/resume` с сохранённым токеном. При `TOKEN_REVOKED`, `BAD_TOKEN` или `TIMEOUT` выполнить повторный вход.
+- Таймаут входа `AUTH_TIMEOUT_MS` (60 с, `0` — выключен): соединение, которое столько времени остаётся без сессии (после подключения, logout или отзыва), получает `error/accessError` с `code: 'TIMEOUT'` и закрывается с кодом `4401` (`auth timeout`). Проверка идёт периодически, поэтому фактическое закрытие наступает с задержкой до четверти таймаута (не меньше 5 с, не больше 60 с).
+- Срок жизни токена (`JWT_EXPIRES`) ограничивает только `auth/resume`; чтобы сохранённый токен не истёк, продлевайте его через `auth/refresh`.
 - Токен продлевается запросом `auth/refresh`; при `mustChangePassword: true` требовать смену пароля.
 - Корреляционного идентификатора нет: ответ сопоставляется по `request`. Не отправлять параллельно два одинаковых запроса.
 - Имена ответов:
@@ -106,7 +112,7 @@
 - Не отправлять NodeRED-сообщения чужого `dID`: соединение привязано к одному `dID`.
 
 ### Рассылка
-- `post` от Vue пересылается (если команду не обработал Modbus) всем остальным соединениям Vue и NodeRED с тем же `dID`, кроме отправителя. Сервер добавляет `time`.
+- `post` от Vue пересылается (если команду не обработал мост Modbus TCP или RTU) всем остальным соединениям Vue и NodeRED с тем же `dID`, кроме отправителя. Сервер добавляет `time`.
 - `post` от NodeRED пересылается всем соединениям Vue с этим `dID`.
 - Запросы из `NO_BROADCAST_POST` (`authConfig.js`) не пересылаются никому: они содержат пароли и данные учётных записей.
 - Оповещения (`message`) и снимки камеры (`post/videoSnapshot`) идут не через `broadcast`, а адресно: сессии Vue с нужным `dID` и уровнем (`notifyService`, `videoStreamService`). Соединение без сессии их не получает.
@@ -131,7 +137,11 @@
 ## Безопасность и доступ
 - Каждое сообщение Vue проходит `checkMessage` и `auth.checkMessageAccess` (см. «Обработка входящего сообщения от Vue»).
 - Уровни доступа описаны в разделе «Права доступа». Новый `request` обязательно добавлять в `REQUIRED_LEVEL`.
-- `dID` допускает только `^[A-Za-z0-9_-]{1,64}$` (`cfg.isValidDID`): он используется в именах файлов.
+- `dID` допускает только `^[A-Za-z0-9_-]{1,64}$` (`cfg.isValidDID`): он используется в именах файлов. Проверка стоит на всех уровнях:
+  - `validPost` требует, чтобы `name` был допустимым `dID`; `validMessage` — тоже;
+  - `checkMessageAccess` отклоняет недопустимый `name` с `DID_MISMATCH` для любого уровня, включая администратора;
+  - канал NodeRED отбрасывает сообщения с недопустимым `name`;
+  - `configStore.resolveConfigPath` бросает `BAD_DID` / `BAD_CONFIG_NAME`, а `writeFileSafely` — `BAD_PATH` для пути вне `DATA_DIR`. Новый код, превращающий данные в путь, обязан идти через `resolveConfigPath`.
 - Пользователи:
   - пароли только bcrypt;
   - наружу отдавать только `userStore.toPublic()` (без хеша и `telegram.chatId`);
@@ -143,5 +153,6 @@
 ## Тесты
 - Jest (`npm test`). На каждый новый или изменённый модуль создавать или обновлять тесты в `tests/`.
 - Сеть, файловую систему и WS не использовать напрямую: фейки, моки или временные каталоги (`os.tmpdir()`). Реальные запросы к Telegram и S3 запрещены, ffmpeg в юнит-тестах подменяется фейковым процессом (`spawn` передаётся в фабрику).
-- Тесты зависят только от `tests/setup.js` (тихий лог, тестовый `JWT_SECRET`).
+- Тесты зависят только от `tests/setup.js` (тихий лог `LOG_LEVEL=none`, тестовый `JWT_SECRET`, `DATA_DIR` во временном каталоге). Глобальных моков нет: каждый тест сам подменяет `fs`, логгер и другие модули. История вызовов моков очищается перед каждым тестом (`clearMocks` в `jest.config.js`).
+- Пути в тестах относительно файла теста: из `tests/unit/` — `../../services/...`, `../../classes/...`.
 - Перед завершением работы прогонять весь набор.

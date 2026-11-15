@@ -7,6 +7,8 @@
 // устройств и регистров реализован как последовательная асинхронная цепочка,
 // а не через параллельные Promise.all().
 
+'use strict';
+
 const EventEmitter = require('events');
 const ModbusRTU = require('modbus-serial');
 const { REGISTER_SIZE, decodeRegisters, encodeToRegisters } = require('./modbusUtils');
@@ -39,6 +41,26 @@ class ModbusMasterManager extends EventEmitter {
     this.requestTimeoutMs = config.requestTimeoutMs || 300;
     this.interRequestDelayMs = config.interRequestDelayMs ?? 20;
     this.devices = config.devices || [];
+    // Очередь обращений к шине: опрос и запись выполняются строго по одному
+    this._busChain = Promise.resolve();
+  }
+
+  /**
+   * Выполняет одну транзакцию на шине (setID + запрос) после завершения предыдущей.
+   * На half-duplex RS-485 запросы опроса и записи не должны пересекаться: иначе
+   * кадры сталкиваются, ответы теряются, и обе стороны падают по таймауту.
+   */
+  _exclusive(slaveId, fn) {
+    const run = this._busChain.then(async () => {
+      this.client.setID(slaveId);
+      try {
+        return await fn();
+      } finally {
+        await this._sleep(this.interRequestDelayMs);
+      }
+    });
+    this._busChain = run.catch(() => {});
+    return run;
   }
 
   connect() {
@@ -89,7 +111,6 @@ class ModbusMasterManager extends EventEmitter {
     for (const device of this.devices) {
       if (this.stopped) break;
       await this._pollDevice(device);
-      await this._sleep(this.interRequestDelayMs);
     }
 
     if (!this.stopped) {
@@ -103,8 +124,7 @@ class ModbusMasterManager extends EventEmitter {
     for (const reg of device.registers) {
       if (this.stopped) break;
       try {
-        this.client.setID(device.slaveId);
-        const value = await this._readRegister(reg);
+        const value = await this._exclusive(device.slaveId, () => this._readRegister(reg));
 
         // Событие 'data' - на него подписывается serverapp.js и делает broadcast()
         // клиентам VUE (Dashboard) / NodeRED в том же формате, что и остальные
@@ -130,7 +150,6 @@ class ModbusMasterManager extends EventEmitter {
           error: regErr.message,
         });
       }
-      await this._sleep(this.interRequestDelayMs);
     }
   }
 
@@ -174,11 +193,16 @@ class ModbusMasterManager extends EventEmitter {
     const reg = device.registers.find((r) => r.name === registerName);
     if (!reg) throw new Error(`[ModbusMaster] Регистр "${registerName}" не найден у устройства "${dID}"`);
 
-    this.client.setID(device.slaveId);
+    if (reg.type !== 'coil' && reg.type !== 'holding') {
+      throw new Error(`[ModbusMaster] Регистр "${registerName}" (${reg.type}) доступен только для чтения`);
+    }
+    if (!this.connected) throw new Error('[ModbusMaster] Порт не открыт');
 
-    if (reg.type === 'coil') {
-      await this.client.writeCoil(reg.address, !!value);
-    } else if (reg.type === 'holding') {
+    await this._exclusive(device.slaveId, async () => {
+      if (reg.type === 'coil') {
+        await this.client.writeCoil(reg.address, !!value);
+        return;
+      }
       const regs = encodeToRegisters(value, reg.dataType, {
         swapWords: reg.swapWords,
         scale: reg.scale,
@@ -188,9 +212,7 @@ class ModbusMasterManager extends EventEmitter {
       } else {
         await this.client.writeRegisters(reg.address, regs);
       }
-    } else {
-      throw new Error(`[ModbusMaster] Регистр "${registerName}" (${reg.type}) доступен только для чтения`);
-    }
+    });
 
     logger.logDevMessage(`[ModbusMaster] - Записано ${dID}.${registerName} = ${value}`);
   }

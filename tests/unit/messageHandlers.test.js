@@ -1,5 +1,5 @@
 
-jest.mock('../services/userStore', () => ({
+jest.mock('../../services/userStore', () => ({
   registerUser: jest.fn(),
   updateUser: jest.fn(),
   updateOwnProfile: jest.fn(),
@@ -9,36 +9,32 @@ jest.mock('../services/userStore', () => ({
   linkUserToDataSource: jest.fn(),
   listUsers: jest.fn(),
   listDataSources: jest.fn(),
-  fetchUsers: jest.fn(),
 }));
-jest.mock('../services/auth', () => ({
+jest.mock('../../services/auth', () => ({
   getSession: jest.fn(),
   invalidateUserSessions: jest.fn(),
   getProfile: jest.fn(),
   loginUser: jest.fn(),
 }));
-jest.mock('../classes/wsManager', () => ({
+jest.mock('../../classes/wsManager', () => ({
   sendToConnection: jest.fn(),
   updateConnection: jest.fn(),
 }));
-jest.mock('../services/notifyService', () => ({ getRecent: jest.fn(() => [{ payload: { message: 'm' } }]) }));
-jest.mock('../services/telegramService', () => ({ get: jest.fn() }));
-jest.mock('../services/videoStreamService', () => ({ getLastSnapshot: jest.fn(), getStats: jest.fn() }));
-jest.mock('../services/configStore', () => ({
+jest.mock('../../services/notifyService', () => ({ getRecent: jest.fn(() => [{ payload: { message: 'm' } }]) }));
+jest.mock('../../services/telegramService', () => ({ get: jest.fn() }));
+jest.mock('../../services/videoStreamService', () => ({ getLastSnapshot: jest.fn(), getStats: jest.fn() }));
+jest.mock('../../services/configStore', () => ({
   writeFileSafely: jest.fn(),
   readFileSafely: jest.fn(),
-  saveNamedConfig: jest.fn(),
-  namedConfigExists: jest.fn(),
 }));
-jest.mock('../services/clientsStore', () => ({ nodeRedClients: new Map() }));
 
-const userStore = require('../services/userStore');
-const auth = require('../services/auth');
-const wsManager = require('../classes/wsManager');
-const notifyService = require('../services/notifyService');
-const telegramService = require('../services/telegramService');
-const videoStreamService = require('../services/videoStreamService');
-const { handlePost, handleAuth, handleGet } = require('../services/messageHandlers');
+const userStore = require('../../services/userStore');
+const auth = require('../../services/auth');
+const wsManager = require('../../classes/wsManager');
+const notifyService = require('../../services/notifyService');
+const telegramService = require('../../services/telegramService');
+const videoStreamService = require('../../services/videoStreamService');
+const { handlePost, handleAuth, handleGet } = require('../../services/messageHandlers');
 
 const post = (request, payload) => handlePost('c1', { type: 'post', request, name: 'd1', payload });
 const sent = (request) => wsManager.sendToConnection.mock.calls.find((c) => c[3] === request);

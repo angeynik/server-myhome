@@ -14,49 +14,47 @@
 // что хотите один порт на обе роли (нестандартный сценарий), выставьте
 // в modbusConf.json "allowSharedPort": true - но это на ваш риск.
 
+'use strict';
+
 const fs = require('fs');
 const ModbusMasterManager = require('./modbusMaster');
 const ModbusSlaveServer = require('./modbusSlave');
 const logger = require('../services/logger.js');
-const dotenv = require('dotenv'); 
-const role = (process.env.MODBUS_ROLE || 'slave').toLowerCase();
+
+const ROLES = ['master', 'slave', 'both'];
+
+// Роль: MODBUS_ROLE из окружения важнее "role" из modbusConf.json; по умолчанию slave.
+// Читается при запуске, а не при загрузке модуля, чтобы conf.env и тесты успели задать env.
+function resolveRole(config) {
+  const role = String(process.env.MODBUS_ROLE || config.role || 'slave').toLowerCase();
+  if (!ROLES.includes(role)) {
+    throw new Error(`[ModbusManager] - Неизвестная роль "${role}" (допустимо: ${ROLES.join(' | ')})`);
+  }
+  return role;
+}
 
 class ModbusManager {
   constructor(confPath, options = {}) {
-    console.log('Конструктор ModbusManager, создаем экземпляр с: ', options);
     this.confPath = confPath;
     this.options = options;
     this.config = JSON.parse(fs.readFileSync(confPath, 'utf8'));
     this.master = null;
     this.slave = null;
 
-    if (options.unitId !== undefined) {
-      console.log('options.unitId :', options.unitId);
-      this.applyUnitId(options.unitId);
-
-    }
+    if (options.unitId !== undefined) this.applyUnitId(options.unitId);
   }
+
+  // Переопределяет адрес: Slave отвечает на unitId, Master опрашивает устройства по slaveId
   applyUnitId(unitId) {
-    // Применяем к секции slave
     if (this.config.slave) {
       this.config.slave.unitId = unitId;
-      console.log(`[ModbusManager] - Установлен unitId для Slave: ${unitId}`);
-      //logger.logInfoMessage(`[ModbusManager] - Установлен unitId для Slave: ${unitId}`);
+      logger.logInfoMessage(`[ModbusManager] - Установлен unitId для Slave: ${unitId}`);
     }
-    
-    // Применяем к секции master, если она есть
     if (this.config.master && this.config.master.devices) {
-      this.config.master.devices.forEach(device => {
-        device.unitId = unitId;
+      this.config.master.devices.forEach((device) => {
+        device.slaveId = unitId;
       });
-      logger.logInfoMessage(`[ModbusManager] - Установлен unitId для Master устройств: ${unitId}`);
-    }
-    
-    // Применяем к устройствам в корневой секции (если есть)
-    if (this.config.devices) {
-      this.config.devices.forEach(device => {
-        device.unitId = unitId;
-      });
+      logger.logInfoMessage(`[ModbusManager] - Установлен slaveId для Master устройств: ${unitId}`);
     }
   }
 
@@ -67,7 +65,7 @@ class ModbusManager {
    * @param {(data: object) => void} [handlers.onSlaveWrite] - внешний Master записал что-то в наш Slave
    */
   async start({ onData, onDeviceError, onSlaveWrite } = {}) {
-    //const role = (process.env.MODBUS_ROLE || this.config.role || 'slave').toLowerCase();
+    const role = resolveRole(this.config);
     logger.logInfoMessage(`[ModbusManager] - Запуск в роли: ${role}`);
 
     if (role === 'both') {
@@ -92,7 +90,6 @@ class ModbusManager {
     }
 
     if ((role === 'slave' || role === 'both') && this.config.slave) {
-      console.log('Создаем сервер для Modbus Slave');
       this.slave = new ModbusSlaveServer(this.config.slave);
       if (onSlaveWrite) this.slave.on('write', onSlaveWrite);
       await this.slave.start();

@@ -8,9 +8,8 @@
 // Modbus <-> мост <-> то, что должно уйти в пользовательское приложение,
 // а не внутренняя кухня очереди сообщений и доставки по WebSocket.
 //
-// Очистка истории вызовов jest.fn() между тестами выполняется глобальным
-// beforeEach(() => jest.clearAllMocks()) из tests/setup.js - отдельно её
-// здесь не дублируем.
+// История вызовов jest.fn() очищается между тестами настройкой clearMocks
+// в jest.config.js - отдельно её здесь не дублируем.
 
 'use strict';
 
@@ -44,7 +43,10 @@ describe('Modbus TCP -> modbusTCPBridge -> VUE (сквозной сценари�
     modbusManager.addDevice(DEVICE_ID, { host: '127.0.0.1', port, unitId: 1, timeout: 500 });
     await waitFor(() => modbusManager.isConnected(DEVICE_ID));
 
+    // dID и deviceId в корне — значения по умолчанию, без них мост не стартует
     const map = {
+      dID: DID,
+      deviceId: DEVICE_ID,
       pollInterval: 100,
       republishMs: 60000,
       tags: [
@@ -59,17 +61,27 @@ describe('Modbus TCP -> modbusTCPBridge -> VUE (сквозной сценари�
           request: 'actuators', item_name: 'dValve1', item_type: 'dActuator',
           table: 'holding', address: 110, dataType: 'uint16',
           writable: true
+        },
+        {
+          // логическое значение в регистре: Vue должен получать true/false, а не 0/1
+          deviceId: DEVICE_ID, dID: DID, room: 'room1',
+          request: 'system', item_name: 'dStatus1', item_type: 'bool',
+          table: 'holding', address: 120, dataType: 'int16',
+          writable: true
         }
       ]
     };
-    fs.readFileSync.mockReturnValue(JSON.stringify(map));
+    // Подменяем только чтение карты тегов, остальные файлы читаются как обычно
+    const realReadFileSync = fs.readFileSync;
+    jest.spyOn(fs, 'readFileSync').mockImplementation((file, ...rest) =>
+      String(file).endsWith('modbusMap.json') ? JSON.stringify(map) : realReadFileSync(file, ...rest));
 
     broadcast = jest.fn();
-    modbusBridge.init({ broadcast, mapFile: '/any/path/modbusMap.json' });
+    expect(modbusBridge.init({ broadcast })).toBe(3);
 
     // дожидаемся, пока оба тега пройдут первый опрос (первое чтение всегда
     // публикуется, независимо от deadband) - это признак того, что конвейер жив
-    await waitFor(() => addMessageToQueue.mock.calls.length >= 2);
+    await waitFor(() => addMessageToQueue.mock.calls.length >= 3);
   });
 
   afterAll(async () => {
@@ -98,7 +110,7 @@ describe('Modbus TCP -> modbusTCPBridge -> VUE (сквозной сценари�
         room: 'room1',
         item_name: 'dTemp1',
         item_value: 21.5,
-        item_type: 'dTemp'
+        item_type: 'num' // мост приводит dTemp к VUE-типу
       }
     });
 
@@ -151,6 +163,24 @@ describe('Modbus TCP -> modbusTCPBridge -> VUE (сквозной сценари�
       'VUE_connections', 'vue-client-1', 'error', 'modbusWriteError', DID,
       expect.objectContaining({ item_name: 'dTemp1', code: 'READ_ONLY' })
     );
+  });
+
+  test('логический тег в регистре публикуется как boolean и записывается как 1/0', async () => {
+    slave.setHoldingRegisters(120, [1]);
+    await waitFor(() => broadcast.mock.calls.some(
+      (c) => c[2]?.payload?.item_name === 'dStatus1' && c[2].payload.item_value === true
+    ));
+
+    broadcast.mockClear();
+    const handled = modbusBridge.handleCommand('vue-client-1', {
+      type: 'post', request: 'system', name: DID,
+      payload: { room: 'room1', item_name: 'dStatus1', value: 'false' }
+    });
+    expect(handled).toBe(true);
+    await waitFor(() => slave.getHoldingRegisters(120, 1)[0] === 0);
+    await waitFor(() => broadcast.mock.calls.some(
+      (c) => c[2]?.payload?.item_name === 'dStatus1' && c[2].payload.item_value === false
+    ));
   });
 
   test('команда к неизвестному тегу не перехватывается мостом (уйдёт в NodeRED как обычно)', () => {

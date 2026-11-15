@@ -1,7 +1,7 @@
 // services/notifyService.js
 // Рассылка оповещений (type: 'message') получателям.
 //
-// Формат входящего сообщения (NodeRED / HTTP):
+// Формат входящего сообщения (NodeRED по WebSocket):
 //   { type: 'message', request: 'notify', name: <dID>,
 //     payload: { level: 1..3, message: '...', title?, severity?, room?, item_name? } }
 //

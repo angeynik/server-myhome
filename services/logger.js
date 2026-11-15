@@ -1,37 +1,59 @@
-const dotenv = require('dotenv'); // Подключаем .ENV файл с переменными окружения
-dotenv.config({ path: './conf.env', override: true }); 
+// services/logger.js
+// Единый логгер сервера. Уровень задаётся LOG_LEVEL в conf.env:
+//   error              — только ошибки;
+//   info, production   — ошибки и информационные сообщения (по умолчанию);
+//   dev                — всё, включая отладочные сообщения;
+//   none               — ничего (для тестов, задаётся в tests/setup.js).
+// Каждый уровень включает все более важные, поэтому вне тестов ошибки пишутся всегда.
+// Функции принимают несколько аргументов: строки выводятся как есть,
+// Error — своим message, остальные значения — через util.inspect в одну строку.
+'use strict';
 
-const logLevel = process.env.LOG_LEVEL || 'info';
+const util = require('util');
+// Без override: переменные, заданные снаружи (systemd, docker), важнее conf.env
+require('dotenv').config({ path: './conf.env' });
 
-let logInfo = false;
+const LEVELS = {
+  none: { error: false, info: false, dev: false },
+  error: { error: true, info: false, dev: false },
+  info: { error: true, info: true, dev: false },
+  production: { error: true, info: true, dev: false },
+  dev: { error: true, info: true, dev: true },
+};
+
+let logInfo = true;
 let logDev = false;
-let logError = false;
+let logError = true;
 
-// Инициализация уровней логирования
+// Читает LOG_LEVEL в момент вызова; неизвестное значение работает как 'info'
 function initLogging() {
-  if (logLevel === 'dev') {
-    logDev = true;
-    logInfo = true;
-    logError = true;
-  } else if (logLevel === 'error') {
-    logInfo = true;
-    logError = true;
-  } else if (logLevel === 'info') {
-    logInfo = true;
-  }
+  const level = String(process.env.LOG_LEVEL || 'info').trim().toLowerCase();
+  const flags = LEVELS[level] || LEVELS.info;
+  logError = flags.error;
+  logInfo = flags.info;
+  logDev = flags.dev;
 }
 
-// Функции для безопасного логирования
-function logInfoMessage(message) {
-  if (logInfo) console.log(`${message}`);
+function format(args) {
+  return args
+    .map((a) => {
+      if (typeof a === 'string') return a;
+      if (a instanceof Error) return a.message;
+      return util.inspect(a, { depth: 4, breakLength: Infinity });
+    })
+    .join(' ');
 }
 
-function logDevMessage(message) {
-  if (logDev) console.log(`[DEV] ${message}`);
+function logInfoMessage(...args) {
+  if (logInfo) console.log(format(args));
 }
 
-function logErrorMessage(message) {
-  if (logError) console.error(`[ERROR] ${message}`);
+function logDevMessage(...args) {
+  if (logDev) console.log(`[DEV] ${format(args)}`);
+}
+
+function logErrorMessage(...args) {
+  if (logError) console.error(`[ERROR] ${format(args)}`);
 }
 
 const SECRET_RE = /("(?:password|oldPassword|newPassword|token)"\s*:\s*")(?:[^"\\]|\\.)*(")/g;
@@ -39,6 +61,8 @@ const SECRET_RE = /("(?:password|oldPassword|newPassword|token)"\s*:\s*")(?:[^"\
 function redactSecrets(text) {
   return String(text).replace(SECRET_RE, '$1***$2');
 }
+
+initLogging();
 
 module.exports = {
   redactSecrets,
@@ -48,5 +72,5 @@ module.exports = {
   logInfoMessage,
   logDevMessage,
   logErrorMessage,
-  initLogging
+  initLogging,
 };

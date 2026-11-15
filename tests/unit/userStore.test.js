@@ -13,7 +13,7 @@ function loadStore() {
   jest.resetModules();
   process.env.USERS_FILE = path.join(dir, 'users.enc');
   process.env.AUTH_KEY_FILE = path.join(dir, 'auth.key');
-  store = require('../services/userStore');
+  store = require('../../services/userStore');
   return store;
 }
 

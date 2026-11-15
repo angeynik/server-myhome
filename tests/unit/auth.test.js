@@ -1,13 +1,13 @@
 
-jest.mock('../services/userStore', () => ({
+jest.mock('../../services/userStore', () => ({
   verifyCredentials: jest.fn(),
   recordLogin: jest.fn(() => Promise.resolve()),
   findUser: jest.fn(),
   toPublic: jest.fn((u) => (u ? { username: u.username } : null)),
 }));
 
-const userStore = require('../services/userStore');
-const auth = require('../services/auth');
+const userStore = require('../../services/userStore');
+const auth = require('../../services/auth');
 
 const session = (extra = {}) => ({
   userId: 1, username: 'ivan', dID: 'd1', level: 1, tokenVersion: 0, mustChangePassword: false, ...extra,
@@ -105,5 +105,70 @@ describe('auth.loginUser', () => {
     const token = auth.issueToken(user);
     const res = await auth.resumeSession('cl-res', token);
     expect(res.code).toBe('ACCOUNT_DISABLED');
+  });
+});
+
+describe('auth: время жизни сессии и таймаут входа', () => {
+  const cfg = require('../../services/authConfig');
+  const T = cfg.AUTH_TIMEOUT_MS;
+
+  afterEach(() => {
+    ['s1', 's2', 's3', 's4', 's5'].forEach((id) => auth.forgetConnection(id));
+  });
+
+  test('сессия не истекает по бездействию', () => {
+    auth.trackConnection('s1');
+    auth.setSession('s1', session());
+    auth.getSession('s1').lastActivity = Date.now() - 10 * T;
+
+    expect(auth.cleanupSessions(Date.now() + 10 * T)).toEqual([]);
+    expect(auth.checkMessageAccess('s1', 'get', 'config', 'd1').ok).toBe(true);
+  });
+
+  test('соединение без входа возвращается после AUTH_TIMEOUT_MS ровно один раз', () => {
+    auth.trackConnection('s2');
+    const now = Date.now();
+    expect(auth.cleanupSessions(now + T - 1)).toEqual([]);
+    expect(auth.cleanupSessions(now + T + 10)).toEqual(['s2']);
+    expect(auth.cleanupSessions(now + 2 * T + 10)).toEqual([]);
+  });
+
+  test('вход снимает отсчёт', () => {
+    auth.trackConnection('s3');
+    auth.setSession('s3', session());
+    expect(auth.cleanupSessions(Date.now() + T + 10)).toEqual([]);
+  });
+
+  test('logout и отзыв сессий снова запускают отсчёт', () => {
+    auth.trackConnection('s4');
+    auth.setSession('s4', session({ username: 'petr' }));
+    auth.trackConnection('s5');
+    auth.setSession('s5', session({ username: 'olga' }));
+
+    auth.logout('s4');
+    expect(auth.invalidateUserSessions('olga')).toBe(1);
+
+    expect(auth.cleanupSessions(Date.now() + T + 10).sort()).toEqual(['s4', 's5']);
+  });
+
+  test('закрытое соединение забывается полностью', () => {
+    auth.trackConnection('s2');
+    auth.setSession('s2', session());
+    auth.forgetConnection('s2');
+
+    expect(auth.getSession('s2')).toBeNull();
+    auth.clearSession('s2');
+    expect(auth.cleanupSessions(Date.now() + T + 10)).toEqual([]);
+  });
+});
+
+describe('auth.checkMessageAccess: недопустимый dID', () => {
+  afterEach(() => auth.forgetConnection('adm'));
+
+  test('отклоняется даже для администратора', () => {
+    auth.setSession('adm', session({ username: 'boss', level: 3 }));
+    expect(auth.checkMessageAccess('adm', 'get', 'config', '../../etc/x'))
+      .toMatchObject({ ok: false, code: 'DID_MISMATCH' });
+    expect(auth.checkMessageAccess('adm', 'get', 'config', 'other_did').ok).toBe(true);
   });
 });

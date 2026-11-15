@@ -45,7 +45,6 @@ function assertDID(v) {
 // Минимальный permissionLevel для каждого type → request.
 // Уровни: 1 — просмотр/управление, 2 — настройки (расписания, уведомления),
 //         3 — администратор (пользователи).
-// Стартовые значения взяты из meta.requiredLevel в router/routes.js.
 // Неизвестный request получает _default.
 const REQUIRED_LEVEL = {
   get: {
@@ -97,7 +96,10 @@ module.exports = {
   LOGIN_WINDOW_MS: int(env.AUTH_LOGIN_WINDOW_MS, 15 * 60 * 1000),
   LOGIN_LOCK_MS: int(env.AUTH_LOGIN_LOCK_MS, 15 * 60 * 1000),
 
-  AUTH_TIMEOUT_MS: int(env.AUTH_TIMEOUT_MS, 60 * 1000), // сколько можно висеть без логина (0 — выключено)
+  // Сколько соединение Dashboard может оставаться без входа (после подключения,
+  // logout или отзыва сессии), прежде чем сервер его закроет; 0 — не закрывать.
+  // Сессию вошедшего пользователя этот таймаут не ограничивает.
+  AUTH_TIMEOUT_MS: int(env.AUTH_TIMEOUT_MS, 60 * 1000),
 
   // true → без настроенных токенов NodeRED подключиться не сможет
   STRICT: bool(env.AUTH_STRICT, isProd),

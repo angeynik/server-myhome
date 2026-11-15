@@ -38,6 +38,9 @@ const TABLES = {
   input:    { read: 'readInputRegisters',   bits: false, maxSpan: 100,  writable: false }
 };
 const WIDTH = { bool: 1, uint16: 1, int16: 1, uint32: 2, int32: 2, float32: 2 };
+// Логическое значение, хранящееся в регистре (holding/input), а не в coil/discrete
+const BOOL_ITEM_TYPES = new Set(['bool', 'dBool']);
+const isBoolItem = (tag) => tag.dataType !== 'bool' && BOOL_ITEM_TYPES.has(tag.item_type);
 
 let cfg = { pollInterval: 1000, republishMs: 60000, maxGap: 0 };
 let broadcastFn = null;
@@ -145,7 +148,8 @@ function decode(tag, regs) {
 
   if (!Number.isFinite(raw)) return null;
 
-  if (tag.item_type === 'dBool') {
+  // Логический тег в регистре (item_type bool/dBool): Vue ожидает true/false, а не 0/1
+  if (isBoolItem(tag)) {
     return raw !== 0;
   }
 
@@ -363,6 +367,19 @@ async function writeTag(tag, input) {
     await modbusManager.call(tag.deviceId, 'writeSingleCoil', tag.address, v);
     return v;
   }
+  if (isBoolItem(tag)) {
+    // Логический тег в регистре: пишем 1/0 без масштаба и смещения
+    const words = new Array(tag.width).fill(0);
+    words[tag.wordOrder === 'LE' ? 0 : tag.width - 1] = toBool(input) ? 1 : 0;
+    logger.logDevMessage(`[modbusBridge] - кодирование ${tag.item_name}: ${input} -> регистры [${words}]`);
+    if (words.length === 1) {
+      await modbusManager.call(tag.deviceId, 'writeSingleRegister', tag.address, words[0]);
+    } else {
+      await modbusManager.call(tag.deviceId, 'writeMultipleRegisters', tag.address, words);
+    }
+    return decode(tag, words);
+  }
+
   const num = Number(input);
   if (!Number.isFinite(num)) throw new Error(`Некорректное значение: ${input}`);
 
