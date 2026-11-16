@@ -456,23 +456,35 @@ WSSDash.on('connection', (ws) => {
         handleGet(connectionId, dashData.data);
         break;
 
-      case 'post':
-        handlePost(connectionId, dashData.data);
-        if (!cfg.NO_BROADCAST_POST.has(request)) {
-          const dID = dashData.data.name;
+      case 'post': {
+        const dID = dashData.data.name;
+        const forwardable = !cfg.NO_BROADCAST_POST.has(request);
+        let handledByModbus = false;
+        if (forwardable) {
           try {
-            const handledByModbus =
+            handledByModbus =
               (MODBUS_ENABLED && modbusBridge.handleCommand(connectionId, dashData.data)) ||
               (MODBUS_RTU_ENABLED && modbusRtuBridge.handleCommand(connectionId, dashData.data));
-
-            if (!handledByModbus && NODERED_ENABLED) {
-              broadcast(connectionId, dID, dashData.data);
-            }
           } catch (error) {
-            logger.logErrorMessage(`[Serverapp] - ошибка отправки от VUE к NodeRED: ${error.message}`);
+            logger.logErrorMessage(`[Serverapp] - WSSDash - команда Modbus: ${error.message}`);
+          }
+        }
+        // Команду устройству Modbus мост сам сохраняет в config-файл и рассылает Vue после
+        // подтверждения записи. Если бы её записал и handlePost, при отказе устройства файл
+        // хранил бы непринятое значение, а клиент после modbusWriteError получил бы его же.
+        if (!handledByModbus) handlePost(connectionId, dashData.data);
+
+        // Остальным соединениям того же dID: всем Vue и, если включён, NodeRED
+        // (получателей выбирает broadcast). Раньше без NodeRED не пересылалось и другим Vue.
+        if (forwardable && !handledByModbus) {
+          try {
+            broadcast(connectionId, dID, dashData.data);
+          } catch (error) {
+            logger.logErrorMessage(`[Serverapp] - WSSDash - рассылка post: ${error.message}`);
           }
         }
         break;
+      }
 
       default:
         break;
