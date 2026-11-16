@@ -410,13 +410,10 @@ WSSDash.on('connection', (ws) => {
   const allClients = wsManager.getAllActiveConnections('VUE_connections');
   logger.logDevMessage(`[Serverapp] - WSSDash.on - Все соединения:`, allClients);
 
-  WSSDash.clients.forEach((client) => {
-    ws.send(JSON.stringify({
-      type: 'info',
-      request: 'serverConnected',
-      name: 'server',
-      payload: { message: 'Проверка связи' }
-    }));
+  // Приветствие получает только новое соединение и ровно один раз.
+  // Рассылка по dID (всем соединениям пользователя) — это broadcast(), а не этот ответ.
+  wsManager.sendToConnection('VUE_connections', connectionId, 'info', 'serverConnected', 'server', {
+    message: 'Проверка связи',
   });
 
   

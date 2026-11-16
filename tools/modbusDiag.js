@@ -116,7 +116,7 @@ device.on('connect', async () => {
   }
 
   for (const [addr, names] of byAddress) {
-    if (names.length > 1) console.log(`⚠️  Один адрес ${addr} у нескольких тегов: ${names.join(', ')}`);
+    if (names.length > 1) console.log(`ℹ️  Один адрес ${addr} у нескольких тегов (проверьте, что так задумано): ${names.join(', ')}`);
   }
   console.log(`\n=== ИТОГ: OK=${ok}, ERROR=${err} ===`);
   finish(err === 0 ? 0 : 1);
