@@ -59,10 +59,24 @@ describe('videoConfig.loadCameras', () => {
     expect(res.cameras[0]).toMatchObject({ previewIntervalMs: 5000, fullIntervalMs: 1000, quality: 3, test: { size: '1280x720', rate: 10 } });
   });
 
-  test('нет файла — одна камера из VIDEO_RTSP_URL (прежний режим) с архивом', () => {
-    const res = loadCameras(env({ VIDEO_RTSP_URL: 'rtsp://u:p@h/s' }), { readFile: missing });
-    expect(res.legacy).toBe(true);
-    expect(res.cameras).toEqual([expect.objectContaining({ id: 'cam1', source: 'rtsp://u:p@h/s', archive: true })]);
+  test('нет файла, задан VIDEO_RTSP_URL — он первой камерой в создаваемом файле, затем муляжи', () => {
+    const writeFile = jest.fn();
+    const res = loadCameras(env({ VIDEO_RTSP_URL: 'rtsp://u:p@h/s' }), { readFile: missing, writeFile });
+    expect(res).toMatchObject({ legacy: false, created: true, errors: [] });
+    expect(res.cameras.map((c) => [c.id, c.source])).toEqual([
+      ['cam01', 'rtsp://u:p@h/s'], ['cam02', 'test'], ['cam03', 'test'], ['cam04', 'test'], ['cam05', 'test'],
+    ]);
+    expect(res.cameras[0]).toMatchObject({ archive: true, dIDs: ['d1'] });
+    expect(writeFile.mock.calls[0][1].cameras[0]).toEqual({
+      id: 'cam01', title: 'Камера 1', dID: 'd1', source: 'rtsp://u:p@h/s', archive: true,
+    });
+  });
+
+  test('VIDEO_RTSP_URL и VIDEO_MOCK_CAMERAS=0 — файл только с реальной камерой', () => {
+    const writeFile = jest.fn();
+    const res = loadCameras(env({ VIDEO_RTSP_URL: 'rtsp://u:p@h/s', VIDEO_MOCK_CAMERAS: '0' }), { readFile: missing, writeFile });
+    expect(res.cameras.map((c) => c.id)).toEqual(['cam01']);
+    expect(writeFile).toHaveBeenCalled();
   });
 
   test('нет файла и VIDEO_RTSP_URL — создаётся cameras.json с 4 муляжами', () => {

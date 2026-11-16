@@ -64,7 +64,7 @@ MODBUS_DEVICES='[{
 VIDEO_ENABLED=true
 VIDEO_CAMERAS_FILE=                # список камер 1–16 (по умолчанию $DATA_DIR/cameras.json, образец — cameras.example.json)
 VIDEO_MOCK_CAMERAS=4               # нет файла камер → он создаётся с N муляжами (0–16, 0 — не создавать); см. docs/cameras.md
-# Без файла камер — одна камера из VIDEO_RTSP_URL (прежний режим):
+# Устарело: при создании cameras.json адрес попадёт в файл первой камерой (cam01), дальше не используется
 VIDEO_RTSP_URL=                    # rtsp://user:pass@host:554/stream (пароль кодируйте: @ → %40)
 # Кто видит камеры без своего "dID" в cameras.json (и муляжи):
 #   VIDEO_DID=igumen                           — один dID

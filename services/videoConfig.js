@@ -85,10 +85,10 @@ function loadVideoConfig(env = process.env) {
 //   maxWidth, quality — ширина (0 — без масштабирования) и качество JPEG (2 — лучшее … 31)
 //   archive           — true — запись сегментов MP4 и выгрузка в S3 (по умолчанию false)
 //   test              — для source "test": { size: "1280x720", rate: 10, noise: 20 }
-// Нет файла:
-//   задан VIDEO_RTSP_URL → одна камера из него (прежний режим);
-//   иначе → файл создаётся с VIDEO_MOCK_CAMERAS муляжами (source "test", по умолчанию 4; 0 — не создавать).
-//   Муляж заменяется реальной камерой правкой "source" (и "title") в файле — сервер подхватит без перезапуска.
+// Нет файла → он создаётся: камера из VIDEO_RTSP_URL (если задан, первой — cam01, с архивом)
+//   и VIDEO_MOCK_CAMERAS муляжей (source "test", по умолчанию 4). Камер нет — файл не создаётся.
+//   Дальше все камеры — только в файле: муляж заменяется реальной камерой правкой "source" (и "title"),
+//   сервер подхватит без перезапуска.
 const MAX_CAMERAS = 16;
 const CAMERA_ID_RE = /^[A-Za-z0-9_-]{1,32}$/;
 const SIZE_RE = /^\d{2,4}x\d{2,4}$/;
@@ -98,9 +98,12 @@ function camerasFilePath(env = process.env) {
   return env.VIDEO_CAMERAS_FILE || path.join(env.DATA_DIR || '.configData', 'cameras.json');
 }
 
-// Содержимое cameras.json с муляжами — первый запуск без камер
-// Муляжи видны всем пользователям ("*"), если в conf.env не задан VIDEO_DID; иначе — dID из VIDEO_DID
+// Содержимое cameras.json при первом запуске: камера из VIDEO_RTSP_URL (dID — VIDEO_DID или
+// DEFAULT_USER_DID, как раньше) и муляжи. Муляжи видны всем ("*"), если не задан VIDEO_DID.
 function mockCamerasConfig(base, count, env = process.env) {
+  const real = base.rtspUrl
+    ? [{ id: 'cam01', title: 'Камера 1', dID: base.dID, source: base.rtspUrl, archive: true }]
+    : [];
   return {
     defaults: {
       dID: parseDIDSetting(env.VIDEO_DID) ? base.dID : '*',
@@ -111,12 +114,18 @@ function mockCamerasConfig(base, count, env = process.env) {
       quality: 5,
       archive: false,
     },
-    cameras: Array.from({ length: count }, (_, i) => ({
-      id: `cam${String(i + 1).padStart(2, '0')}`,
-      title: `Камера ${i + 1} (муляж)`,
-      source: 'test',
-      test: { size: '1280x720', rate: 10, noise: 20 },
-    })),
+    cameras: [
+      ...real,
+      ...Array.from({ length: Math.min(count, MAX_CAMERAS - real.length) }, (_, k) => {
+        const n = real.length + k + 1;
+        return {
+          id: `cam${String(n).padStart(2, '0')}`,
+          title: `Камера ${n} (муляж)`,
+          source: 'test',
+          test: { size: '1280x720', rate: 10, noise: 20 },
+        };
+      }),
+    ],
   };
 }
 
@@ -150,19 +159,15 @@ function loadCameras(env = process.env, {
       errors.push(`${file}: ${e.message}`);
       return { file, cameras: [], errors, legacy: false, invalid: true };
     }
-    if (base.rtspUrl) {
-      raw = { cameras: [{ id: 'cam1', title: 'Камера 1', source: base.rtspUrl, archive: true }] };
-      return { file, ...normalizeCameras(raw, base, isValidDID, errors), errors, legacy: true };
-    }
     const count = mockCount(env);
-    if (count === 0) return { file, cameras: [], errors, legacy: false };
+    if (count === 0 && !base.rtspUrl) return { file, cameras: [], errors, legacy: false };
     raw = mockCamerasConfig(base, count, env);
     let created = true;
     try {
       writeFile(file, raw);
     } catch (we) {
       created = false; // муляжи работают и без файла; править будет нечего — сообщаем
-      errors.push(`не удалось создать ${file}: ${we.message} (муляжи только в памяти)`);
+      errors.push(`не удалось создать ${file}: ${we.message} (камеры только в памяти)`);
     }
     return { file, ...normalizeCameras(raw, base, isValidDID, errors), errors, legacy: false, created };
   }

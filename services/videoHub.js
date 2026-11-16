@@ -119,10 +119,14 @@ function createVideoHub({
         `[videoHub] - камера ${c.id} (реальная) видна всем пользователям (dID "*") — укажите dID в cameras.json`
       ));
     if (created) {
+      const mocks = list.filter((c) => c.source === 'test');
+      const real = list.filter((c) => c.source !== 'test');
       logger.logInfoMessage(
-        `[videoHub] - создан ${file}: ${list.length} муляжей (source "test"), ` +
-        `${list[0]?.dID === '*' ? 'видны всем пользователям (dID "*")' : `видны пользователям dID "${list[0]?.dID}"`}; ` +
-        'реальную камеру подключают заменой "source" на rtsp://… — без перезапуска сервера'
+        `[videoHub] - создан ${path.resolve(file)}: ` +
+        (real.length ? `камера из VIDEO_RTSP_URL (${real.map((c) => c.id).join(', ')}) и ` : '') +
+        `${mocks.length} муляжей (source "test")` +
+        (mocks.length ? `, ${mocks[0].dID === '*' ? 'видны всем пользователям (dID "*")' : `видны пользователям dID "${mocks[0].dID}"`}` : '') +
+        '; реальную камеру подключают заменой "source" на rtsp://… — без перезапуска сервера'
       );
     }
 
@@ -166,7 +170,7 @@ function createVideoHub({
   function init() {
     apply();
     logger.logInfoMessage(
-      `[videoHub] - init: камер ${cameras.size}${configInfo.legacy ? ' (VIDEO_RTSP_URL)' : ` из ${configInfo.file}`}` +
+      `[videoHub] - init: камер ${cameras.size}${configInfo.legacy ? ' (VIDEO_RTSP_URL)' : ` из ${configInfo.file ? path.resolve(configInfo.file) : '—'}`}` +
       (cameras.size ? `: ${describe()}` : '')
     );
     return cameras.size > 0;

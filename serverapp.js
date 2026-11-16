@@ -51,7 +51,7 @@ logger.logInfoMessage(
   if (ENV_OVERRIDES.length) {
     logger.logErrorMessage(
       `[Serverapp] - переменные окружения терминала перекрывают conf.env (значения из conf.env не действуют): ${ENV_OVERRIDES.join(', ')}. ` +
-      'Уберите export из профиля оболочки (~/.zshrc, ~/.bash_profile) или выполните unset'
+      `Где задано: grep -n ${ENV_OVERRIDES[0]} ~/.zshrc ~/.zprofile ~/.bash_profile — удалите строку export и откройте новый терминал (docs/cameras.md, 1.2)`
     );
   }
 }
