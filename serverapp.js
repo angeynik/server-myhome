@@ -46,6 +46,15 @@ logger.logInfoMessage(
   `Modbus TCP=${MODBUS_ENABLED ? 'ON' : 'OFF'}, Modbus RTU=${MODBUS_RTU_ENABLED ? 'ON' : 'OFF'}, ` +
   `Video=${VIDEO_ENABLED ? 'ON' : 'OFF'}`
 );
+{
+  const { ENV_OVERRIDES } = require('./services/authConfig.js');
+  if (ENV_OVERRIDES.length) {
+    logger.logErrorMessage(
+      `[Serverapp] - переменные окружения терминала перекрывают conf.env (значения из conf.env не действуют): ${ENV_OVERRIDES.join(', ')}. ` +
+      'Уберите export из профиля оболочки (~/.zshrc, ~/.bash_profile) или выполните unset'
+    );
+  }
+}
 
 const app = express();
 const server = http.createServer(app);

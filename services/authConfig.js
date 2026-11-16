@@ -8,6 +8,17 @@
 require('dotenv').config({ path: './conf.env', quiet: true });
 const crypto = require('crypto');
 
+// Переменные, которые задал терминал (export в ~/.zshrc и т. п.) поверх conf.env:
+// dotenv такие не перезаписывает, и правка conf.env не действует. Только имена — значения могут быть секретами.
+const ENV_OVERRIDES = (() => {
+  try {
+    const parsed = require('dotenv').parse(require('fs').readFileSync('./conf.env'));
+    return Object.keys(parsed).filter((k) => process.env[k] !== parsed[k]);
+  } catch {
+    return [];
+  }
+})();
+
 const env = process.env;
 const int = (v, d) => {
   const n = parseInt(v, 10);
@@ -85,6 +96,7 @@ const REQUIRED_LEVEL = {
 
 module.exports = {
   isProd,
+  ENV_OVERRIDES,
   JWT_SECRET: resolveJwtSecret(),
   JWT_EXPIRES: env.JWT_EXPIRES || '7d',          // срок жизни токена
   JWT_ISSUER: env.JWT_ISSUER || 'myhome',

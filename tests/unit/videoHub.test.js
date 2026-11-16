@@ -310,3 +310,31 @@ describe('videoHub: перечитывание cameras.json', () => {
     expect(checkFfmpeg).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('videoHub: dID камеры — список и "*"', () => {
+  test('"*" — кадры всем пользователям, name — dID получателя, уровень учитывается', () => {
+    const { hub, connect, frame } = setup({ cameras: [makeCamera('cam01', { dID: '*', dIDs: ['*'], minLevel: 2 })] });
+    hub.init();
+    const a = connect('a', 'igumen', 2);
+    const b = connect('b', 'poddy_base', 3);
+    const low = connect('low', 'igumen', 1);
+    frame('cam01');
+    expect(JSON.parse(a.send.mock.calls[0][0]).name).toBe('igumen');
+    expect(JSON.parse(b.send.mock.calls[0][0]).name).toBe('poddy_base');
+    expect(low.send).not.toHaveBeenCalled();
+  });
+
+  test('список dID — видят только перечисленные', () => {
+    const { hub, connect, frame, sessions } = setup({ cameras: [makeCamera('cam01', { dID: 'd1,d2', dIDs: ['d1', 'd2'] })] });
+    hub.init();
+    const a = connect('a', 'd1');
+    const b = connect('b', 'd2');
+    const c = connect('c', 'd3');
+    frame('cam01');
+    expect(a.send).toHaveBeenCalledTimes(1);
+    expect(b.send).toHaveBeenCalledTimes(1);
+    expect(c.send).not.toHaveBeenCalled();
+    expect(hub.listCameras(sessions.c)).toEqual([]);
+    expect(hub.listCameras(sessions.b).map((x) => x.id)).toEqual(['cam01']);
+  });
+});

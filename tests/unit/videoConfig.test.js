@@ -2,7 +2,7 @@
 // Загрузка и проверка списка камер (cameras.json).
 'use strict';
 
-const { loadCameras, MAX_CAMERAS } = require('../../services/videoConfig');
+const { loadCameras, parseDIDSetting, MAX_CAMERAS } = require('../../services/videoConfig');
 
 const env = (extra = {}) => ({ DATA_DIR: '/data', VIDEO_DID: 'd1', ...extra });
 const fromJson = (obj, extra) => loadCameras(env(extra), { readFile: () => JSON.stringify(obj) });
@@ -15,7 +15,7 @@ describe('videoConfig.loadCameras', () => {
     expect(read).toBe('/data/cameras.json');
     expect(res.errors).toEqual([]);
     expect(res.cameras[0]).toEqual({
-      id: 'cam01', title: 'cam01', source: 'test', dID: 'd1', minLevel: 1,
+      id: 'cam01', title: 'cam01', source: 'test', dIDs: ['d1'], dID: 'd1', minLevel: 1,
       previewIntervalMs: 5000, fullIntervalMs: 1000, maxWidth: 640, quality: 3, archive: false,
       test: { size: '1280x720', rate: 10, noise: 20 },
     });
@@ -67,14 +67,65 @@ describe('videoConfig.loadCameras', () => {
 
   test('нет файла и VIDEO_RTSP_URL — создаётся cameras.json с 4 муляжами', () => {
     const writeFile = jest.fn();
-    const res = loadCameras(env(), { readFile: missing, writeFile });
+    const res = loadCameras(env({ VIDEO_DID: '' }), { readFile: missing, writeFile });
     expect(res).toMatchObject({ errors: [], legacy: false, created: true });
     expect(res.cameras.map((c) => c.id)).toEqual(['cam01', 'cam02', 'cam03', 'cam04']);
     expect(res.cameras.every((c) => c.source === 'test' && c.archive === false)).toBe(true);
     const [file, data] = writeFile.mock.calls[0];
     expect(file).toBe(res.file);
     expect(data.cameras[0]).toMatchObject({ id: 'cam01', title: 'Камера 1 (муляж)', source: 'test' });
-    expect(data.defaults.dID).toBe(res.cameras[0].dID);
+    expect(data.defaults.dID).toBe('*');
+    expect(res.cameras[0].dIDs).toEqual(['*']);
+  });
+
+  test('VIDEO_DID: строка, JSON-список, через запятую, "*"', () => {
+    expect(parseDIDSetting('igumen')).toBe('igumen');
+    expect(parseDIDSetting('["igumen", "poddy_base"]')).toEqual(['igumen', 'poddy_base']);
+    expect(parseDIDSetting(' igumen , poddy_base ')).toEqual(['igumen', 'poddy_base']);
+    expect(parseDIDSetting('*')).toBe('*');
+    expect(parseDIDSetting('')).toBeNull();
+    expect(parseDIDSetting(undefined)).toBeNull();
+  });
+
+  test('VIDEO_DID списком — камеры без своего dID видны всем из списка; муляжи тоже', () => {
+    const res = fromJson({ cameras: [{ id: 'a', source: 'test' }, { id: 'b', source: 'test', dID: 'other' }] },
+      { VIDEO_DID: '["igumen", "poddy_base"]' });
+    expect(res.cameras.map((c) => c.dIDs)).toEqual([['igumen', 'poddy_base'], ['other']]);
+    const writeFile = jest.fn();
+    const mocks = loadCameras(env({ VIDEO_DID: 'igumen,poddy_base' }), { readFile: missing, writeFile });
+    expect(writeFile.mock.calls[0][1].defaults.dID).toEqual(['igumen', 'poddy_base']);
+    expect(mocks.cameras[0].dIDs).toEqual(['igumen', 'poddy_base']);
+  });
+
+  test('VIDEO_DID="*" — все пользователи; битый JSON — камеры отклоняются с ошибкой', () => {
+    expect(fromJson({ cameras: [{ id: 'a', source: 'test' }] }, { VIDEO_DID: '*' }).cameras[0].dIDs).toEqual(['*']);
+    const bad = fromJson({ cameras: [{ id: 'a', source: 'test' }] }, { VIDEO_DID: '["igumen", ' });
+    expect(bad.cameras).toEqual([]);
+    expect(bad.errors.join(' ')).toMatch(/недопустимый dID/);
+  });
+
+  test('муляжи с VIDEO_DID — только этому dID', () => {
+    const res = loadCameras(env({ VIDEO_DID: 'igumen' }), { readFile: missing, writeFile: jest.fn() });
+    expect(res.cameras[0].dIDs).toEqual(['igumen']);
+  });
+
+  test('dID камеры: строка, список (без повторов), "*"; мусор — ошибка', () => {
+    const res = fromJson({ cameras: [
+      { id: 'a', source: 'test', dID: 'igumen' },
+      { id: 'b', source: 'test', dID: ['igumen', 'poddy_base', 'igumen'] },
+      { id: 'c', source: 'test', dID: '*' },
+      { id: 'd', source: 'test', dID: ['igumen', '*'] },
+      { id: 'e', source: 'test', dID: [] },
+      { id: 'f', source: 'test', dID: ['ok', 5] },
+      { id: 'g', source: 'test', dID: 'bad dID!' },
+    ] });
+    expect(res.cameras.map((c) => [c.id, c.dIDs, c.dID])).toEqual([
+      ['a', ['igumen'], 'igumen'],
+      ['b', ['igumen', 'poddy_base'], 'igumen,poddy_base'],
+      ['c', ['*'], '*'],
+      ['d', ['*'], '*'],
+    ]);
+    expect(res.errors).toHaveLength(3);
   });
 
   test('VIDEO_MOCK_CAMERAS задаёт число муляжей (до 16), 0 — без камер и без файла', () => {

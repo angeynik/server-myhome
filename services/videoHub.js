@@ -13,7 +13,7 @@
 //
 // Push: { type: 'post', request: 'videoSnapshot', name: <dID камеры>,
 //         payload: { cameraId, title, image (base64 JPEG), mimeType, size, timestamp } }.
-// Доступ к камере: сессия с dID камеры и уровнем >= minLevel камеры.
+// Доступ к камере: сессия с одним из dID камеры (dIDs; '*' — любой) и уровнем >= minLevel камеры.
 //
 // cameras.json перечитывается на лету (watch): изменённые камеры перезапускаются, новые
 // запускаются, удалённые останавливаются; клиентам Vue уходит новый список камер —
@@ -45,8 +45,23 @@ function createVideoHub({
   const subscriptions = new Map(); // clientId -> { preview: Set<id>, full: id|null, lastSent: Map<id, ts> }
   let configInfo = { file: null, errors: [], legacy: false };
 
-  const canView = (session, camera) =>
-    Boolean(session && camera && session.dID === camera.dID && session.level >= camera.minLevel);
+  const cameraDIDs = (camera) => camera.dIDs || [camera.dID];
+  const canView = (session, camera) => Boolean(
+    session && camera && session.level >= camera.minLevel &&
+    (cameraDIDs(camera).includes('*') || cameraDIDs(camera).includes(session.dID))
+  );
+
+  // Соединения Vue, которым может предназначаться кадр камеры
+  function candidateConnections(camera) {
+    const dIDs = cameraDIDs(camera);
+    if (dIDs.includes('*')) {
+      const conns = wsManager.VUE_connections;
+      return conns && typeof conns.entries === 'function'
+        ? [...conns.entries()].map(([clientId, connection]) => ({ clientId, connection }))
+        : [];
+    }
+    return dIDs.flatMap((d) => wsManager.getUserConnections('VUE_connections', d));
+  }
 
   // ── Инициализация и перечитывание cameras.json ──────────────────────
   let base = null;
@@ -98,9 +113,15 @@ function createVideoHub({
       return diff;
     }
     configInfo = { file, errors, legacy };
+    list
+      .filter((c) => c.source !== 'test' && (c.dIDs || []).includes('*'))
+      .forEach((c) => logger.logErrorMessage(
+        `[videoHub] - камера ${c.id} (реальная) видна всем пользователям (dID "*") — укажите dID в cameras.json`
+      ));
     if (created) {
       logger.logInfoMessage(
-        `[videoHub] - создан ${file}: ${list.length} муляжей (source "test"), видны пользователям dID "${list[0]?.dID}"; ` +
+        `[videoHub] - создан ${file}: ${list.length} муляжей (source "test"), ` +
+        `${list[0]?.dID === '*' ? 'видны всем пользователям (dID "*")' : `видны пользователям dID "${list[0]?.dID}"`}; ` +
         'реальную камеру подключают заменой "source" на rtsp://… — без перезапуска сервера'
       );
     }
@@ -224,14 +245,15 @@ function createVideoHub({
     };
   }
 
-  // Сериализуем кадр один раз на всех получателей
-  function rawFrame(entry) {
-    if (!entry.raw) {
-      entry.raw = JSON.stringify({
-        type: 'post', request: 'videoSnapshot', name: entry.camera.dID, payload: snapshotPayload(entry),
-      });
+  // Сериализуем кадр один раз на всех получателей одного dID (name — dID получателя)
+  function rawFrame(entry, dID) {
+    if (!entry.raw) entry.raw = new Map();
+    if (!entry.raw.has(dID)) {
+      entry.raw.set(dID, JSON.stringify({
+        type: 'post', request: 'videoSnapshot', name: dID, payload: snapshotPayload(entry),
+      }));
     }
-    return entry.raw;
+    return entry.raw.get(dID);
   }
 
   // Режим подписки соединения на камеру: 'full' | 'preview' | null
@@ -242,7 +264,7 @@ function createVideoHub({
     return sub.preview.has(cameraId) ? 'preview' : null;
   }
 
-  function sendTo(entry, clientId, connection, { force = false } = {}) {
+  function sendTo(entry, clientId, connection, { force = false, dID = connection.dID } = {}) {
     const { camera } = entry;
     const mode = modeFor(clientId, camera.id);
     if (!mode) return false;
@@ -261,7 +283,7 @@ function createVideoHub({
       entry.stats.skippedSlow++;
       return false;
     }
-    const raw = rawFrame(entry);
+    const raw = rawFrame(entry, dID);
     try {
       ws.send(raw);
     } catch (e) {
@@ -290,14 +312,15 @@ function createVideoHub({
 
     let connections;
     try {
-      connections = wsManager.getUserConnections('VUE_connections', entry.camera.dID);
+      connections = candidateConnections(entry.camera);
     } catch (e) {
       logger.logErrorMessage(`[videoHub] - onFrame ${cameraId}: ${e.message}`);
       return;
     }
     for (const { clientId, connection } of connections) {
-      if (!canView(auth.getSession(clientId), entry.camera)) continue;
-      sendTo(entry, clientId, connection);
+      const session = auth.getSession(clientId);
+      if (!canView(session, entry.camera)) continue;
+      sendTo(entry, clientId, connection, { dID: session.dID });
     }
   }
 
@@ -325,7 +348,7 @@ function createVideoHub({
     if (connection) {
       for (const id of fresh) {
         const entry = cameras.get(id);
-        if (entry?.lastFrame) sendTo(entry, clientId, connection, { force: true });
+        if (entry?.lastFrame) sendTo(entry, clientId, connection, { force: true, dID: session?.dID ?? connection.dID });
       }
     }
     return { cameras: [...preview], full };

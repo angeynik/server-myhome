@@ -66,7 +66,12 @@ VIDEO_CAMERAS_FILE=                # список камер 1–16 (по умо
 VIDEO_MOCK_CAMERAS=4               # нет файла камер → он создаётся с N муляжами (0–16, 0 — не создавать); см. docs/cameras.md
 # Без файла камер — одна камера из VIDEO_RTSP_URL (прежний режим):
 VIDEO_RTSP_URL=                    # rtsp://user:pass@host:554/stream (пароль кодируйте: @ → %40)
-VIDEO_DID=                         # dID, которому принадлежит камера (по умолчанию DEFAULT_USER_DID)
+# Кто видит камеры без своего "dID" в cameras.json (и муляжи):
+#   VIDEO_DID=igumen                           — один dID
+#   VIDEO_DID='["igumen", "poddy_base"]'       — список (JSON); или через запятую: igumen,poddy_base
+#   VIDEO_DID=*                                — все пользователи
+# Не задан: камеры — DEFAULT_USER_DID, муляжи — все пользователи ("*").
+VIDEO_DID=
 VIDEO_MIN_LEVEL=1                  # минимальный уровень пользователя для просмотра
 
 # Снимки для Vue

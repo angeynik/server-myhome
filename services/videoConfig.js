@@ -5,6 +5,23 @@
 
 require('./authConfig');
 
+// VIDEO_DID: igumen | ["igumen", "poddy_base"] | igumen,poddy_base | * (все пользователи).
+// Непарсящийся JSON возвращается как есть — камеры с ним отклонятся с понятной ошибкой.
+function parseDIDSetting(value) {
+  const v = String(value ?? '').trim();
+  if (!v) return null;
+  if (v.startsWith('[')) {
+    try {
+      const list = JSON.parse(v);
+      return Array.isArray(list) ? list : v;
+    } catch {
+      return v;
+    }
+  }
+  if (v.includes(',')) return v.split(',').map((s) => s.trim()).filter(Boolean);
+  return v;
+}
+
 function loadVideoConfig(env = process.env) {
   const int = (v, d, min = 0) => {
     const n = parseInt(v, 10);
@@ -17,7 +34,8 @@ function loadVideoConfig(env = process.env) {
     rtspUrl: env.VIDEO_RTSP_URL || '',
 
     // dID, которому принадлежит камера, и минимальный уровень пользователя для просмотра
-    dID: env.VIDEO_DID || env.DEFAULT_USER_DID || 'poddy_base',
+    // строка, массив dID или '*'
+    dID: parseDIDSetting(env.VIDEO_DID) ?? (env.DEFAULT_USER_DID || 'poddy_base'),
     minLevel: int(env.VIDEO_MIN_LEVEL, 1, 1),
 
     snapshotInterval: int(env.VIDEO_SNAPSHOT_INTERVAL_MS, 5000, 500),
@@ -58,7 +76,8 @@ function loadVideoConfig(env = process.env) {
 //   id                — ^[A-Za-z0-9_-]{1,32}$, уникальный
 //   title             — подпись в интерфейсе (до 64 символов), по умолчанию id
 //   source            — rtsp(s)://… или "test" (ffmpeg генерирует тестовую картинку — эмуляция камеры)
-//   dID, minLevel     — кто видит камеру: сессии с этим dID и уровнем >= minLevel
+//   dID, minLevel     — кто видит камеру: сессии с этим dID и уровнем >= minLevel;
+//                       dID — строка, список ["igumen", "poddy_base"] или "*" (все пользователи)
 //   enabled           — false — камера не запускается
 //   previewIntervalMs — частота кадров в миниатюрах (>= 500, по умолчанию VIDEO_SNAPSHOT_INTERVAL_MS)
 //   fullIntervalMs    — частота кадров на полном экране (>= 200, по умолчанию 1000); ffmpeg кодирует
@@ -80,10 +99,11 @@ function camerasFilePath(env = process.env) {
 }
 
 // Содержимое cameras.json с муляжами — первый запуск без камер
-function mockCamerasConfig(base, count) {
+// Муляжи видны всем пользователям ("*"), если в conf.env не задан VIDEO_DID; иначе — dID из VIDEO_DID
+function mockCamerasConfig(base, count, env = process.env) {
   return {
     defaults: {
-      dID: base.dID,
+      dID: parseDIDSetting(env.VIDEO_DID) ? base.dID : '*',
       minLevel: base.minLevel,
       previewIntervalMs: base.snapshotInterval,
       fullIntervalMs: 1000,
@@ -136,7 +156,7 @@ function loadCameras(env = process.env, {
     }
     const count = mockCount(env);
     if (count === 0) return { file, cameras: [], errors, legacy: false };
-    raw = mockCamerasConfig(base, count);
+    raw = mockCamerasConfig(base, count, env);
     let created = true;
     try {
       writeFile(file, raw);
@@ -147,6 +167,16 @@ function loadCameras(env = process.env, {
     return { file, ...normalizeCameras(raw, base, isValidDID, errors), errors, legacy: false, created };
   }
   return { file, ...normalizeCameras(raw, base, isValidDID, errors), errors, legacy: false };
+}
+
+// "igumen" | ["igumen", "poddy_base"] | "*" → массив dID; null — ошибка
+function normalizeDIDs(value, isValidDID) {
+  if (value === '*') return ['*'];
+  const list = Array.isArray(value) ? value : [value];
+  if (!list.length || list.length > 32) return null;
+  if (list.includes('*')) return ['*'];
+  if (!list.every((d) => typeof d === 'string' && isValidDID(d))) return null;
+  return [...new Set(list)];
 }
 
 function normalizeCameras(raw, base, isValidDID, errors) {
@@ -170,8 +200,8 @@ function normalizeCameras(raw, base, isValidDID, errors) {
 
     const source = String(c.source || '');
     if (source !== 'test' && !/^rtsps?:\/\/\S+$/.test(source)) return fail('source — rtsp(s)://… или "test"');
-    const dID = c.dID ?? base.dID;
-    if (!isValidDID(dID)) return fail(`недопустимый dID "${dID}"`);
+    const dIDs = normalizeDIDs(c.dID ?? base.dID, isValidDID);
+    if (!dIDs) return fail(`недопустимый dID ${JSON.stringify(c.dID ?? base.dID)} — строка, список строк или "*"`);
     if (cameras.length >= MAX_CAMERAS) return fail(`больше ${MAX_CAMERAS} камер — пропущена`);
 
     const test = { size: '1280x720', rate: 10, noise: 20, ...(typeof c.test === 'object' && c.test ? c.test : {}) };
@@ -180,7 +210,8 @@ function normalizeCameras(raw, base, isValidDID, errors) {
       id: c.id,
       title: String(c.title || c.id).slice(0, 64),
       source,
-      dID,
+      dIDs,                      // ['*'] — все пользователи
+      dID: dIDs.join(','),       // для логов и статистики
       minLevel: int(c.minLevel, base.minLevel, 1, 3),
       previewIntervalMs: int(c.previewIntervalMs, base.snapshotInterval, 500),
       fullIntervalMs: int(c.fullIntervalMs, 1000, 200),
@@ -198,4 +229,4 @@ function normalizeCameras(raw, base, isValidDID, errors) {
   return { cameras };
 }
 
-module.exports = { loadVideoConfig, loadCameras, camerasFilePath, mockCamerasConfig, MAX_CAMERAS };
+module.exports = { parseDIDSetting, loadVideoConfig, loadCameras, camerasFilePath, mockCamerasConfig, MAX_CAMERAS };
