@@ -1,7 +1,7 @@
 # Инструкции для проекта serverApp
 
 ## Стек и окружение
-- Node.js 18+ (глобальный `fetch`), системный `ffmpeg` для видео, CommonJS: `require` / `module.exports`, в каждом модуле `'use strict'`.
+- Node.js 20+ (глобальный `fetch`; joi 18, @aws-sdk и serialport требуют 20+), системный `ffmpeg` для видео, CommonJS: `require` / `module.exports`, в каждом модуле `'use strict'`.
 - Express используется только как HTTP-сервер (`SERVER_PORT`) с CORS. Весь обмен данными идёт по WebSocket (библиотека `ws`), см. раздел «Обмен данными по WebSocket». HTTP-эндпоинты для обмена данными не добавлять.
 - Настройки только из `conf.env` (dotenv). Новый параметр: читать в `services/authConfig.js`, `notifyConfig.js` или `videoConfig.js`, задавать значение по умолчанию, описывать в `conf.env`.
 - Секреты (`JWT_SECRET`, `AUTH_MASTER_KEY`, `TELEGRAM_BOT_TOKEN`, пароли, ключи S3, пароль RTSP) хранятся только в окружении. В логи, ответы клиентам и сообщения об ошибках не попадают.

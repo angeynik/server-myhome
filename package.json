@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "",
   "main": "serverapp.js",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "test": "jest",
     "test:unit": "jest tests/unit/",
@@ -33,20 +36,20 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1164.0",
-    "@aws-sdk/lib-storage": "^3.1164.0",
-    "bcryptjs": "^3.0.2",
-    "cors": "^2.8.5",
-    "dotenv": "^16.4.5",
-    "express": "^4.21.1",
-    "joi": "^17.13.3",
-    "jsonwebtoken": "^9.0.2",
+    "@aws-sdk/client-s3": "^3.1169.0",
+    "@aws-sdk/lib-storage": "^3.1169.0",
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.6",
+    "dotenv": "^18.0.10",
+    "express": "^5.3.0",
+    "joi": "^18.3.2",
+    "jsonwebtoken": "^9.0.3",
     "modbus-serial": "^8.0.25",
-    "ws": "^8.18.0"
+    "ws": "^8.23.0"
   },
   "devDependencies": {
-    "jest": "^29.7.0",
-    "nodemon": "^3.1.7",
+    "jest": "^30.5.2",
+    "nodemon": "^3.1.14",
     "serialport": "^13.0.0"
   }
 }

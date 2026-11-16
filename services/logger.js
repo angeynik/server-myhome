@@ -11,7 +11,7 @@
 
 const util = require('util');
 // Без override: переменные, заданные снаружи (systemd, docker), важнее conf.env
-require('dotenv').config({ path: './conf.env' });
+require('dotenv').config({ path: './conf.env', quiet: true });
 
 const LEVELS = {
   none: { error: false, info: false, dev: false },

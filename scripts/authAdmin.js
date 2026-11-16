@@ -1,7 +1,7 @@
 // serverApp/scripts/authAdmin.js
 'use strict';
 
-require('dotenv').config({ path: './conf.env' });
+require('dotenv').config({ path: './conf.env', quiet: true });
 
 const path = require('path');
 process.chdir(path.join(__dirname, '..')); // работаем из корня serverApp

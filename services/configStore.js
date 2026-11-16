@@ -4,7 +4,7 @@
 const fs = require('fs').promises; // Используем асинхронные методы
 const path = require('path');
 const dotenv = require('dotenv');
-dotenv.config({ path: './conf.env' });
+dotenv.config({ path: './conf.env', quiet: true });
 const dataDir = process.env.DATA_DIR;
 const cfg = require('./authConfig');
 const logger = require('./logger.js');
