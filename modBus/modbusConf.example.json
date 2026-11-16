@@ -13,22 +13,25 @@
     "interRequestDelayMs": 20,
     "devices": [
       {
-        "dID": "boiler1",
-        "room": "boiler_room",
+        "id": "boiler",
+        "dID": "igumen",
+        "room": "room02",
         "slaveId": 1,
         "registers": [
-          { "name": "temperature", "type": "holding", "address": 0, "dataType": "int16", "scale": 0.1 },
-          { "name": "pump_state", "type": "coil", "address": 0, "dataType": "bool" },
-          { "name": "flow_rate", "type": "input", "address": 2, "dataType": "float32", "swapWords": true }
+          { "name": "dTemp01", "type": "holding", "address": 0, "dataType": "int16", "scale": 0.1, "deadband": 0.1, "title": "Котёл", "group": "Котельная" },
+          { "name": "sTemp01", "type": "holding", "address": 1, "dataType": "int16", "scale": 0.1, "request": "setpoints", "writable": true },
+          { "name": "aPump01", "type": "coil", "address": 0, "dataType": "bool", "request": "system", "writable": true },
+          { "name": "dPress01", "type": "input", "address": 2, "dataType": "float32", "swapWords": true }
         ]
       },
       {
-        "dID": "energy_meter1",
-        "room": "electrical_room",
+        "id": "meter",
+        "dID": "igumen",
+        "room": "room03",
         "slaveId": 2,
         "registers": [
-          { "name": "voltage_l1", "type": "holding", "address": 0, "dataType": "uint16", "scale": 0.1 },
-          { "name": "power_total", "type": "holding", "address": 10, "dataType": "int32", "scale": 0.01 }
+          { "name": "dVoltage01", "type": "holding", "address": 0, "dataType": "uint16", "scale": 0.1, "title": "Счётчик", "group": "Электрощит" },
+          { "name": "dPower01", "type": "holding", "address": 10, "dataType": "int32", "scale": 0.01 }
         ]
       }
     ]
@@ -37,17 +40,18 @@
   "slave": {
     "port": "/dev/ttyUSB0",
     "baudRate": 9600,
-    "unitID": 10,
-    "dID": "orangepi_gate",
+    "unitId": 10,
+    "dID": "igumen",
+    "room": "common",
     "holdingRegistersSize": 100,
     "inputRegistersSize": 100,
     "coilsSize": 100,
     "discreteInputsSize": 100,
     "registerMap": [
-      { "name": "door_sensor", "type": "discrete", "address": 0, "dataType": "bool", "dID": "orangepi_gate", "initial": false },
-      { "name": "lock_sensor", "type": "discrete", "address": 1, "dataType": "bool", "dID": "orangepi_gate", "initial": false },
-      { "name": "setpoint_temp", "type": "holding", "address": 0, "dataType": "int16", "scale": 0.1, "dID": "orangepi_gate", "initial": 220 },
-      { "name": "open_gate", "type": "coil", "address": 0, "dataType": "bool", "dID": "orangepi_gate", "initial": false }
+      { "name": "dMove01", "type": "discrete", "address": 0, "dataType": "bool", "initial": false },
+      { "name": "dLeak01", "type": "discrete", "address": 1, "dataType": "bool", "initial": false },
+      { "name": "sTemp01", "type": "holding", "address": 0, "dataType": "int16", "scale": 0.1, "initial": 22 },
+      { "name": "aRelay01", "type": "coil", "address": 0, "dataType": "bool", "initial": false }
     ]
   }
 }

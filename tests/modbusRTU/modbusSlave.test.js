@@ -16,10 +16,11 @@ jest.mock('modbus-serial', () => {
   const EventEmitter = require('events');
 
   class MockServerSerial extends EventEmitter {
-    constructor(vector, options) {
+    constructor(vector, options, serialportOptions) {
       super();
       this.vector = vector;
       this.options = options;
+      this.serialportOptions = serialportOptions;
       this._closed = false;
       // Как в настоящем ServerSerial: поток-нарезчик кадров с одним обработчиком 'data'
       this._server = new EventEmitter();
@@ -386,6 +387,16 @@ describe('modbusSlave.js - ModbusSlaveServer', () => {
   });
 
   describe('start()', () => {
+    test('параметры шины 8E2 передаются в порт Slave (как у Master)', async () => {
+      const slave = new ModbusSlaveServer({ ...baseConfig(), parity: 'even', dataBits: 8, stopBits: 2, baudRate: 19200 });
+      const startPromise = slave.start();
+      const instance = ModbusRTU.ServerSerial.instances.at(-1);
+      expect(instance.options).toMatchObject({ baudRate: 19200, parity: 'even' });
+      expect(instance.serialportOptions).toEqual({ dataBits: 8, stopBits: 2 });
+      instance.emit('initialized');
+      await startPromise;
+    });
+
     test('Должен создавать ServerSerial с правильными параметрами', async () => {
       const slave = new ModbusSlaveServer(baseConfig());
 
@@ -396,10 +407,12 @@ describe('modbusSlave.js - ModbusSlaveServer', () => {
       expect(instance.options).toEqual({
         path: '/dev/ttyUSB0',
         baudRate: 9600,
+        parity: 'none',
         unitID: 10,
         debug: false,
         openCallback: expect.any(Function),
       });
+      expect(instance.serialportOptions).toEqual({ dataBits: 8, stopBits: 1 });
 
       instance.emit('initialized');
       await startPromise;

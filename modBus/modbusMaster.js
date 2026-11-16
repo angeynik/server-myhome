@@ -130,6 +130,7 @@ class ModbusMasterManager extends EventEmitter {
         // клиентам VUE (Dashboard) / NodeRED в том же формате, что и остальные
         // сообщения приложения (type/request/payload).
         this.emit('data', {
+          deviceId: device.id ?? device.dID,
           dID: device.dID,
           type: 'post',
           request: 'modbusUpdate',
@@ -141,9 +142,10 @@ class ModbusMasterManager extends EventEmitter {
         });
       } catch (regErr) {
         logger.logErrorMessage(
-          `[ModbusMaster] - Ошибка чтения ${device.dID}.${reg.name} (slaveId=${device.slaveId}): ${regErr.message}`
+          `[ModbusMaster] - Ошибка чтения ${device.id ?? device.dID}.${reg.name} (slaveId=${device.slaveId}): ${regErr.message}`
         );
         this.emit('deviceError', {
+          deviceId: device.id ?? device.dID,
           dID: device.dID,
           slaveId: device.slaveId,
           register: reg.name,
@@ -182,13 +184,14 @@ class ModbusMasterManager extends EventEmitter {
   }
 
   /**
-   * Запись значения в регистр устройства по логическому имени (dID + registerName),
+   * Запись значения в регистр устройства по его id (поле "id", по умолчанию dID) и имени регистра,
    * как это описано в modbusConf.json. Используется, например, когда Dashboard (VUE)
    * присылает команду на изменение уставки/включение реле физического Modbus-устройства.
    */
-  async writeToDevice(dID, registerName, value) {
-    const device = this.devices.find((d) => d.dID === dID);
-    if (!device) throw new Error(`[ModbusMaster] Устройство с dID="${dID}" не найдено в конфигурации`);
+  async writeToDevice(deviceId, registerName, value) {
+    const dID = deviceId; // для сообщений ниже
+    const device = this.devices.find((d) => (d.id ?? d.dID) === deviceId);
+    if (!device) throw new Error(`[ModbusMaster] Устройство "${deviceId}" не найдено в конфигурации`);
 
     const reg = device.registers.find((r) => r.name === registerName);
     if (!reg) throw new Error(`[ModbusMaster] Регистр "${registerName}" не найден у устройства "${dID}"`);

@@ -13,6 +13,8 @@
 //   writable  — true разрешает запись из Vue (только coil/holding устройств Master)
 //   deadband  — минимальное изменение числа для рассылки клиентам (по умолчанию 0)
 //   room, title, group — как у NodeRED; room по умолчанию — room устройства или его dID
+// Поле устройства Master "id" — уникальное имя устройства на шине (по умолчанию dID). Нужно, когда
+// несколько устройств относятся к одному пользователю (одинаковый dID): команды и теги различаются по id.
 'use strict';
 
 const cfg = require('./authConfig');
@@ -36,7 +38,7 @@ function createModbusRtuBridge({
 } = {}) {
   let manager = null;
   let broadcastFn = null;
-  const masterTags = new Map(); // `${dID}|${regName}` -> tag
+  const masterTags = new Map(); // `${deviceId}|${regName}` -> tag
   const slaveTags = new Map();  // regName -> tag
   const byKey = new Map();      // tagKey -> tag устройства Master (для команд из Vue)
 
@@ -60,17 +62,35 @@ function createModbusRtuBridge({
   }
 
   function indexTags(config) {
+    const deviceIds = new Set();
     for (const device of config.master?.devices || []) {
       if (!cfg.isValidDID(device.dID)) {
         logger.logErrorMessage(`[modbusRtuBridge] - устройство с недопустимым dID "${device.dID}" пропущено`);
         continue;
       }
+      const deviceId = device.id ?? device.dID;
+      if (deviceIds.has(deviceId)) {
+        logger.logErrorMessage(
+          `[modbusRtuBridge] - устройство "${deviceId}" повторяется — задайте каждому устройству уникальный "id" ` +
+          '(несколько устройств одного dID); теги повтора пропущены'
+        );
+        continue;
+      }
+      deviceIds.add(deviceId);
       for (const reg of device.registers || []) {
         const tag = makeTag(reg, {
-          dID: device.dID, room: device.room || device.dID, deviceName: device.dID, request: 'sensors', source: 'master',
+          dID: device.dID, room: device.room || device.dID, deviceName: deviceId, request: 'sensors', source: 'master',
         });
-        masterTags.set(`${device.dID}|${reg.name}`, tag);
-        byKey.set(tagKey(tag.dID, tag.request, tag.room, tag.item_name), tag);
+        const key = tagKey(tag.dID, tag.request, tag.room, tag.item_name);
+        if (byKey.has(key)) {
+          logger.logErrorMessage(
+            `[modbusRtuBridge] - тег ${key} (устройство ${deviceId}) повторяет тег другого устройства — ` +
+            'задайте разные "room" или имена регистров; пропущен'
+          );
+          continue;
+        }
+        masterTags.set(`${deviceId}|${reg.name}`, tag);
+        byKey.set(key, tag);
       }
     }
     const slave = config.slave;
@@ -122,13 +142,13 @@ function createModbusRtuBridge({
     if (now() - last.ts >= REPUBLISH_MS) publish(tag, value, { toClients: false });
   }
 
-  function onData({ dID, payload }) {
-    const tag = masterTags.get(`${dID}|${payload?.item_name}`);
+  function onData({ deviceId, dID, payload }) {
+    const tag = masterTags.get(`${deviceId ?? dID}|${payload?.item_name}`);
     if (tag) publishIfNeeded(tag, payload.item_value);
   }
 
-  function onDeviceError({ dID, register, error }) {
-    logger.logErrorMessage(`[modbusRtuBridge] - опрос ${dID}.${register}: ${error}`);
+  function onDeviceError({ deviceId, dID, register, error }) {
+    logger.logErrorMessage(`[modbusRtuBridge] - опрос ${deviceId ?? dID}.${register}: ${error}`);
   }
 
   function onSlaveWrite(write) {

@@ -23,6 +23,9 @@ class ModbusSlaveServer extends EventEmitter {
    * @param {object} config
    * @param {string} config.port - путь к серийному порту, например '/dev/ttyUSB0'
    * @param {number} [config.baudRate=9600]
+   * @param {number} [config.dataBits=8]
+   * @param {number} [config.stopBits=1]
+   * @param {string} [config.parity='none'] - none | even | odd
    * @param {number} [config.unitId=21] - Modbus-адрес этого устройства (slave id); допускается и unitID
    * @param {number} [config.holdingRegistersSize=100]
    * @param {number} [config.inputRegistersSize=100]
@@ -140,9 +143,11 @@ class ModbusSlaveServer extends EventEmitter {
       };
 
       try {
+        // Параметры порта — как у Master: без parity/dataBits/stopBits Slave на шине 8E1/8N2 не понимал Master
         this.server = new ModbusRTU.ServerSerial(this._vector(), {
           path: this.config.port,
           baudRate: this.config.baudRate || 9600,
+          parity: this.config.parity || 'none',
           unitID: this.unitID,
           debug: !!this.config.debug,
           openCallback: (err) => {
@@ -150,6 +155,9 @@ class ModbusSlaveServer extends EventEmitter {
             logger.logErrorMessage(`[ModbusSlave] - Не удалось открыть ${this.config.port}: ${err.message}`);
             done(err);
           },
+        }, {
+          dataBits: this.config.dataBits || 8,
+          stopBits: this.config.stopBits || 1,
         });
         if (this.crcCheck) this._installCrcCheck();
       } catch (err) {

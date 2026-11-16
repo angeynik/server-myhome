@@ -160,3 +160,30 @@ describe('modbusRTUBridge', () => {
     expect(manager.close).toHaveBeenCalled();
   });
 });
+
+describe('modbusRTUBridge: несколько устройств одного dID', () => {
+  const TWO = {
+    role: 'master',
+    master: { port: '/dev/ttyS3', devices: [
+      { id: 'boiler', dID: 'igumen', room: 'boiler_room', slaveId: 1, registers: [
+        { name: 'temp', type: 'holding', address: 0, dataType: 'int16', writable: true },
+      ] },
+      { id: 'meter', dID: 'igumen', room: 'electro', slaveId: 2, registers: [
+        { name: 'temp', type: 'holding', address: 5, dataType: 'int16', writable: true },
+      ] },
+      { id: 'meter', dID: 'igumen', slaveId: 3, registers: [{ name: 'x', type: 'holding', address: 0, dataType: 'int16' }] },
+    ] },
+  };
+
+  test('данные и команды различаются по id устройства; повтор id пропускается', async () => {
+    const { bridge, manager, handlers, queue } = setup({ config: TWO });
+    const res = await bridge.init({ broadcast: jest.fn(), confPath: 'x.json' });
+    expect(res.master).toBe(2);
+    handlers.onData({ deviceId: 'meter', dID: 'igumen', payload: { item_name: 'temp', item_value: 7 } });
+    expect(queue).toHaveBeenLastCalledWith('igumen', expect.objectContaining({ payload: expect.objectContaining({ room: 'electro', item_value: 7 }) }));
+    bridge.handleCommand('c1', { type: 'post', request: 'sensors', name: 'igumen', payload: { room: 'boiler_room', item_name: 'temp', item_value: 3 } });
+    expect(manager.writeToDevice).toHaveBeenLastCalledWith('boiler', 'temp', 3);
+    bridge.handleCommand('c1', { type: 'post', request: 'sensors', name: 'igumen', payload: { room: 'electro', item_name: 'temp', item_value: 4 } });
+    expect(manager.writeToDevice).toHaveBeenLastCalledWith('meter', 'temp', 4);
+  });
+});

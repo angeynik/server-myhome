@@ -22,6 +22,12 @@ npm run dev                # то же под nodemon (перезапуск пр
 npm test
 ```
 
+## Инструкции
+
+- [docs/modbus-tcp.md](docs/modbus-tcp.md) — Modbus TCP: контроллер по сети, карта тегов, эмулятор, диагностика.
+- [docs/modbus-rtu.md](docs/modbus-rtu.md) — Modbus RTU: RS-485, роли Master/Slave, `modbusConf.json`, проверка без железа.
+- [docs/cameras.md](docs/cameras.md) — видеокамеры и муляжи.
+
 ## Инструменты
 
 - `node tools/modbusSlaveEmulator.js --port 5020 [--jitter]` — эмулятор Modbus TCP-устройства по `modbusMap.json`
@@ -36,7 +42,7 @@ npm test
 - `node scripts/authAdmin.js` — администрирование пользователей из консоли.
 - `node tools/modbusRtuCheck.js [master|crc|manager]` — проверка Modbus RTU без железа на виртуальных портах
   (`tools/ptyPair.py`, нужен python3).
-- `modBus/` — Modbus RTU (Master/Slave по RS-485), включается `MODBUS_RTU_ENABLED=true`: см. `modBus/MODBUS_README.md`.
+- `modBus/` — Modbus RTU (Master/Slave по RS-485), включается `MODBUS_RTU_ENABLED=true`: см. [docs/modbus-rtu.md](docs/modbus-rtu.md).
 
 ## История
 

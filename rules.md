@@ -24,8 +24,9 @@
 - `classes/` — классы: `wsManager`, `modBusTCPManager`, `telegramBot`.
 - `scripts/` — CLI администрирования (`authAdmin.js`).
 - `tools/` — инструменты разработчика, не загружаются сервером: `modbusSlaveEmulator.js` (эмулятор Modbus TCP-устройства), `modbusDiag.js` (чтение всех тегов карты с устройства), `modbusRtuCheck.js` + `ptyPair.py` (проверка Modbus RTU на виртуальных портах), `videoLoadTest.js` + `fakeFfmpeg.js` (нагрузочная проверка видео без камер).
-- `modBus/` — Modbus RTU (`modbusMaster`, `modbusSlave`, `modbusManager`, `modbusUtils`), к серверу подключается через `services/modbusRTUBridge.js` при `MODBUS_RTU_ENABLED=true` (конфиг `MODBUS_RTU_CONF`). Все обращения Master к шине идут через одну очередь: на RS-485 запросы не должны пересекаться. Slave проверяет CRC входящих кадров и отбрасывает искажённые без ответа.
+- `modBus/` — Modbus RTU (`modbusMaster`, `modbusSlave`, `modbusManager`, `modbusUtils`), к серверу подключается через `services/modbusRTUBridge.js` при `MODBUS_RTU_ENABLED=true` (конфиг `MODBUS_RTU_CONF`). Все обращения Master к шине идут через одну очередь: на RS-485 запросы не должны пересекаться. Slave проверяет CRC входящих кадров и отбрасывает искажённые без ответа; параметры порта (`baudRate`, `parity`, `dataBits`, `stopBits`) у Slave и Master задаются одинаково. Устройство Master различается по `id` (по умолчанию `dID`): несколько устройств одного `dID` обязаны иметь разные `id`, повтор `id` или тега (`dID|request|room|name`) пропускается с ошибкой в логе.
 - `gpio.js` — GPIO через sysfs (замок, датчики двери), включается `MANAGE_DOOR`.
+- `docs/` — инструкции для настройки: `cameras.md`, `modbus-tcp.md`, `modbus-rtu.md`. Меняется поведение или параметр, описанный в инструкции, — инструкция обновляется в том же изменении.
 - `tests/` — Jest: `unit/<модуль>.test.js`, `integration/*.integration.js`, `modbusRTU/*.test.js`, общий `setup.js`, помощники в `helpers/`.
 - Сервис с зависимостями оформляется как фабрика `createXService(deps)` плюс синглтон-обёртка. Так его можно тестировать с фейками.
 
