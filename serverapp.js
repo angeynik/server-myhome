@@ -253,7 +253,10 @@ if (MODBUS_RTU_ENABLED) {
 }
 
 if (VIDEO_ENABLED) {
-  if (videoHub.init()) videoHub.start();
+  // Без камер хаб всё равно следит за cameras.json: камеры можно добавить без перезапуска
+  videoHub.init();
+  videoHub.start();
+  videoHub.watch();
 } else {
   logger.logInfoMessage('[Serverapp] - Видео отключено (VIDEO_ENABLED=false)');
 }

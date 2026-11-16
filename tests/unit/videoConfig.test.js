@@ -65,8 +65,32 @@ describe('videoConfig.loadCameras', () => {
     expect(res.cameras).toEqual([expect.objectContaining({ id: 'cam1', source: 'rtsp://u:p@h/s', archive: true })]);
   });
 
-  test('нет файла и VIDEO_RTSP_URL — камер нет, без ошибок', () => {
-    expect(loadCameras(env(), { readFile: missing })).toMatchObject({ cameras: [], errors: [], legacy: true });
+  test('нет файла и VIDEO_RTSP_URL — создаётся cameras.json с 4 муляжами', () => {
+    const writeFile = jest.fn();
+    const res = loadCameras(env(), { readFile: missing, writeFile });
+    expect(res).toMatchObject({ errors: [], legacy: false, created: true });
+    expect(res.cameras.map((c) => c.id)).toEqual(['cam01', 'cam02', 'cam03', 'cam04']);
+    expect(res.cameras.every((c) => c.source === 'test' && c.archive === false)).toBe(true);
+    const [file, data] = writeFile.mock.calls[0];
+    expect(file).toBe(res.file);
+    expect(data.cameras[0]).toMatchObject({ id: 'cam01', title: 'Камера 1 (муляж)', source: 'test' });
+    expect(data.defaults.dID).toBe(res.cameras[0].dID);
+  });
+
+  test('VIDEO_MOCK_CAMERAS задаёт число муляжей (до 16), 0 — без камер и без файла', () => {
+    const writeFile = jest.fn();
+    expect(loadCameras(env({ VIDEO_MOCK_CAMERAS: '16' }), { readFile: missing, writeFile }).cameras).toHaveLength(16);
+    expect(loadCameras(env({ VIDEO_MOCK_CAMERAS: '40' }), { readFile: missing, writeFile }).cameras).toHaveLength(16);
+    writeFile.mockClear();
+    expect(loadCameras(env({ VIDEO_MOCK_CAMERAS: '0' }), { readFile: missing, writeFile })).toMatchObject({ cameras: [], errors: [] });
+    expect(writeFile).not.toHaveBeenCalled();
+  });
+
+  test('файл не создаётся — муляжи работают из памяти, ошибка в errors', () => {
+    const res = loadCameras(env(), { readFile: missing, writeFile: () => { throw new Error('EACCES'); } });
+    expect(res.cameras).toHaveLength(4);
+    expect(res.created).toBe(false);
+    expect(res.errors[0]).toMatch(/EACCES/);
   });
 
   test('битый JSON — ошибка, камер нет', () => {

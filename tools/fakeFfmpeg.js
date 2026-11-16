@@ -13,6 +13,16 @@
 'use strict';
 
 const args = process.argv.slice(2);
+
+// Проверки сервера и videoLoadTest: ffmpeg -version / -filters
+if (args.includes('-version')) {
+  process.stdout.write('ffmpeg version fake (tools/fakeFfmpeg.js)\n');
+  process.exit(0);
+}
+if (args.includes('-filters')) {
+  process.stdout.write(' ... testsrc2          |->V       Generate another test pattern. (fake)\n');
+  process.exit(0);
+}
 const vf = args[args.indexOf('-vf') + 1] || '';
 const fpsMatch = /fps=1000\/(\d+)/.exec(vf);
 const intervalMs = fpsMatch ? Number(fpsMatch[1]) : 1000;

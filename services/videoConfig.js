@@ -66,7 +66,10 @@ function loadVideoConfig(env = process.env) {
 //   maxWidth, quality — ширина (0 — без масштабирования) и качество JPEG (2 — лучшее … 31)
 //   archive           — true — запись сегментов MP4 и выгрузка в S3 (по умолчанию false)
 //   test              — для source "test": { size: "1280x720", rate: 10, noise: 20 }
-// Нет файла → одна камера из VIDEO_RTSP_URL (прежний режим), если адрес задан.
+// Нет файла:
+//   задан VIDEO_RTSP_URL → одна камера из него (прежний режим);
+//   иначе → файл создаётся с VIDEO_MOCK_CAMERAS муляжами (source "test", по умолчанию 4; 0 — не создавать).
+//   Муляж заменяется реальной камерой правкой "source" (и "title") в файле — сервер подхватит без перезапуска.
 const MAX_CAMERAS = 16;
 const CAMERA_ID_RE = /^[A-Za-z0-9_-]{1,32}$/;
 const SIZE_RE = /^\d{2,4}x\d{2,4}$/;
@@ -76,7 +79,44 @@ function camerasFilePath(env = process.env) {
   return env.VIDEO_CAMERAS_FILE || path.join(env.DATA_DIR || '.configData', 'cameras.json');
 }
 
-function loadCameras(env = process.env, { readFile = (f) => require('fs').readFileSync(f, 'utf8') } = {}) {
+// Содержимое cameras.json с муляжами — первый запуск без камер
+function mockCamerasConfig(base, count) {
+  return {
+    defaults: {
+      dID: base.dID,
+      minLevel: base.minLevel,
+      previewIntervalMs: base.snapshotInterval,
+      fullIntervalMs: 1000,
+      maxWidth: 640,
+      quality: 5,
+      archive: false,
+    },
+    cameras: Array.from({ length: count }, (_, i) => ({
+      id: `cam${String(i + 1).padStart(2, '0')}`,
+      title: `Камера ${i + 1} (муляж)`,
+      source: 'test',
+      test: { size: '1280x720', rate: 10, noise: 20 },
+    })),
+  };
+}
+
+function writeJsonFile(file, data) {
+  const fs = require('fs');
+  const path = require('path');
+  fs.mkdirSync(path.dirname(path.resolve(file)), { recursive: true });
+  fs.writeFileSync(file, `${JSON.stringify(data, null, 2)}\n`, { flag: 'wx' }); // не перезаписываем чужой файл
+}
+
+function mockCount(env) {
+  if (env.VIDEO_MOCK_CAMERAS === undefined || env.VIDEO_MOCK_CAMERAS === '') return 4;
+  const n = parseInt(env.VIDEO_MOCK_CAMERAS, 10);
+  return Number.isFinite(n) ? Math.max(0, Math.min(MAX_CAMERAS, n)) : 4;
+}
+
+function loadCameras(env = process.env, {
+  readFile = (f) => require('fs').readFileSync(f, 'utf8'),
+  writeFile = writeJsonFile,
+} = {}) {
   const { isValidDID } = require('./authConfig');
   const base = loadVideoConfig(env);
   const file = camerasFilePath(env);
@@ -88,11 +128,23 @@ function loadCameras(env = process.env, { readFile = (f) => require('fs').readFi
   } catch (e) {
     if (e.code !== 'ENOENT') {
       errors.push(`${file}: ${e.message}`);
-      return { file, cameras: [], errors, legacy: false };
+      return { file, cameras: [], errors, legacy: false, invalid: true };
     }
-    if (!base.rtspUrl) return { file, cameras: [], errors, legacy: true };
-    raw = { cameras: [{ id: 'cam1', title: 'Камера 1', source: base.rtspUrl, archive: true }] };
-    return { file, ...normalizeCameras(raw, base, isValidDID, errors), errors, legacy: true };
+    if (base.rtspUrl) {
+      raw = { cameras: [{ id: 'cam1', title: 'Камера 1', source: base.rtspUrl, archive: true }] };
+      return { file, ...normalizeCameras(raw, base, isValidDID, errors), errors, legacy: true };
+    }
+    const count = mockCount(env);
+    if (count === 0) return { file, cameras: [], errors, legacy: false };
+    raw = mockCamerasConfig(base, count);
+    let created = true;
+    try {
+      writeFile(file, raw);
+    } catch (we) {
+      created = false; // муляжи работают и без файла; править будет нечего — сообщаем
+      errors.push(`не удалось создать ${file}: ${we.message} (муляжи только в памяти)`);
+    }
+    return { file, ...normalizeCameras(raw, base, isValidDID, errors), errors, legacy: false, created };
   }
   return { file, ...normalizeCameras(raw, base, isValidDID, errors), errors, legacy: false };
 }
@@ -146,4 +198,4 @@ function normalizeCameras(raw, base, isValidDID, errors) {
   return { cameras };
 }
 
-module.exports = { loadVideoConfig, loadCameras, camerasFilePath, MAX_CAMERAS };
+module.exports = { loadVideoConfig, loadCameras, camerasFilePath, mockCamerasConfig, MAX_CAMERAS };

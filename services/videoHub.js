@@ -14,9 +14,15 @@
 // Push: { type: 'post', request: 'videoSnapshot', name: <dID камеры>,
 //         payload: { cameraId, title, image (base64 JPEG), mimeType, size, timestamp } }.
 // Доступ к камере: сессия с dID камеры и уровнем >= minLevel камеры.
+//
+// cameras.json перечитывается на лету (watch): изменённые камеры перезапускаются, новые
+// запускаются, удалённые останавливаются; клиентам Vue уходит новый список камер —
+// { type: 'response', request: 'videoCameras', payload: { cameras } }.
 'use strict';
 
+const fs = require('fs');
 const path = require('path');
+const { execFile } = require('child_process');
 const logger = require('./logger.js');
 const { loadVideoConfig, loadCameras } = require('./videoConfig.js');
 const { createVideoStreamService } = require('./videoStreamService.js');
@@ -31,6 +37,9 @@ function createVideoHub({
   loadConfig = loadVideoConfig,
   loadCameraList = loadCameras,
   now = Date.now,
+  checkFfmpeg = defaultCheckFfmpeg,
+  watchFile = fs.watchFile,
+  unwatchFile = fs.unwatchFile,
 } = {}) {
   const cameras = new Map(); // id -> { camera, worker, lastFrame, raw, stats }
   const subscriptions = new Map(); // clientId -> { preview: Set<id>, full: id|null, lastSent: Map<id, ts> }
@@ -39,52 +48,166 @@ function createVideoHub({
   const canView = (session, camera) =>
     Boolean(session && camera && session.dID === camera.dID && session.level >= camera.minLevel);
 
-  // ── Инициализация ───────────────────────────────────────────────────
-  function init() {
-    const base = loadConfig();
-    const { file, cameras: list, errors, legacy } = loadCameraList();
-    configInfo = { file, errors, legacy };
-    errors.forEach((e) => logger.logErrorMessage(`[videoHub] - cameras: ${e}`));
+  // ── Инициализация и перечитывание cameras.json ──────────────────────
+  let base = null;
+  let started = false;
+  let watching = null;
+  let reloadTimer = null;
+  let ffmpegChecked = false;
 
+  function createEntry(camera, legacy) {
+    const worker = createWorker({ deliver: (frame) => onFrame(camera.id, frame) });
+    const ok = worker.init({
+      ...base,
+      cameraId: camera.id,
+      title: camera.title,
+      source: camera.source,
+      rtspUrl: camera.source === 'test' ? '' : camera.source,
+      dID: camera.dID,
+      minLevel: camera.minLevel,
+      // ffmpeg кодирует с частотой полного экрана; миниатюрам кадры отдаются реже
+      snapshotInterval: Math.min(camera.previewIntervalMs, camera.fullIntervalMs),
+      snapshotMaxWidth: camera.maxWidth,
+      snapshotQuality: camera.quality,
+      archive: camera.archive,
+      test: camera.test,
+      tmpDir: legacy ? base.tmpDir : path.join(base.tmpDir, camera.id),
+    });
+    if (!ok) return null;
+    return {
+      camera,
+      spec: JSON.stringify(camera),
+      worker,
+      lastFrame: null,
+      raw: null,
+      stats: { framesCaptured: 0, framesSent: 0, bytesSent: 0, skippedSlow: 0 },
+    };
+  }
+
+  // Применяет список камер: неизменённые работают дальше, остальные пересоздаются.
+  // Возвращает { added, changed, removed } — id камер.
+  function apply() {
+    base = loadConfig();
+    const { file, cameras: list, errors, legacy, created, invalid } = loadCameraList();
+    errors.forEach((e) => logger.logErrorMessage(`[videoHub] - cameras: ${e}`));
+    const diff = { added: [], changed: [], removed: [], stopped: [] };
+    // Файл не читается (битый JSON при правке) — работающие камеры не трогаем
+    if (invalid && cameras.size) {
+      logger.logErrorMessage(`[videoHub] - ${file} с ошибкой — камеры без изменений до исправления файла`);
+      configInfo = { ...configInfo, errors };
+      return diff;
+    }
+    configInfo = { file, errors, legacy };
+    if (created) {
+      logger.logInfoMessage(
+        `[videoHub] - создан ${file}: ${list.length} муляжей (source "test"), видны пользователям dID "${list[0]?.dID}"; ` +
+        'реальную камеру подключают заменой "source" на rtsp://… — без перезапуска сервера'
+      );
+    }
+
+    const next = new Map(list.map((c) => [c.id, c]));
+    for (const [id, entry] of cameras) {
+      const camera = next.get(id);
+      if (camera && JSON.stringify(camera) === entry.spec) continue;
+      diff.stopped.push(entry.worker.stop());
+      cameras.delete(id);
+      (camera ? diff.changed : diff.removed).push(id);
+    }
     for (const camera of list) {
-      const worker = createWorker({ deliver: (frame) => onFrame(camera.id, frame) });
-      const ok = worker.init({
-        ...base,
-        cameraId: camera.id,
-        title: camera.title,
-        source: camera.source,
-        rtspUrl: camera.source === 'test' ? '' : camera.source,
-        dID: camera.dID,
-        minLevel: camera.minLevel,
-        // ffmpeg кодирует с частотой полного экрана; миниатюрам кадры отдаются реже
-        snapshotInterval: Math.min(camera.previewIntervalMs, camera.fullIntervalMs),
-        snapshotMaxWidth: camera.maxWidth,
-        snapshotQuality: camera.quality,
-        archive: camera.archive,
-        test: camera.test,
-        tmpDir: legacy ? base.tmpDir : path.join(base.tmpDir, camera.id),
-      });
-      if (!ok) continue;
-      cameras.set(camera.id, {
-        camera,
-        worker,
-        lastFrame: null,
-        raw: null,
-        stats: { framesCaptured: 0, framesSent: 0, bytesSent: 0, skippedSlow: 0 },
+      if (cameras.has(camera.id)) continue;
+      const entry = createEntry(camera, legacy);
+      if (!entry) continue;
+      cameras.set(camera.id, entry);
+      if (!diff.changed.includes(camera.id)) diff.added.push(camera.id);
+      if (started) entry.worker.start();
+    }
+    // Порядок камер — как в файле (пересозданные не уезжают в конец)
+    const ordered = list.filter((c) => cameras.has(c.id)).map((c) => [c.id, cameras.get(c.id)]);
+    cameras.clear();
+    ordered.forEach(([id, entry]) => cameras.set(id, entry));
+    // Удалённые камеры — из подписок
+    for (const sub of subscriptions.values()) {
+      diff.removed.forEach((id) => {
+        sub.preview.delete(id);
+        if (sub.full === id) sub.full = null;
       });
     }
+    if (!ffmpegChecked && cameras.size) {
+      ffmpegChecked = true;
+      // Асинхронно: старт сервера не ждёт ffmpeg
+      Promise.resolve(checkFfmpeg(base.ffmpegPath || 'ffmpeg'))
+        .then((problem) => { if (problem) logger.logErrorMessage(`[videoHub] - ${problem}`); })
+        .catch(() => {});
+    }
+    return diff;
+  }
+
+  function init() {
+    apply();
     logger.logInfoMessage(
-      `[videoHub] - init: камер ${cameras.size}${legacy ? ' (VIDEO_RTSP_URL)' : ` из ${file}`}` +
-      (cameras.size ? `: ${[...cameras.keys()].join(', ')}` : '')
+      `[videoHub] - init: камер ${cameras.size}${configInfo.legacy ? ' (VIDEO_RTSP_URL)' : ` из ${configInfo.file}`}` +
+      (cameras.size ? `: ${describe()}` : '')
     );
     return cameras.size > 0;
   }
 
+  const describe = () => [...cameras.values()]
+    .map(({ camera }) => `${camera.id}${camera.source === 'test' ? ' (муляж)' : ''}`).join(', ');
+
   function start() {
+    started = true;
     for (const { worker } of cameras.values()) worker.start();
   }
 
+  // Перечитать cameras.json и разослать клиентам новый список камер
+  async function reload() {
+    const { added, changed, removed, stopped } = apply();
+    await Promise.all(stopped);
+    if (!added.length && !changed.length && !removed.length) return false;
+    logger.logInfoMessage(
+      `[videoHub] - reload: добавлены [${added.join(', ')}], изменены [${changed.join(', ')}], удалены [${removed.join(', ')}]; ` +
+      `камер ${cameras.size}${cameras.size ? `: ${describe()}` : ''}`
+    );
+    notifyCameraList();
+    return true;
+  }
+
+  function notifyCameraList() {
+    const conns = wsManager.VUE_connections;
+    if (!conns || typeof conns.entries !== 'function') return;
+    for (const [clientId, connection] of conns.entries()) {
+      const session = auth.getSession(clientId);
+      const ws = connection?.ws;
+      if (!session || !ws || ws.readyState !== WS_OPEN) continue;
+      try {
+        ws.send(JSON.stringify({
+          type: 'response', request: 'videoCameras', name: session.dID, payload: { cameras: listCameras(session) },
+        }));
+      } catch (e) {
+        logger.logDevMessage(`[videoHub] - notifyCameraList ${clientId}: ${e.message}`);
+      }
+    }
+  }
+
+  // Следим за cameras.json (в том числе за его появлением). watchFile — опрос mtime:
+  // надёжно при сохранении редактором через временный файл.
+  function watch(intervalMs = 2000) {
+    if (watching || configInfo.legacy || !configInfo.file) return;
+    watching = configInfo.file;
+    watchFile(watching, { interval: intervalMs }, (cur, prev) => {
+      if (cur.mtimeMs === prev.mtimeMs && cur.size === prev.size) return;
+      clearTimeout(reloadTimer);
+      reloadTimer = setTimeout(() => {
+        reload().catch((e) => logger.logErrorMessage(`[videoHub] - reload: ${e.message}`));
+      }, 300);
+    });
+  }
+
   async function stop() {
+    clearTimeout(reloadTimer);
+    if (watching) unwatchFile(watching);
+    watching = null;
+    started = false;
     await Promise.all([...cameras.values()].map(({ worker }) => worker.stop()));
   }
 
@@ -268,7 +391,20 @@ function createVideoHub({
     };
   }
 
-  return { init, start, stop, subscribe, unsubscribe, listCameras, getLastSnapshot, getStats, onFrame };
+  return { init, start, stop, reload, watch, subscribe, unsubscribe, listCameras, getLastSnapshot, getStats, onFrame };
+}
+
+// ffmpeg доступен? Promise<null> — да, иначе текст ошибки с подсказкой
+function defaultCheckFfmpeg(bin) {
+  return new Promise((resolve) => {
+    execFile(bin, ['-hide_banner', '-version'], { timeout: 10000 }, (e) => {
+      if (!e) return resolve(null);
+      resolve(e.code === 'ENOENT'
+        ? `ffmpeg не найден (FFMPEG_PATH=${bin}) — камеры и муляжи не будут работать. ` +
+          'Установите: macOS — brew install ffmpeg, Linux — apt install ffmpeg; или укажите полный путь в FFMPEG_PATH'
+        : `ffmpeg (${bin}) не запускается: ${e.message.split('\n')[0]}`);
+    });
+  });
 }
 
 const defaultHub = createVideoHub();
@@ -278,6 +414,8 @@ module.exports = {
   init: (...a) => defaultHub.init(...a),
   start: (...a) => defaultHub.start(...a),
   stop: (...a) => defaultHub.stop(...a),
+  reload: (...a) => defaultHub.reload(...a),
+  watch: (...a) => defaultHub.watch(...a),
   subscribe: (...a) => defaultHub.subscribe(...a),
   unsubscribe: (...a) => defaultHub.unsubscribe(...a),
   listCameras: (...a) => defaultHub.listCameras(...a),

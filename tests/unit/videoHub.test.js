@@ -15,7 +15,7 @@ function makeCamera(id, extra = {}) {
   };
 }
 
-function setup({ cameras = [makeCamera('cam01'), makeCamera('cam02')], sessions = {} } = {}) {
+function setup({ cameras = [makeCamera('cam01'), makeCamera('cam02')], sessions = {}, list } = {}) {
   const workers = new Map();
   const createWorker = jest.fn(({ deliver }) => {
     const w = {
@@ -40,7 +40,10 @@ function setup({ cameras = [makeCamera('cam01'), makeCamera('cam02')], sessions 
   const hub = createVideoHub({
     wsManager, auth, createWorker, now: () => t,
     loadConfig: () => ({ tmpDir: '/tmp/v', snapshotInterval: 5000 }),
-    loadCameraList: () => ({ file: 'cameras.json', cameras, errors: [], legacy: false }),
+    loadCameraList: list || (() => ({ file: 'cameras.json', cameras, errors: [], legacy: false })),
+    checkFfmpeg: () => null,
+    watchFile: jest.fn(),
+    unwatchFile: jest.fn(),
   });
   const connect = (clientId, dID = 'd1', level = 1) => {
     const ws = { readyState: OPEN, bufferedAmount: 0, send: jest.fn() };
@@ -211,5 +214,99 @@ describe('videoHub: запросы', () => {
     const cam = hub.getStats().cameras.find((c) => c.id === 'cam01');
     expect(cam).toMatchObject({ framesCaptured: 1, framesSent: 1, lastFrameBytes: 2000 });
     expect(cam.bytesSent).toBeGreaterThan(2000);
+  });
+});
+
+describe('videoHub: перечитывание cameras.json', () => {
+  function reloadable() {
+    let current = { file: 'cameras.json', cameras: [makeCamera('cam01'), makeCamera('cam02')], errors: [], legacy: false };
+    const ctx = setup({ list: () => current });
+    ctx.set = (next) => { current = { file: 'cameras.json', errors: [], legacy: false, ...next }; };
+    return ctx;
+  }
+
+  test('муляж заменён реальной камерой: только она перезапускается, клиент получает новый список', async () => {
+    const { hub, workers, connect, set } = reloadable();
+    hub.init();
+    hub.start();
+    const ws = connect('c1');
+    const old01 = workers.get('cam01');
+    const old02 = workers.get('cam02');
+    set({ cameras: [makeCamera('cam01', { source: 'rtsp://u:p@h/s', title: 'Ворота' }), makeCamera('cam02')] });
+    expect(await hub.reload()).toBe(true);
+    expect(old01.stop).toHaveBeenCalled();
+    expect(old02.stop).not.toHaveBeenCalled();
+    const fresh = workers.get('cam01');
+    expect(fresh).not.toBe(old01);
+    expect(fresh.config).toMatchObject({ source: 'rtsp://u:p@h/s', rtspUrl: 'rtsp://u:p@h/s' });
+    expect(fresh.start).toHaveBeenCalled();
+    const msg = JSON.parse(ws.send.mock.calls.at(-1)[0]);
+    expect(msg).toMatchObject({ type: 'response', request: 'videoCameras', name: 'd1' });
+    expect(msg.payload.cameras.map((c) => c.title)).toEqual(['Ворота', 'Камера cam02']);
+  });
+
+  test('добавление и удаление камер; удалённая исчезает из подписок', async () => {
+    const { hub, workers, connect, sessions, set } = reloadable();
+    hub.init();
+    connect('c1');
+    hub.subscribe('c1', sessions.c1, { cameras: ['cam01', 'cam02'], full: 'cam02' });
+    const old02 = workers.get('cam02');
+    set({ cameras: [makeCamera('cam01'), makeCamera('cam03')] });
+    await hub.reload();
+    expect(old02.stop).toHaveBeenCalled();
+    expect(hub.listCameras(sessions.c1).map((c) => c.id)).toEqual(['cam01', 'cam03']);
+    expect(hub.subscribe('c1', sessions.c1, { cameras: ['cam01', 'cam02', 'cam03'] }).cameras).toEqual(['cam01', 'cam03']);
+  });
+
+  test('без изменений — ничего не перезапускается и не рассылается', async () => {
+    const { hub, workers, connect } = reloadable();
+    hub.init();
+    const ws = connect('c1');
+    expect(await hub.reload()).toBe(false);
+    expect(workers.get('cam01').stop).not.toHaveBeenCalled();
+    expect(ws.send).not.toHaveBeenCalled();
+  });
+
+  test('битый файл при правке — камеры работают как были', async () => {
+    const { hub, workers, sessions, connect, set } = reloadable();
+    hub.init();
+    connect('c1');
+    set({ cameras: [], errors: ['cameras.json: Unexpected token'], invalid: true });
+    expect(await hub.reload()).toBe(false);
+    expect(workers.get('cam01').stop).not.toHaveBeenCalled();
+    expect(hub.listCameras(sessions.c1)).toHaveLength(2);
+  });
+
+  test('watch следит за файлом, stop снимает слежение', async () => {
+    const watchFile = jest.fn();
+    const unwatchFile = jest.fn();
+    const hub = createVideoHub({
+      wsManager: { VUE_connections: new Map(), getUserConnections: () => [] },
+      auth: { getSession: () => null },
+      createWorker: () => ({ init: () => true, start: jest.fn(), stop: jest.fn(async () => {}), getStats: () => ({}) }),
+      loadConfig: () => ({ tmpDir: '/tmp/v' }),
+      loadCameraList: () => ({ file: '/data/cameras.json', cameras: [], errors: [], legacy: false }),
+      checkFfmpeg: () => null, watchFile, unwatchFile,
+    });
+    hub.init();
+    hub.watch();
+    expect(watchFile).toHaveBeenCalledWith('/data/cameras.json', expect.any(Object), expect.any(Function));
+    await hub.stop();
+    expect(unwatchFile).toHaveBeenCalledWith('/data/cameras.json');
+  });
+
+  test('ffmpeg не найден — ошибка в логе один раз, камеры создаются', () => {
+    const checkFfmpeg = jest.fn(() => 'ffmpeg не найден');
+    const hub = createVideoHub({
+      wsManager: { VUE_connections: new Map(), getUserConnections: () => [] },
+      auth: { getSession: () => null },
+      createWorker: () => ({ init: () => true, start: jest.fn(), stop: jest.fn(async () => {}), getStats: () => ({}) }),
+      loadConfig: () => ({ tmpDir: '/tmp/v', ffmpegPath: 'ffmpeg' }),
+      loadCameraList: () => ({ file: 'c.json', cameras: [makeCamera('cam01')], errors: [], legacy: false }),
+      checkFfmpeg, watchFile: jest.fn(), unwatchFile: jest.fn(),
+    });
+    expect(hub.init()).toBe(true);
+    hub.reload();
+    expect(checkFfmpeg).toHaveBeenCalledTimes(1);
   });
 });
