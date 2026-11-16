@@ -62,6 +62,35 @@ function parseArgs(argv) {
 }
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// Прогресс в одной строке (в терминале перерисовывается, в файл — только смена фазы)
+const TTY = process.stdout.isTTY;
+let lastPhase = '';
+function progress(prefix, text, phase = text) {
+  if (TTY) process.stdout.write(`\r\x1b[K${prefix}${text}`);
+  else if (phase !== lastPhase) process.stdout.write(`${lastPhase ? ', ' : ''}${phase}`);
+  lastPhase = phase;
+}
+function progressDone(prefix, text) {
+  if (TTY) process.stdout.write(`\r\x1b[K${prefix}${text}\n`);
+  else process.stdout.write(` — ${text}\n`);
+  lastPhase = '';
+}
+
+const countFrames = (clients) => clients.reduce((s, c) => s + c.seen, 0);
+
+// ffmpeg доступен и умеет lavfi (testsrc2)? Проверяем один раз до прогонов.
+function checkFfmpeg(bin) {
+  try {
+    const out = execFileSync(bin, ['-hide_banner', '-filters'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: 15000 });
+    if (!/testsrc2/.test(out)) return `${bin}: нет фильтра testsrc2 (нужна сборка ffmpeg с lavfi)`;
+    return null;
+  } catch (e) {
+    return e.code === 'ENOENT'
+      ? `ffmpeg не найден: ${bin} (установите: brew install ffmpeg / apt install ffmpeg, или укажите --ffmpeg <путь>)`
+      : `${bin} не запускается: ${e.message.split('\n')[0]}`;
+  }
+}
 const camId = (i) => `cam${String(i + 1).padStart(2, '0')}`;
 
 // ── Процессы: суммарное время CPU и RSS сервера и его потомков (Linux и macOS) ──
@@ -119,6 +148,7 @@ function connectClient(url) {
     const client = {
       ws,
       frames: new Map(), // cameraId -> [{ t, latency, bytes }]
+      seen: 0,           // все кадры, включая прогрев — для прогресса
       measuring: false,
       request(msg, expect) {
         return new Promise((res, rej) => {
@@ -132,6 +162,7 @@ function connectClient(url) {
       const raw = data.toString();
       const msg = JSON.parse(raw);
       if (msg.type === 'post' && msg.request === 'videoSnapshot') {
+        client.seen++;
         if (!client.measuring) return;
         const t = Date.now();
         const list = client.frames.get(msg.payload.cameraId) || [];
@@ -168,7 +199,7 @@ const pct = (arr, p) => {
 };
 
 // ── Один прогон для N камер ─────────────────────────────────────────
-async function runOnce(n, o) {
+async function runOnce(n, o, prefix = '') {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), `video-load-${n}-`));
   const camerasFile = path.join(tmp, 'cameras.json');
   fs.writeFileSync(camerasFile, JSON.stringify({
@@ -186,6 +217,7 @@ async function runOnce(n, o) {
     NODERED_ENABLED: 'false', MODBUS_ENABLED: 'false', MODBUS_RTU_ENABLED: 'false', TELEGRAM_ENABLED: 'false',
     VIDEO_ENABLED: 'true', VIDEO_CAMERAS_FILE: camerasFile, VIDEO_TMP_DIR: path.join(tmp, 'video'),
     FFMPEG_PATH: fake ? path.join(__dirname, 'fakeFfmpeg.js') : o.ffmpeg, FAKE_FFMPEG_FRAME_KB: String(o.frameKb),
+    ...(process.env.FAKE_FFMPEG_SILENT ? { FAKE_FFMPEG_SILENT: process.env.FAKE_FFMPEG_SILENT } : {}),
     DATA_DIR: path.join(tmp, 'data'), USERS_FILE: path.join(tmp, 'users.enc'), AUTH_KEY_FILE: path.join(tmp, 'auth.key'),
     DEFAULT_USER_NAME: 'loadtest', DEFAULT_USER_PASSWORD: 'loadtest-pass', DEFAULT_USER_DID: 'loadtest', DEFAULT_USER_LEVEL: '3',
     JWT_SECRET: crypto.randomBytes(32).toString('hex'), AUTH_TIMEOUT_MS: '0',
@@ -198,7 +230,9 @@ async function runOnce(n, o) {
   const url = `ws://127.0.0.1:${o.port}`;
   const clients = [];
   try {
+    progress(prefix, 'запуск сервера…');
     await waitForServer(url);
+    progress(prefix, 'вход клиентов…');
     for (let i = 0; i < o.clients; i++) {
       const c = await connectClient(url);
       const login = await c.request({ type: 'auth', request: 'login', name: '', payload: { username: 'loadtest', password: 'loadtest-pass' } }, 'loginSuccess');
@@ -214,12 +248,26 @@ async function runOnce(n, o) {
       clients.push(c);
     }
 
-    await sleep(o.warmup * 1000); // запуск ffmpeg и первые кадры
+    // Прогрев: запуск ffmpeg и первые кадры. Ждём не меньше --warmup и до первого кадра (макс. 30 с)
+    const warmUntil = Date.now() + o.warmup * 1000;
+    const giveUp = Date.now() + Math.max(o.warmup, 30) * 1000;
+    while (Date.now() < warmUntil || (countFrames(clients) === 0 && Date.now() < giveUp)) {
+      progress(prefix, `прогрев… кадров ${countFrames(clients)}`, 'прогрев');
+      await sleep(500);
+    }
+    if (countFrames(clients) === 0) {
+      throw new Error(`за ${Math.round((Date.now() - warmUntil) / 1000) + o.warmup} с ни одного кадра — ffmpeg не выдаёт JPEG (см. лог сервера ниже)`);
+    }
     const before = processTree(server.pid);
     const t0 = Date.now();
     clients.forEach((c) => { c.measuring = true; });
-    await sleep(o.duration * 1000);
+    while (Date.now() - t0 < o.duration * 1000) {
+      const left = Math.ceil((o.duration * 1000 - (Date.now() - t0)) / 1000);
+      progress(prefix, `замер… осталось ${left} с, кадров ${countFrames(clients)}`, 'замер');
+      await sleep(Math.min(1000, Math.max(50, o.duration * 1000 - (Date.now() - t0))));
+    }
     clients.forEach((c) => { c.measuring = false; });
+    progress(prefix, 'остановка…');
     const elapsed = (Date.now() - t0) / 1000;
     const after = processTree(server.pid);
     const status = await clients[0].request({ type: 'get', request: 'videoStatus', name: clients[0].dID, payload: {} }, 'videoStatus');
@@ -290,16 +338,34 @@ const f1 = (v, d = 1) => (v === null || v === undefined || Number.isNaN(v) ? '�
     `${o.duration} с, ffmpeg: ${o.ffmpeg}${o.ffmpeg === 'fake' ? ` (кадр ~${o.frameKb} КБ, без кодирования)` : `, источник ${o.size}@${o.rate}`}, ` +
     `миниатюры ${o.previewMs} мс, полный экран ${o.fullMs} мс, ядер CPU ${os.cpus().length}`
   );
+  if (o.ffmpeg !== 'fake') {
+    const problem = checkFfmpeg(o.ffmpeg);
+    if (problem) {
+      console.log(`Ошибка: ${problem}`);
+      process.exitCode = 1;
+      return;
+    }
+  }
+  const stageSec = o.warmup + o.duration + 3;
+  const total = stageSec * o.cameras.length;
+  console.log(`Ожидаемое время: ~${total < 120 ? `${total} с` : `${Math.ceil(total / 60)} мин`} (${o.cameras.length} × ~${stageSec} с)`);
   const results = [];
   for (const n of o.cameras) {
-    process.stdout.write(`  ${n} камер… `);
+    const prefix = `  камер ${n}: `;
+    if (!TTY) process.stdout.write(prefix);
     try {
-      const r = await runOnce(n, o);
+      const r = await runOnce(n, o, prefix);
       results.push(r);
-      console.log(`готово (доставлено ${f1(r.deliveredPct, 0)} %)`);
+      progressDone(prefix, `готово (доставлено ${f1(r.deliveredPct, 0)} %, CPU ffmpeg ${f1(r.ffmpegCpuPct)} %)`);
     } catch (e) {
-      console.log(`ошибка: ${e.message}`);
-      if (e.serverLog) console.log(e.serverLog.split('\n').slice(-15).join('\n'));
+      progressDone(prefix, `ошибка: ${e.message}`);
+      if (e.serverLog) {
+        const lines = e.serverLog.split('\n');
+        const video = lines.filter((l) => /\[Video(StreamService|Hub)|ffmpeg/i.test(l) && !/WsManager/.test(l));
+        console.log(video.length
+          ? video.slice(-15).map((l) => `    ${l}`).join('\n')
+          : '    в логе сервера нет сообщений видео/ffmpeg');
+      }
       process.exitCode = 1;
     }
   }
