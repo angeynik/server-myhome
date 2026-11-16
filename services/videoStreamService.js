@@ -1,9 +1,14 @@
 // services/videoStreamService.js
-// Видеонаблюдение: RTSP-регистратор → ffmpeg → снимки для Vue и архив сегментов в S3.
+// Видеонаблюдение: одна камера (RTSP-регистратор или тестовый источник) → ffmpeg →
+// снимки для Vue и архив сегментов в S3. Несколько камер (1–16) собирает services/videoHub.js:
+// он создаёт этот сервис на каждую камеру и сам доставляет кадры (опция deliver).
 //
-// Один процесс ffmpeg, два выхода:
+// Один процесс ffmpeg, до двух выходов:
 //   1) MJPEG в stdout, не чаще одного кадра за snapshotInterval (фильтр fps) — снимки для Vue;
-//   2) сегменты MP4 без перекодирования (-c:v copy) в tmpDir — архив для выгрузки в S3.
+//   2) сегменты MP4 без перекодирования (-c:v copy) в tmpDir — архив для выгрузки в S3
+//      (только при config.archive !== false; для source "test" архива нет).
+// Источник "test" (config.source): ffmpeg сам генерирует картинку (lavfi testsrc2 + сдвиг оттенка
+// по камере + шум, чтобы размер JPEG был ближе к реальному кадру) — эмуляция камеры без устройства.
 //
 // Доступ: снимки получают только авторизованные VUE-сессии с dID камеры (VIDEO_DID)
 // и уровнем не ниже VIDEO_MIN_LEVEL.
@@ -72,6 +77,7 @@ function createVideoStreamService({
   loadS3 = defaultLoadS3,
   loadConfig = loadVideoConfig,
   now = Date.now,
+  deliver = null, // (frame: { jpeg, timestamp }) => void — кадры доставляет videoHub, а не этот сервис
 } = {}) {
   let config = {};
   let s3 = null;
@@ -111,14 +117,16 @@ function createVideoStreamService({
   function init(overrideConfig) {
     config = overrideConfig || loadConfig();
 
-    if (!config.rtspUrl) {
-      logger.logInfoMessage('[VideoStreamService] - init: VIDEO_RTSP_URL не задан, сервис не запускается');
+    if (!config.rtspUrl && !isTestSource()) {
+      logger.logInfoMessage(`${tag()} - init: VIDEO_RTSP_URL не задан, сервис не запускается`);
       return false;
     }
 
     s3 = null;
-    const c = config.s3;
-    if (c.endpoint && c.bucket && c.accessKeyId && c.secretAccessKey) {
+    const c = config.s3 || {};
+    if (!archiveEnabled()) {
+      // архив выключен — S3 не нужен
+    } else if (c.endpoint && c.bucket && c.accessKeyId && c.secretAccessKey) {
       try {
         const sdk = loadS3();
         UploadClass = sdk.Upload;
@@ -129,26 +137,37 @@ function createVideoStreamService({
           forcePathStyle: c.forcePathStyle,
         });
       } catch (e) {
-        logger.logErrorMessage(`[VideoStreamService] - init: S3 недоступен: ${e.message}`);
+        logger.logErrorMessage(`${tag()} - init: S3 недоступен: ${e.message}`);
         s3 = null;
       }
     } else {
-      logger.logErrorMessage('[VideoStreamService] - init: параметры MTS S3 не заданы, выгрузка отключена');
+      logger.logErrorMessage(`${tag()} - init: параметры MTS S3 не заданы, выгрузка отключена`);
     }
 
     try {
       fs.mkdirSync(config.tmpDir, { recursive: true });
     } catch (e) {
-      logger.logErrorMessage(`[VideoStreamService] - init: не удалось создать ${config.tmpDir}: ${e.message}`);
+      logger.logErrorMessage(`${tag()} - init: не удалось создать ${config.tmpDir}: ${e.message}`);
       return false;
     }
 
     logger.logInfoMessage(
-      `[VideoStreamService] - init: RTSP=${maskUrl(config.rtspUrl)}, dID=${config.dID}, ` +
+      `${tag()} - init: ${isTestSource() ? 'источник test' : `RTSP=${maskUrl(config.rtspUrl)}`}, dID=${config.dID}, ` +
       `уровень>=${config.minLevel}, снимок раз в ${config.snapshotInterval} мс, ` +
-      `сегмент ${config.segmentDuration} с, S3=${s3 ? 'ON' : 'OFF'}`
+      (archiveEnabled() ? `сегмент ${config.segmentDuration} с, S3=${s3 ? 'ON' : 'OFF'}` : 'архив OFF')
     );
     return true;
+  }
+
+  const isTestSource = () => config.source === 'test';
+  const archiveEnabled = () => config.archive !== false && !isTestSource();
+  const tag = () => (config.cameraId ? `[VideoStreamService:${config.cameraId}]` : '[VideoStreamService]');
+
+  // Сдвиг оттенка тестовой картинки по id камеры: камеры различимы на экране
+  function hueFor(id) {
+    let h = 0;
+    for (const ch of String(id || '')) h = (h * 31 + ch.charCodeAt(0)) % 360;
+    return h;
   }
 
   // ── Аргументы ffmpeg ────────────────────────────────────────────────
@@ -157,18 +176,26 @@ function createVideoStreamService({
     const args = [];
 
     // ffmpegExtraArgs относятся ко входу (например, учётные данные или -rtsp_flags)
-    if (c.ffmpegExtraArgs) args.push(...c.ffmpegExtraArgs.split(/\s+/).filter(Boolean));
-    if (c.decodeKeyframesOnly) args.push('-skip_frame', 'nokey');
-
-    args.push(
-      '-rtsp_transport', 'tcp',
-      '-fflags', 'nobuffer',
-      '-flags', 'low_delay',
-      '-i', c.rtspUrl
-    );
+    const filters = [];
+    if (isTestSource()) {
+      // -re: генерация в реальном времени (иначе lavfi выдаёт кадры с максимальной скоростью)
+      const t = c.test || {};
+      args.push('-re', '-f', 'lavfi', '-i', `testsrc2=size=${t.size || '1280x720'}:rate=${t.rate || 10}`);
+      filters.push(`hue=h=${hueFor(c.cameraId)}`);
+      if (t.noise) filters.push(`noise=alls=${t.noise}:allf=t`);
+    } else {
+      if (c.ffmpegExtraArgs) args.push(...c.ffmpegExtraArgs.split(/\s+/).filter(Boolean));
+      if (c.decodeKeyframesOnly) args.push('-skip_frame', 'nokey');
+      args.push(
+        '-rtsp_transport', 'tcp',
+        '-fflags', 'nobuffer',
+        '-flags', 'low_delay',
+        '-i', c.rtspUrl
+      );
+    }
 
     // Выход 1: не чаще одного кадра за интервал, иначе в JPEG кодируется весь поток
-    const filters = [`fps=1000/${c.snapshotInterval}`];
+    filters.push(`fps=1000/${c.snapshotInterval}`);
     if (c.snapshotMaxWidth > 0) filters.push(`scale='min(${c.snapshotMaxWidth},iw)':-2`);
     args.push(
       '-map', '0:v:0',
@@ -179,6 +206,7 @@ function createVideoStreamService({
       '-f', 'mjpeg',
       'pipe:1'
     );
+    if (!archiveEnabled()) return args;
 
     // Выход 2: сегменты MP4. Фрагментированный MP4 остаётся читаемым после обрыва питания
     args.push(
@@ -201,7 +229,9 @@ function createVideoStreamService({
   }
 
   // ── Процесс ffmpeg ──────────────────────────────────────────────────
-  const pidFile = () => path.join(config.tmpDir, 'ffmpeg.pid');
+  const pidFile = () => path.join(config.tmpDir, config.cameraId ? `ffmpeg-${config.cameraId}.pid` : 'ffmpeg.pid');
+  // По чему узнать «свой» осиротевший ffmpeg в /proc/<pid>/cmdline
+  const staleMarker = () => (archiveEnabled() ? config.tmpDir : (isTestSource() ? 'testsrc2' : config.rtspUrl));
 
   // ffmpeg, оставшийся от аварийно завершившегося сервера, держит RTSP и пишет такие же сегменты
   function killStaleFfmpeg() {
@@ -212,9 +242,9 @@ function createVideoStreamService({
       return;
     }
     try {
-      if (Number.isInteger(pid) && pid > 1 && fs.readFileSync(`/proc/${pid}/cmdline`, 'utf8').includes(config.tmpDir)) {
+      if (Number.isInteger(pid) && pid > 1 && fs.readFileSync(`/proc/${pid}/cmdline`, 'utf8').includes(staleMarker())) {
         process.kill(pid, 'SIGTERM');
-        logger.logInfoMessage(`[VideoStreamService] - остановлен осиротевший ffmpeg (pid ${pid})`);
+        logger.logInfoMessage(`${tag()} - остановлен осиротевший ffmpeg (pid ${pid})`);
       }
     } catch {
       // процесса уже нет или нет /proc
@@ -231,7 +261,7 @@ function createVideoStreamService({
     try {
       fs.writeFileSync(pidFile(), String(child.pid));
     } catch (e) {
-      logger.logErrorMessage(`[VideoStreamService] - pid-файл: ${e.message}`);
+      logger.logErrorMessage(`${tag()} - pid-файл: ${e.message}`);
     }
   }
 
@@ -246,15 +276,15 @@ function createVideoStreamService({
   function onStderr(chunk) {
     const msg = maskUrl(chunk.toString()).trim();
     if (!msg) return;
-    if (/error|failed|cannot/i.test(msg)) logger.logErrorMessage(`[VideoStreamService] - ffmpeg: ${msg}`);
-    else logger.logDevMessage(`[VideoStreamService] - ffmpeg: ${msg}`);
+    if (/error|failed|cannot/i.test(msg)) logger.logErrorMessage(`${tag()} - ffmpeg: ${msg}`);
+    else logger.logDevMessage(`${tag()} - ffmpeg: ${msg}`);
   }
 
   function scheduleRestart() {
     if (!shouldRun || restartTimer) return;
     const delay = restartDelay;
     restartDelay = Math.min(restartDelay * 2, RESTART_MAX_MS);
-    logger.logInfoMessage(`[VideoStreamService] - перезапуск ffmpeg через ${Math.round(delay / 1000)} с`);
+    logger.logInfoMessage(`${tag()} - перезапуск ffmpeg через ${Math.round(delay / 1000)} с`);
     restartTimer = setTimeout(() => {
       restartTimer = null;
       if (shouldRun && !running) startFfmpeg();
@@ -264,13 +294,13 @@ function createVideoStreamService({
 
   function startFfmpeg() {
     const args = buildFfmpegArgs();
-    logger.logDevMessage(`[VideoStreamService] - ffmpeg ${args.map(maskUrl).join(' ')}`);
+    logger.logDevMessage(`${tag()} - ffmpeg ${args.map(maskUrl).join(' ')}`);
 
     let child;
     try {
       child = spawn(config.ffmpegPath, args, { stdio: ['ignore', 'pipe', 'pipe'] });
     } catch (e) {
-      logger.logErrorMessage(`[VideoStreamService] - не удалось запустить ffmpeg: ${e.message}`);
+      logger.logErrorMessage(`${tag()} - не удалось запустить ffmpeg: ${e.message}`);
       scheduleRestart();
       return;
     }
@@ -288,7 +318,7 @@ function createVideoStreamService({
 
     child.on('error', (e) => {
       logger.logErrorMessage(
-        `[VideoStreamService] - ffmpeg: ${e.message}. Проверьте, что ffmpeg установлен и задан FFMPEG_PATH`
+        `${tag()} - ffmpeg: ${e.message}. Проверьте, что ffmpeg установлен и задан FFMPEG_PATH`
       );
       if (proc === child) {
         proc = null;
@@ -304,7 +334,7 @@ function createVideoStreamService({
         running = false;
         removePidFile();
       }
-      logger.logInfoMessage(`[VideoStreamService] - ffmpeg завершился (code=${code}, signal=${signal || 'none'})`);
+      logger.logInfoMessage(`${tag()} - ffmpeg завершился (code=${code}, signal=${signal || 'none'})`);
       if (!shouldRun) return;
       if (uptime >= STABLE_UPTIME_MS) restartDelay = RESTART_MIN_MS;
       stats.ffmpegRestarts++;
@@ -312,7 +342,7 @@ function createVideoStreamService({
     });
 
     startWatchdog();
-    logger.logInfoMessage('[VideoStreamService] - ffmpeg запущен');
+    logger.logInfoMessage(`${tag()} - ffmpeg запущен`);
   }
 
   // ffmpeg может «зависнуть» на живом TCP-соединении без кадров: убиваем и перезапускаем
@@ -324,11 +354,11 @@ function createVideoStreamService({
       const silentFor = now() - Math.max(lastFrameAt, procStartedAt);
       if (silentFor <= limitMs) return;
       stats.watchdogKills++;
-      logger.logErrorMessage(`[VideoStreamService] - нет кадров ${Math.round(silentFor / 1000)} с, перезапускаем ffmpeg`);
+      logger.logErrorMessage(`${tag()} - нет кадров ${Math.round(silentFor / 1000)} с, перезапускаем ffmpeg`);
       try {
         proc.kill('SIGKILL');
       } catch (e) {
-        logger.logErrorMessage(`[VideoStreamService] - watchdog kill: ${e.message}`);
+        logger.logErrorMessage(`${tag()} - watchdog kill: ${e.message}`);
       }
     }, WATCHDOG_CHECK_MS);
     watchdogTimer.unref?.();
@@ -362,13 +392,22 @@ function createVideoStreamService({
     lastFrameAt = t;
     lastFrame = { jpeg, timestamp: t };
 
+    if (deliver) {
+      try {
+        deliver(lastFrame);
+      } catch (e) {
+        logger.logErrorMessage(`${tag()} - deliver: ${e.message}`);
+      }
+      return;
+    }
+
     if (t - lastSentAt < config.snapshotInterval * 0.8) return;
 
     let targets;
     try {
       targets = viewers();
     } catch (e) {
-      logger.logErrorMessage(`[VideoStreamService] - viewers: ${e.message}`);
+      logger.logErrorMessage(`${tag()} - viewers: ${e.message}`);
       return;
     }
     if (targets.length === 0) return;
@@ -391,7 +430,7 @@ function createVideoStreamService({
         ws.send(raw);
         sent++;
       } catch (e) {
-        logger.logDevMessage(`[VideoStreamService] - send: ${e.message}`);
+        logger.logDevMessage(`${tag()} - send: ${e.message}`);
       }
     }
     if (sent > 0) {
@@ -412,7 +451,7 @@ function createVideoStreamService({
     try {
       names = await fsp.readdir(config.tmpDir);
     } catch (e) {
-      logger.logErrorMessage(`[VideoStreamService] - readdir ${config.tmpDir}: ${e.message}`);
+      logger.logErrorMessage(`${tag()} - readdir ${config.tmpDir}: ${e.message}`);
       return [];
     }
     const items = [];
@@ -432,7 +471,7 @@ function createVideoStreamService({
     const datePart = (fileName.match(/(\d{4}-\d{2}-\d{2})/) || [])[1] || new Date(now()).toISOString().slice(0, 10);
     const key = `${config.s3Prefix}/${datePart}/${fileName}`;
     const body = fs.createReadStream(filePath);
-    body.on('error', (e) => logger.logErrorMessage(`[VideoStreamService] - чтение ${fileName}: ${e.message}`));
+    body.on('error', (e) => logger.logErrorMessage(`${tag()} - чтение ${fileName}: ${e.message}`));
     try {
       const upload = new UploadClass({
         client: s3,
@@ -463,11 +502,11 @@ function createVideoStreamService({
         evicted++;
         stats.filesEvicted++;
         logger.logErrorMessage(
-          `[VideoStreamService] - диск: удалён ${item.file} (лимит ${config.tmpMaxMb} МБ)` +
+          `${tag()} - диск: удалён ${item.file} (лимит ${config.tmpMaxMb} МБ)` +
           `${s3 ? ', файл не был выгружен в S3' : ''}`
         );
       } catch (e) {
-        logger.logErrorMessage(`[VideoStreamService] - удаление ${item.file}: ${e.message}`);
+        logger.logErrorMessage(`${tag()} - удаление ${item.file}: ${e.message}`);
       }
     }
     return evicted;
@@ -506,17 +545,17 @@ function createVideoStreamService({
           stats.bytesUploaded += item.size;
           stats.lastUploadAt = now();
           logger.logInfoMessage(
-            `[VideoStreamService] - загружен и удалён ${item.file} → ${key} (${(item.size / 1048576).toFixed(2)} МБ)`
+            `${tag()} - загружен и удалён ${item.file} → ${key} (${(item.size / 1048576).toFixed(2)} МБ)`
           );
         } catch (e) {
           result.failed++;
           stats.filesFailed++;
-          logger.logErrorMessage(`[VideoStreamService] - ошибка загрузки ${item.file}: ${e.message}`);
+          logger.logErrorMessage(`${tag()} - ошибка загрузки ${item.file}: ${e.message}`);
         }
       }
       result.evicted = await enforceDiskLimit(activeName);
     } catch (e) {
-      logger.logErrorMessage(`[VideoStreamService] - uploadAndCleanupSegments: ${e.message}`);
+      logger.logErrorMessage(`${tag()} - uploadAndCleanupSegments: ${e.message}`);
     } finally {
       uploadRunning = false;
     }
@@ -551,8 +590,8 @@ function createVideoStreamService({
 
   // ── Запуск / остановка ──────────────────────────────────────────────
   function start() {
-    if (!config.rtspUrl) {
-      logger.logInfoMessage('[VideoStreamService] - start пропущен: RTSP не задан');
+    if (!config.rtspUrl && !isTestSource()) {
+      logger.logInfoMessage(`${tag()} - start пропущен: RTSP не задан`);
       return;
     }
     if (shouldRun) return;
@@ -571,7 +610,7 @@ function createVideoStreamService({
       process.once('exit', exitHook);
     }
     startFfmpeg();
-    startUploadTimer();
+    if (archiveEnabled()) startUploadTimer();
   }
 
   // Останавливает ffmpeg (SIGTERM, затем SIGKILL по таймауту) и ждёт его завершения
@@ -587,7 +626,7 @@ function createVideoStreamService({
       running = false;
       return;
     }
-    logger.logInfoMessage('[VideoStreamService] - остановка ffmpeg');
+    logger.logInfoMessage(`${tag()} - остановка ffmpeg`);
     await new Promise((resolve) => {
       const timer = setTimeout(() => {
         try {
@@ -616,6 +655,9 @@ function createVideoStreamService({
     return {
       isRunning: running,
       shouldRun,
+      cameraId: config.cameraId || null,
+      source: isTestSource() ? 'test' : 'rtsp',
+      archive: archiveEnabled(),
       rtspUrlMasked: config.rtspUrl ? maskUrl(config.rtspUrl) : null,
       dID: config.dID,
       minLevel: config.minLevel,

@@ -22,7 +22,9 @@ jest.mock('../../classes/wsManager', () => ({
 }));
 jest.mock('../../services/notifyService', () => ({ getRecent: jest.fn(() => [{ payload: { message: 'm' } }]) }));
 jest.mock('../../services/telegramService', () => ({ get: jest.fn() }));
-jest.mock('../../services/videoStreamService', () => ({ getLastSnapshot: jest.fn(), getStats: jest.fn() }));
+jest.mock('../../services/videoHub', () => ({
+  getLastSnapshot: jest.fn(), getStats: jest.fn(), listCameras: jest.fn(), subscribe: jest.fn(),
+}));
 jest.mock('../../services/configStore', () => ({
   writeFileSafely: jest.fn(),
   readFileSafely: jest.fn(),
@@ -33,7 +35,7 @@ const auth = require('../../services/auth');
 const wsManager = require('../../classes/wsManager');
 const notifyService = require('../../services/notifyService');
 const telegramService = require('../../services/telegramService');
-const videoStreamService = require('../../services/videoStreamService');
+const videoHub = require('../../services/videoHub');
 const { handlePost, handleAuth, handleGet } = require('../../services/messageHandlers');
 
 const post = (request, payload) => handlePost('c1', { type: 'post', request, name: 'd1', payload });
@@ -190,27 +192,56 @@ describe('handleGet: messages', () => {
 });
 
 describe('handleGet: видео', () => {
-  const get = (request) => handleGet('c1', { type: 'get', request, name: 'd1' });
+  const get = (request, payload) => handleGet('c1', { type: 'get', request, name: 'd1', payload });
 
   test('videoSnapshot отдаёт последний кадр с учётом сессии', async () => {
     const session = { username: 'ivan', level: 1, dID: 'd1' };
     auth.getSession.mockReturnValue(session);
-    videoStreamService.getLastSnapshot.mockReturnValue({ image: 'AAA', mimeType: 'image/jpeg' });
+    videoHub.getLastSnapshot.mockReturnValue({ image: 'AAA', mimeType: 'image/jpeg' });
     await get('videoSnapshot');
-    expect(videoStreamService.getLastSnapshot).toHaveBeenCalledWith(session);
+    expect(videoHub.getLastSnapshot).toHaveBeenCalledWith(session, undefined);
     expect(sent('videoSnapshot')[5]).toEqual({ image: 'AAA', mimeType: 'image/jpeg' });
   });
 
   test('videoSnapshot: нет кадра или нет доступа — ошибка NO_SNAPSHOT', async () => {
-    videoStreamService.getLastSnapshot.mockReturnValue(null);
+    videoHub.getLastSnapshot.mockReturnValue(null);
     await get('videoSnapshot');
     expect(sent('videoSnapshotError')[5].code).toBe('NO_SNAPSHOT');
     expect(sent('videoSnapshot')).toBeUndefined();
   });
 
+  test('videoSnapshot с cameraId запрашивает кадр этой камеры', async () => {
+    const session = { username: 'ivan', level: 1, dID: 'd1' };
+    auth.getSession.mockReturnValue(session);
+    videoHub.getLastSnapshot.mockReturnValue({ cameraId: 'cam02', image: 'BBB' });
+    await get('videoSnapshot', { cameraId: 'cam02' });
+    expect(videoHub.getLastSnapshot).toHaveBeenCalledWith(session, 'cam02');
+    expect(sent('videoSnapshot')[5]).toEqual({ cameraId: 'cam02', image: 'BBB' });
+  });
+
+  test('videoCameras возвращает камеры, доступные сессии', async () => {
+    const session = { username: 'ivan', level: 1, dID: 'd1' };
+    auth.getSession.mockReturnValue(session);
+    videoHub.listCameras.mockReturnValue([{ id: 'cam01', title: 'Ворота', status: 'online' }]);
+    await get('videoCameras');
+    expect(videoHub.listCameras).toHaveBeenCalledWith(session);
+    expect(sent('videoCameras')[5]).toEqual({ cameras: [{ id: 'cam01', title: 'Ворота', status: 'online' }] });
+  });
+
   test('videoStatus возвращает статистику', async () => {
-    videoStreamService.getStats.mockReturnValue({ isRunning: true });
+    videoHub.getStats.mockReturnValue({ isRunning: true });
     await get('videoStatus');
     expect(sent('videoStatus')[5]).toEqual({ isRunning: true });
+  });
+});
+
+describe('handlePost: подписка на камеры', () => {
+  test('videoSubscribe передаёт подписку хабу и отвечает принятым списком', async () => {
+    const session = { username: 'ivan', level: 1, dID: 'd1' };
+    auth.getSession.mockReturnValue(session);
+    videoHub.subscribe.mockReturnValue({ cameras: ['cam01'], full: null });
+    await post('videoSubscribe', { cameras: ['cam01', 'чужая'], full: 'x', лишнее: 1 });
+    expect(videoHub.subscribe).toHaveBeenCalledWith('c1', session, { cameras: ['cam01', 'чужая'], full: 'x' });
+    expect(sent('videoSubscribeSuccess')[5]).toEqual({ cameras: ['cam01'], full: null });
   });
 });

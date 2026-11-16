@@ -20,10 +20,10 @@
 
 ## Структура проекта
 - `serverapp.js` — точка входа: Express, WS-серверы, маршрутизация сообщений. Бизнес-логики не содержит.
-- `services/` — бизнес-логика: `auth`, `authConfig`, `userStore`, `notifyConfig`, `notifyService`, `telegramService`, `videoConfig`, `videoStreamService`, `messageHandlers`, `messageStore`, `configStore`, `validate`, `logger`, `modbusTCPBridge`, `modbusRTUBridge`.
+- `services/` — бизнес-логика: `auth`, `authConfig`, `userStore`, `notifyConfig`, `notifyService`, `telegramService`, `videoConfig`, `videoStreamService` (одна камера), `videoHub` (камеры, подписки, доставка), `messageHandlers`, `messageStore`, `configStore`, `validate`, `logger`, `modbusTCPBridge`, `modbusRTUBridge`.
 - `classes/` — классы: `wsManager`, `modBusTCPManager`, `telegramBot`.
 - `scripts/` — CLI администрирования (`authAdmin.js`).
-- `tools/` — инструменты разработчика, не загружаются сервером: `modbusSlaveEmulator.js` (эмулятор Modbus TCP-устройства), `modbusDiag.js` (чтение всех тегов карты с устройства), `modbusRtuCheck.js` + `ptyPair.py` (проверка Modbus RTU на виртуальных портах).
+- `tools/` — инструменты разработчика, не загружаются сервером: `modbusSlaveEmulator.js` (эмулятор Modbus TCP-устройства), `modbusDiag.js` (чтение всех тегов карты с устройства), `modbusRtuCheck.js` + `ptyPair.py` (проверка Modbus RTU на виртуальных портах), `videoLoadTest.js` + `fakeFfmpeg.js` (нагрузочная проверка видео без камер).
 - `modBus/` — Modbus RTU (`modbusMaster`, `modbusSlave`, `modbusManager`, `modbusUtils`), к серверу подключается через `services/modbusRTUBridge.js` при `MODBUS_RTU_ENABLED=true` (конфиг `MODBUS_RTU_CONF`). Все обращения Master к шине идут через одну очередь: на RS-485 запросы не должны пересекаться. Slave проверяет CRC входящих кадров и отбрасывает искажённые без ответа.
 - `gpio.js` — GPIO через sysfs (замок, датчики двери), включается `MANAGE_DOOR`.
 - `tests/` — Jest: `unit/<модуль>.test.js`, `integration/*.integration.js`, `modbusRTU/*.test.js`, общий `setup.js`, помощники в `helpers/`.
@@ -58,15 +58,15 @@
 | Направление | type | Допустимые request |
 |---|---|---|
 | Vue → сервер | `auth` | `login`, `resume` (без сессии); `logout`, `refresh`, `changePassword`, `profile`, `updateProfile`, `telegramLinkCode`, `telegramUnlink` (нужна сессия) |
-| Vue → сервер | `get` | `config`, `statistics`, `schedules`, `notifications`, `messages`, `videoSnapshot`, `videoStatus` |
-| Vue → сервер | `post` | `setpoints`, `system`, `sensors`, `wsConnect`, `add/del/update` + `schedules` / `notifications` / `statistics`, администрирование: `createUser`, `linkUserToDataSource`, `userConfigRequest`, `userConfigEdit`, `resetUserPassword`, `deleteUser` |
+| Vue → сервер | `get` | `config`, `statistics`, `schedules`, `notifications`, `messages`, `videoCameras`, `videoSnapshot`, `videoStatus` |
+| Vue → сервер | `post` | `setpoints`, `system`, `sensors`, `wsConnect`, `videoSubscribe`, `add/del/update` + `schedules` / `notifications` / `statistics`, администрирование: `createUser`, `linkUserToDataSource`, `userConfigRequest`, `userConfigEdit`, `resetUserPassword`, `deleteUser` |
 | NodeRED → сервер | `init` | `init_ws` — регистрация соединения |
 | NodeRED → сервер | `post` | данные датчиков (`payload.room`, `item_name`, `item_value`; необязательно `item_type`, `title`, `group`) |
 | NodeRED → сервер | `message` | `notify` — оповещение |
 | Сервер → Vue | `response` | успешный ответ на запрос |
 | Сервер → Vue | `error` | ошибка запроса, `payload: { message, code? }` |
 | Сервер → Vue | `info` | служебное (`serverConnected`) |
-| Сервер → Vue | `post` | push: данные от NodeRED и других клиентов того же `dID`, снимки камеры (`videoSnapshot`) |
+| Сервер → Vue | `post` | push: данные от NodeRED и других клиентов того же `dID`, кадры камер (`videoSnapshot`) |
 | Сервер → Vue | `message` | push: оповещение |
 | Сервер → NodeRED | `post` | команды от Vue того же `dID`; `message/telegramIn` — текст из Telegram |
 
@@ -116,12 +116,17 @@
 - Команду, относящуюся к тегу Modbus TCP/RTU, выполняет мост: она не пересылается и не обрабатывается `handlePost`. Мост сохраняет значение в config-файл и рассылает его Vue (`post` с `item_name`/`item_value`) только после подтверждения записи устройством; при отказе отправитель получает `error/modbusWriteError`, а файл не меняется.
 - `post` от NodeRED пересылается всем соединениям Vue с этим `dID`.
 - Запросы из `NO_BROADCAST_POST` (`authConfig.js`) не пересылаются никому: они содержат пароли и данные учётных записей.
-- Оповещения (`message`) и снимки камеры (`post/videoSnapshot`) идут не через `broadcast`, а адресно: сессии Vue с нужным `dID` и уровнем (`notifyService`, `videoStreamService`). Соединение без сессии их не получает.
+- Оповещения (`message`) и снимки камеры (`post/videoSnapshot`) идут не через `broadcast`, а адресно: сессии Vue с нужным `dID` и уровнем (`notifyService`, `videoHub`). Соединение без сессии их не получает.
 - Оповещения дополнительно уходят в Telegram привязанным пользователям. Оповещение доступно после переподключения запросом `get/messages` (последние `NOTIFY_HISTORY_SIZE` сообщений на `dID`).
-- Снимок камеры: `payload: { image (base64), mimeType, size, timestamp }`, `name` — `VIDEO_DID`. Получают сессии с `dID === VIDEO_DID` и уровнем `>= VIDEO_MIN_LEVEL`. Последний кадр доступен по `get/videoSnapshot`, статистика по `get/videoStatus` (уровень 3).
+- Видео (`services/videoHub.js`): 1–16 камер из `cameras.json` (`VIDEO_CAMERAS_FILE`, по умолчанию `$DATA_DIR/cameras.json`, образец `cameras.example.json`; без файла — одна камера из `VIDEO_RTSP_URL`). У камеры `id`, `title`, `source` (`rtsp(s)://…` или `test` — ffmpeg генерирует картинку, эмуляция без устройства), `dID`, `minLevel`, `previewIntervalMs`, `fullIntervalMs`, `maxWidth`, `quality`, `archive`. Камеру видят сессии с её `dID` и уровнем `>= minLevel`.
+  - Кадр: `post/videoSnapshot`, `name` — `dID` камеры, `payload: { cameraId, title, image (base64 JPEG), mimeType, size, timestamp }`. Кадр сериализуется один раз на всех получателей; клиенту с переполненным буфером (`bufferedAmount` > 1 МБ) кадр пропускается.
+  - Подписка: `post/videoSubscribe`, `payload: { cameras: [id…], full: id | null }` → `response/videoSubscribeSuccess` с принятыми (доступными) камерами. Миниатюры — не чаще `previewIntervalMs`, камера `full` — не чаще `fullIntervalMs`; новым камерам последний кадр отправляется сразу. Пустой список — кадров нет. Без подписки соединение получает миниатюры всех доступных камер (прежнее поведение). Подписка живёт, пока открыто соединение: после переподключения клиент подписывается снова. Не пересылается (`NO_BROADCAST_POST`).
+  - `get/videoCameras` → `{ cameras: [{ id, title, status: online | starting | offline, lastFrameAt, previewIntervalMs, fullIntervalMs }] }`; `get/videoSnapshot` с `payload.cameraId` (без него — первая доступная камера); `get/videoStatus` (уровень 3) — статистика по камерам.
+  - ffmpeg на камеру кодирует JPEG с частотой `min(previewIntervalMs, fullIntervalMs)`; архив MP4/S3 — только при `archive: true` (у `test` архива нет).
+  - Проверка без камер: `tools/videoLoadTest.js` (N камер × M клиентов, доставка, задержка, трафик, CPU/RAM; `--ffmpeg fake` — `tools/fakeFfmpeg.js` без кодирования).
 
 ### Права доступа (`REQUIRED_LEVEL`)
-- Уровень 1 — просмотр и управление: `get` `config`, `statistics`, `messages`, `videoSnapshot`; `post` `setpoints`, `system`, `sensors`, `wsConnect`.
+- Уровень 1 — просмотр и управление: `get` `config`, `statistics`, `messages`, `videoCameras`, `videoSnapshot`; `post` `setpoints`, `system`, `sensors`, `wsConnect`, `videoSubscribe`.
 - Уровень 2 — настройки: `get` `schedules`, `notifications`; `post` `add/del/update` расписаний, уведомлений, статистики.
 - Уровень 3 — администратор: `get/videoStatus`; `post` `createUser`, `linkUserToDataSource`, `userConfigRequest`, `userConfigEdit`, `resetUserPassword`, `deleteUser`.
 - Неизвестный `request` получает `_default` своего типа (уровень 1). Для запросов, влияющих на безопасность, всегда задавать уровень явно.
@@ -149,7 +154,7 @@
   - при смене уровня, dID, пароля или блокировке — `tokenVersion++` и `auth.invalidateUserSessions()`;
   - нельзя удалить или понизить последнего администратора, нельзя понизить, заблокировать или удалить себя.
 - Telegram: только личные чаты, привязка по одноразовому коду с TTL, лимит неверных кодов и частоты сообщений, один чат — одна учётная запись.
-- Видео: сервис следит за ffmpeg (watchdog при отсутствии кадров, перезапуск с нарастающей паузой), перед стартом останавливает осиротевший ffmpeg по pid-файлу. Пароль RTSP маскируется во всех логах (`maskUrl`), локальный архив ограничен `VIDEO_TMP_MAX_MB`.
+- Видео: сервис камеры следит за ffmpeg (watchdog при отсутствии кадров, перезапуск с нарастающей паузой), перед стартом останавливает осиротевший ffmpeg по pid-файлу (у каждой камеры свой `ffmpeg-<id>.pid`). Пароль RTSP маскируется во всех логах (`maskUrl`), локальный архив ограничен `VIDEO_TMP_MAX_MB`.
 
 ## Тесты
 - Jest (`npm test`). На каждый новый или изменённый модуль создавать или обновлять тесты в `tests/`.

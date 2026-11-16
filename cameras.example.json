@@ -1,0 +1,17 @@
+{
+  "defaults": {
+    "dID": "igumen",
+    "minLevel": 1,
+    "previewIntervalMs": 5000,
+    "fullIntervalMs": 1000,
+    "maxWidth": 640,
+    "quality": 5,
+    "archive": false
+  },
+  "cameras": [
+    { "id": "cam01", "title": "Ворота", "source": "rtsp://admin:password@192.168.1.100:554/Streaming/Channels/101", "archive": true },
+    { "id": "cam02", "title": "Двор", "source": "rtsp://admin:password@192.168.1.101:554/Streaming/Channels/102" },
+    { "id": "test01", "title": "Тестовая камера", "source": "test", "test": { "size": "1280x720", "rate": 10, "noise": 20 } },
+    { "id": "test02", "title": "Выключена", "source": "test", "enabled": false }
+  ]
+}

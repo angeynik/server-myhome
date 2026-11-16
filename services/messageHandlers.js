@@ -8,7 +8,7 @@ const cfg       = require('./authConfig');
 const wsManager = require('../classes/wsManager');
 const notifyService   = require('./notifyService.js');
 const telegramService = require('./telegramService.js');
-const videoStreamService = require('./videoStreamService.js');
+const videoHub = require('./videoHub.js');
 
 const { writeFileSafely, readFileSafely } = require('./configStore');
 
@@ -271,13 +271,18 @@ const handleGet = async (clientId, data) => {
         break;
       }
       case 'videoSnapshot': {
-        const snapshot = videoStreamService.getLastSnapshot(auth.getSession(clientId));
+        // payload.cameraId — какая камера; без него — первая доступная (прежний формат)
+        const snapshot = videoHub.getLastSnapshot(auth.getSession(clientId), data.payload?.cameraId);
         if (!snapshot) return sendError('videoSnapshotError', 'Снимок недоступен', { code: 'NO_SNAPSHOT' });
         sendResponse('videoSnapshot', snapshot);
         break;
       }
+      case 'videoCameras': {
+        sendResponse('videoCameras', { cameras: videoHub.listCameras(auth.getSession(clientId)) });
+        break;
+      }
       case 'videoStatus': {
-        sendResponse('videoStatus', videoStreamService.getStats());
+        sendResponse('videoStatus', videoHub.getStats());
         break;
       }
       default:
@@ -418,6 +423,13 @@ const handlePost = async (clientId, data) => {
 
     case 'wsConnect':
       break;
+
+    // ── Видео: подписка на кадры камер ──────────────────────────────────
+    case 'videoSubscribe': {
+      const accepted = videoHub.subscribe(clientId, actor, { cameras: pay.cameras, full: pay.full });
+      sendResponse('videoSubscribeSuccess', accepted);
+      break;
+    }
 
     // ── Setpoints / System ──────────────────────────────────────────────
     case 'setpoints': {

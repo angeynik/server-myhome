@@ -55,6 +55,7 @@ const REQUIRED_LEVEL = {
     notifications: 2,
     messages: 1,
     videoSnapshot: 1,
+    videoCameras: 1,
     videoStatus: 3,
   },
   post: {
@@ -63,6 +64,7 @@ const REQUIRED_LEVEL = {
     system: 1,
     sensors: 1,
     wsConnect: 1,
+    videoSubscribe: 1,
     addschedules: 2,
     delschedules: 2,
     updateschedules: 2,
@@ -119,6 +121,6 @@ module.exports = {
   // post-запросы, которые нельзя пересылать другим клиентам (содержат пароли и данные учёток)
   NO_BROADCAST_POST: new Set([
     'createUser', 'linkUserToDataSource', 'userConfigRequest', 'userConfigEdit',
-    'deleteUser', 'resetUserPassword', 'wsConnect',
+    'deleteUser', 'resetUserPassword', 'wsConnect', 'videoSubscribe',
   ]),
 };

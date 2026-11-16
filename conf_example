@@ -62,6 +62,8 @@ MODBUS_DEVICES='[{
 
 # ── Видеонаблюдение ────────────────────────────────────────────────────
 VIDEO_ENABLED=true
+VIDEO_CAMERAS_FILE=                # список камер 1–16 (по умолчанию $DATA_DIR/cameras.json, образец — cameras.example.json)
+# Без файла камер — одна камера из VIDEO_RTSP_URL (прежний режим):
 VIDEO_RTSP_URL=                    # rtsp://user:pass@host:554/stream (пароль кодируйте: @ → %40)
 VIDEO_DID=                         # dID, которому принадлежит камера (по умолчанию DEFAULT_USER_DID)
 VIDEO_MIN_LEVEL=1                  # минимальный уровень пользователя для просмотра

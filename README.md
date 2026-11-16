@@ -29,6 +29,9 @@ npm test
   `MODBUS_DEVICES='[{"id":"pr205","host":"127.0.0.1","port":5020,"unitId":1}]'`.
 - `node tools/modbusDiag.js --host 192.168.10.5 [--port 502] [--unit 1]` — прочитать все теги карты
   с устройства (или эмулятора) и показать сырые регистры и значения.
+- `node tools/videoLoadTest.js [--cameras 1,4,8,16] [--clients 2] [--duration 30]` — нагрузочная проверка видео:
+  сервер с N тестовыми камерами (ffmpeg генерирует картинку) и M клиентами; доставка, задержка, трафик, CPU и память.
+  Без ffmpeg — `--ffmpeg fake` (проверка цепочки и сети, без нагрузки кодирования).
 - `node scripts/authAdmin.js` — администрирование пользователей из консоли.
 - `node tools/modbusRtuCheck.js [master|crc|manager]` — проверка Modbus RTU без железа на виртуальных портах
   (`tools/ptyPair.py`, нужен python3).

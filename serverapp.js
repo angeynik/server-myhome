@@ -17,7 +17,7 @@ const modbusRtuBridge = require('./services/modbusRTUBridge.js'); // modbus-seri
 const nc = require('./services/notifyConfig.js');
 const notifyService = require('./services/notifyService.js');
 const telegramService = require('./services/telegramService.js');
-const videoStreamService = require('./services/videoStreamService.js');
+const videoHub = require('./services/videoHub.js');
 
 const { addMessageToQueue, processAllQueues} = require('./services/messageStore.js');
 const { handleAuth, handleGet, handlePost } = require('./services/messageHandlers.js');
@@ -105,7 +105,7 @@ const handleShutdown = async () => {
     safeWrite('✅ Heartbeat monitoring stopped');
     await telegramService.stop();
     safeWrite('✅ Telegram остановлен');
-    await videoStreamService.stop();
+    await videoHub.stop();
     safeWrite('✅ Видео остановлено');
     if (MODBUS_ENABLED) {
       modbusBridge.stop();
@@ -253,7 +253,7 @@ if (MODBUS_RTU_ENABLED) {
 }
 
 if (VIDEO_ENABLED) {
-  if (videoStreamService.init()) videoStreamService.start();
+  if (videoHub.init()) videoHub.start();
 } else {
   logger.logInfoMessage('[Serverapp] - Видео отключено (VIDEO_ENABLED=false)');
 }
@@ -499,6 +499,7 @@ WSSDash.on('connection', (ws) => {
 
   ws.on('close', () => {
     auth.forgetConnection(connectionId);
+    videoHub.unsubscribe(connectionId);
     logger.logInfoMessage(`[Serverapp] - WSSDash - WebSocket connection closed`);
   });
 });
