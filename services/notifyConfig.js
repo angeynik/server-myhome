@@ -1,5 +1,5 @@
 // services/notifyConfig.js
-// Настройки подсистемы оповещений (type: 'message') и Telegram.
+// Настройки подсистемы оповещений (type: 'message'), уведомлений по условиям (notificationService) и Telegram.
 // authConfig подключается первым: он загружает conf.env.
 'use strict';
 
@@ -37,4 +37,13 @@ module.exports = {
 
   NOTIFY_DEDUP_TTL_MS: int(env.NOTIFY_DEDUP_TTL_MS, 30 * 1000),
   NOTIFY_HISTORY_SIZE: int(env.NOTIFY_HISTORY_SIZE, 50),
+
+  // Уведомления по условиям (docs/notifications.md)
+  NOTIFICATION_ENABLED: bool(env.NOTIFICATION_ENABLED, true),
+  // Как часто служба проверяет условия, мс (не чаще раза в секунду)
+  NOTIFICATION_CHECK_INTERVAL_MS: Math.max(1000, int(env.NOTIFICATION_CHECK_INTERVAL_MS, 10 * 1000)),
+  NOTIFICATION_MAX_ITEMS: int(env.NOTIFICATION_MAX_ITEMS, 200),          // уведомлений на один dID
+  // Кадры камер активных уведомлений: <каталог>/<dID>/<eventId>_<cameraId>.jpg
+  NOTIFICATION_MEDIA_DIR: env.NOTIFICATION_MEDIA_DIR
+    || require('path').join(env.DATA_DIR || '.configData', 'notification_media'),
 };

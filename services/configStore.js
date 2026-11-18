@@ -83,7 +83,9 @@ async function writeFileSafely(filePath, content) {
     }
 }
 
-const CONFIG_TYPES = ['config', 'schedules', 'notifications', 'statistics'];
+// notification        — <dID>_notification.json: условия уведомлений (services/notificationStore.js)
+// notification_status — <dID>_notification_status.json: статусы уведомлений (ON/OFF, флаг прочтения)
+const CONFIG_TYPES = ['config', 'schedules', 'statistics', 'notification', 'notification_status'];
 
 async function readFileSafely(dID, typeConfig = 'config') {
     if (!CONFIG_TYPES.includes(typeConfig)) {
@@ -150,7 +152,7 @@ async function readFileSafely(dID, typeConfig = 'config') {
                 initData = { init: { title: "", dID } };
             } else if (typeConfig === 'schedules') {
                 initData = {};
-            } else if (typeConfig === 'notifications') {
+            } else {
                 initData = {};
             }
             
@@ -168,6 +170,26 @@ async function readFileSafely(dID, typeConfig = 'config') {
 };
 
 
+// Чтение без создания: файла нет — null (конфигурация уведомлений «не существует», пока не создано
+// ни одного уведомления). Битый JSON — ошибка: файл с данными пользователя не перезаписываем.
+async function readFileIfExists(dID, typeConfig) {
+    if (!CONFIG_TYPES.includes(typeConfig)) {
+        throw new Error(`Неизвестный тип конфигурации: ${typeConfig}`);
+    }
+    const filePath = resolveConfigPath(dID, typeConfig);
+    if (fileCache.has(filePath)) return { data: fileCache.get(filePath), dataDir, filePath };
+    let raw;
+    try {
+        raw = await fs.readFile(filePath, 'utf8');
+    } catch (error) {
+        if (error.code === 'ENOENT') return null;
+        throw error;
+    }
+    const data = JSON.parse(raw);
+    fileCache.set(filePath, data);
+    return { data, dataDir, filePath };
+}
+
 module.exports = {
-  writeFileSafely, readFileSafely, fileCache, resolveConfigPath,
+  writeFileSafely, readFileSafely, readFileIfExists, fileCache, resolveConfigPath, CONFIG_TYPES,
 };

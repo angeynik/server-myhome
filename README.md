@@ -28,6 +28,7 @@ npm test
 - [docs/modbus-tcp.md](docs/modbus-tcp.md) — Modbus TCP: контроллер по сети, карта тегов, эмулятор, диагностика.
 - [docs/modbus-rtu.md](docs/modbus-rtu.md) — Modbus RTU: RS-485, роли Master/Slave, `modbusConf.json`, проверка без железа.
 - [docs/cameras.md](docs/cameras.md) — видеокамеры и муляжи.
+- [docs/notifications.md](docs/notifications.md) — уведомления по условиям: алгоритм, форматы, протокол, схемы кода сервера и клиента.
 
 ## Инструменты
 

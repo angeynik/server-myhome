@@ -394,6 +394,21 @@ function createVideoHub({
     return snapshotPayload(entry);
   }
 
+  // Для служб сервера (уведомления): последний кадр камеры, если она видна пользователям dID.
+  // { jpeg (Buffer), timestamp, cameraId, title } | null — нет камеры, доступа или кадра
+  function getFrameFor(dID, cameraId) {
+    const entry = cameras.get(cameraId);
+    if (!entry?.lastFrame) return null;
+    const dIDs = cameraDIDs(entry.camera);
+    if (!dIDs.includes('*') && !dIDs.includes(dID)) return null;
+    return {
+      jpeg: entry.lastFrame.jpeg,
+      timestamp: entry.lastFrame.timestamp,
+      cameraId,
+      title: entry.camera.title,
+    };
+  }
+
   function getStats() {
     return {
       configFile: configInfo.file,
@@ -418,7 +433,7 @@ function createVideoHub({
     };
   }
 
-  return { init, start, stop, reload, watch, subscribe, unsubscribe, listCameras, getLastSnapshot, getStats, onFrame };
+  return { init, start, stop, reload, watch, subscribe, unsubscribe, listCameras, getLastSnapshot, getFrameFor, getStats, onFrame };
 }
 
 // ffmpeg доступен? Promise<null> — да, иначе текст ошибки с подсказкой
@@ -447,5 +462,6 @@ module.exports = {
   unsubscribe: (...a) => defaultHub.unsubscribe(...a),
   listCameras: (...a) => defaultHub.listCameras(...a),
   getLastSnapshot: (...a) => defaultHub.getLastSnapshot(...a),
+  getFrameFor: (...a) => defaultHub.getFrameFor(...a),
   getStats: (...a) => defaultHub.getStats(...a),
 };

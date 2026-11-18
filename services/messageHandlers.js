@@ -9,6 +9,10 @@ const wsManager = require('../classes/wsManager');
 const notifyService   = require('./notifyService.js');
 const telegramService = require('./telegramService.js');
 const videoHub = require('./videoHub.js');
+const notificationService = require('./notificationService.js');
+const { createNotificationStore } = require('./notificationStore.js');
+
+const notificationStore = createNotificationStore();
 
 const { writeFileSafely, readFileSafely } = require('./configStore');
 
@@ -243,21 +247,45 @@ const handleGet = async (clientId, data) => {
   const sendResponse = (request, payload) =>
     wsManager.sendToConnection('VUE_connections', clientId, 'response', request, dID, payload);
 
+  async function sendNotificationData({ items = true, status = true } = {}) {
+    if (items) {
+      const list = await notificationStore.list(dID);
+      if (list) sendResponse('notification', list);
+    }
+    if (status) {
+      const st = await notificationStore.readStatus(dID);
+      if (st) sendResponse('notificationStatus', st);
+    }
+  }
+
   try {
     switch (data?.request) {
       case 'config': {
         const configData = await readFileSafely(dID, 'config');
         sendResponse('config', configData.data);
+        // Вместе с общей конфигурацией — всё, что нужно клиенту для работы:
+        // конфигурация уведомлений и их статусы, если они есть (нет файла — нет ответа)
+        await sendNotificationData();
+        break;
+      }
+      case 'notification': {
+        await sendNotificationData({ status: false });
+        break;
+      }
+      case 'notificationStatus': {
+        await sendNotificationData({ items: false });
+        break;
+      }
+      case 'notificationSnapshot': {
+        const { id, cameraId } = data.payload || {};
+        const snap = await notificationService.get().getSnapshot(dID, id, cameraId);
+        if (!snap) return sendError('notificationSnapshotError', 'Кадр недоступен', { code: 'NO_SNAPSHOT', id, cameraId });
+        sendResponse('notificationSnapshot', snap);
         break;
       }
       case 'schedules': {
         const schedulesData = await readFileSafely(dID, 'schedules');
         sendResponse('schedules', schedulesData.data);
-        break;
-      }
-      case 'notifications': {
-        const notificationsData = await readFileSafely(dID, 'notifications');
-        sendResponse('notifications', notificationsData.data);
         break;
       }
       case 'statistics': {
@@ -517,41 +545,17 @@ const handlePost = async (clientId, data) => {
       break;
     }
 
-    // ── Notifications ───────────────────────────────────────────────────
-    case 'addnotifications': {
+    // ── Уведомления: create / edit / delete (docs/notifications.md) ──────
+    case 'notification': {
       try {
-        const { data: cfgData, filePath: cfgPath } =
-          await addConfigItem(dID, 'notifications', room, param, pay.configData);
-        ({ fileUpdateNeeded, filePath, dataToWrite, responseType, responseRequest, responsePayload }
-          = buildFileResponse(cfgData, cfgPath, 'response', 'notifications'));
-      } catch (e) { sendError('addNotificationsError', e.message); }
-      break;
-    }
-
-    case 'delnotifications': {
-      try {
-        const { Ids } = pay;
-        if (!room || !param || !Array.isArray(Ids)) throw new Error('Отсутствуют room/param/Ids');
-        const { data: cfgData, filePath: cfgPath, removedCount } =
-          await deleteConfigItems(dID, 'notifications', room, param, Ids);
-        if (removedCount === 0) {
-          sendResponse('delNotificationsNoMatch', { message: 'Не найдено', room, param, Ids, removedCount: 0 });
-          break;
-        }
-        sendResponse('delNotificationsSuccess', { message: `Удалено ${removedCount}`, room, param, Ids, removedCount });
-        ({ fileUpdateNeeded, filePath, dataToWrite, responseType, responseRequest, responsePayload }
-          = buildFileResponse(cfgData, cfgPath, 'response', 'notifications'));
-      } catch (e) { sendError('delNotificationsError', e.message, { code: 'DEL_NOTIFICATIONS_ERROR' }); }
-      break;
-    }
-
-    case 'updatenotifications': {
-      try {
-        const { data: cfgData, filePath: cfgPath } =
-          await updateConfigItem(dID, 'notifications', room, param, { id, value_name, value, updated });
-        ({ fileUpdateNeeded, filePath, dataToWrite, responseType, responseRequest, responsePayload }
-          = buildFileResponse(cfgData, cfgPath, 'response', 'notifications'));
-      } catch (e) { sendError('updateNotificationsError', e.message); }
+        const action = pay.action;
+        const result = await notificationService.get().applyChange(dID, action, pay.configData || {}, actor);
+        // Конфигурацию всем клиентам dID (и автору) уже разослала служба; автору — подтверждение
+        sendResponse('notificationSuccess', { action, id: result.id });
+      } catch (e) {
+        logger.logErrorMessage(`[messageHandlers] - notification(${pay.action}): ${e.message}`);
+        sendError('notificationError', e.message, { code: e.code || 'NOTIFICATION_ERROR', action: pay.action });
+      }
       break;
     }
 

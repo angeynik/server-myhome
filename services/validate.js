@@ -14,7 +14,7 @@
 //
 // ВАЖНО: раньше схема жёстко требовала payload.room + payload.item_name —
 // это ломало createUser, linkUserToDataSource, setpoints, addschedules,
-// delnotifications, updatestatistics и т.д., где таких полей просто нет.
+// delschedules, updatestatistics и т.д., где таких полей просто нет.
 // Теперь поля уровня payload НЕ проверяются здесь.
 'use strict';
 

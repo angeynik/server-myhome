@@ -14,6 +14,7 @@ function setup({ linked = null, forwardResult = true } = {}) {
   const time = { t: 1000 };
   const bot = {
     sendMessage: jest.fn(async () => ({})),
+    sendPhoto: jest.fn(async () => ({})),
     getMe: jest.fn(async () => ({ username: 'my_bot' })),
     setMyCommands: jest.fn(async () => true),
     start: jest.fn(),
@@ -228,6 +229,21 @@ describe('telegramService: отправка', () => {
     bot.sendMessage.mockResolvedValueOnce({}).mockRejectedValueOnce(Object.assign(new Error('x'), { code: 500 }));
     const n = await service.sendToUsers([recipient, { ...recipient, username: 'petr' }], notification);
     expect(n).toBe(1);
+  });
+
+  test('sendPhotosToUsers: каждое фото каждому, беззвучно, подпись экранируется; 403 отвязывает', async () => {
+    const { service, bot, userStore } = setup();
+    const jpeg = Buffer.from('JPEG');
+    bot.sendPhoto
+      .mockResolvedValueOnce({})
+      .mockRejectedValueOnce(Object.assign(new Error('Forbidden'), { code: 403 }));
+    const n = await service.sendPhotosToUsers(
+      [recipient, { ...recipient, username: 'petr', telegram: { chatId: '7' } }],
+      [{ jpeg, caption: 'Ворота <1>' }],
+    );
+    expect(n).toBe(1);
+    expect(bot.sendPhoto).toHaveBeenCalledWith('42', jpeg, { caption: 'Ворота &lt;1&gt;', disable_notification: true });
+    expect(userStore.clearTelegram).toHaveBeenCalledWith('petr');
   });
 
   test('пользователь без chatId пропускается', async () => {

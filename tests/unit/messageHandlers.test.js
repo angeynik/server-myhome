@@ -25,6 +25,13 @@ jest.mock('../../services/telegramService', () => ({ get: jest.fn() }));
 jest.mock('../../services/videoHub', () => ({
   getLastSnapshot: jest.fn(), getStats: jest.fn(), listCameras: jest.fn(), subscribe: jest.fn(),
 }));
+const mockNotificationService = {
+  applyChange: jest.fn(),
+  getSnapshot: jest.fn(),
+};
+jest.mock('../../services/notificationService', () => ({ get: () => mockNotificationService }));
+const mockNotificationStore = { list: jest.fn(), readStatus: jest.fn() };
+jest.mock('../../services/notificationStore', () => ({ createNotificationStore: () => mockNotificationStore }));
 jest.mock('../../services/configStore', () => ({
   writeFileSafely: jest.fn(),
   readFileSafely: jest.fn(),
@@ -36,6 +43,7 @@ const wsManager = require('../../classes/wsManager');
 const notifyService = require('../../services/notifyService');
 const telegramService = require('../../services/telegramService');
 const videoHub = require('../../services/videoHub');
+const { readFileSafely } = require('../../services/configStore');
 const { handlePost, handleAuth, handleGet } = require('../../services/messageHandlers');
 
 const post = (request, payload) => handlePost('c1', { type: 'post', request, name: 'd1', payload });
@@ -243,5 +251,52 @@ describe('handlePost: подписка на камеры', () => {
     await post('videoSubscribe', { cameras: ['cam01', 'чужая'], full: 'x', лишнее: 1 });
     expect(videoHub.subscribe).toHaveBeenCalledWith('c1', session, { cameras: ['cam01', 'чужая'], full: 'x' });
     expect(sent('videoSubscribeSuccess')[5]).toEqual({ cameras: ['cam01'], full: null });
+  });
+});
+
+describe('уведомления', () => {
+  const get = (request, payload) => handleGet('c1', { type: 'get', request, name: 'd1', payload });
+  const allSent = () => wsManager.sendToConnection.mock.calls.map((c) => c[3]);
+
+  test('get/config: вместе с config — конфигурация уведомлений и статусы, если есть', async () => {
+    readFileSafely.mockResolvedValue({ data: { room01: {} } });
+    mockNotificationStore.list.mockResolvedValue({ 'room01:sensors:dTemp01': { id: 'room01:sensors:dTemp01' } });
+    mockNotificationStore.readStatus.mockResolvedValue({ 'room01:sensors:dTemp01': { status: 'ON', read: 'OFF' } });
+    await get('config');
+    expect(allSent()).toEqual(['config', 'notification', 'notificationStatus']);
+    expect(sent('notificationStatus')[5]).toEqual({ 'room01:sensors:dTemp01': { status: 'ON', read: 'OFF' } });
+  });
+
+  test('get/config: файлов уведомлений нет — только config', async () => {
+    readFileSafely.mockResolvedValue({ data: {} });
+    mockNotificationStore.list.mockResolvedValue(null);
+    mockNotificationStore.readStatus.mockResolvedValue(null);
+    await get('config');
+    expect(allSent()).toEqual(['config']);
+  });
+
+  test('get/notificationSnapshot: кадр или ошибка NO_SNAPSHOT', async () => {
+    mockNotificationService.getSnapshot.mockResolvedValueOnce({ id: 'x', cameraId: 'cam01', image: 'AAA' });
+    await get('notificationSnapshot', { id: 'x', cameraId: 'cam01' });
+    expect(mockNotificationService.getSnapshot).toHaveBeenCalledWith('d1', 'x', 'cam01');
+    expect(sent('notificationSnapshot')[5]).toMatchObject({ image: 'AAA' });
+
+    mockNotificationService.getSnapshot.mockResolvedValueOnce(null);
+    await get('notificationSnapshot', { id: 'x', cameraId: 'cam02' });
+    expect(sent('notificationSnapshotError')[5]).toMatchObject({ code: 'NO_SNAPSHOT' });
+  });
+
+  test('post/notification: действие и данные передаются службе с автором; автору — подтверждение', async () => {
+    mockNotificationService.applyChange.mockResolvedValue({ id: 'room01:sensors:dTemp01', items: {} });
+    const configData = { room: 'room01', section: 'sensors', item: 'dTemp01', condition: { op: 'gt', value: 25 } };
+    await post('notification', { action: 'create', configData });
+    expect(mockNotificationService.applyChange).toHaveBeenCalledWith('d1', 'create', configData, expect.objectContaining({ username: 'boss' }));
+    expect(sent('notificationSuccess')[5]).toEqual({ action: 'create', id: 'room01:sensors:dTemp01' });
+  });
+
+  test('post/notification: ошибка — notificationError с кодом', async () => {
+    mockNotificationService.applyChange.mockRejectedValue(Object.assign(new Error('Неверные данные'), { code: 'BAD_NOTIFICATION' }));
+    await post('notification', { action: 'edit', configData: {} });
+    expect(sent('notificationError')[5]).toMatchObject({ code: 'BAD_NOTIFICATION', action: 'edit', message: 'Неверные данные' });
   });
 });

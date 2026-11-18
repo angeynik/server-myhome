@@ -18,6 +18,7 @@ const nc = require('./services/notifyConfig.js');
 const notifyService = require('./services/notifyService.js');
 const telegramService = require('./services/telegramService.js');
 const videoHub = require('./services/videoHub.js');
+const notificationService = require('./services/notificationService.js');
 
 const { addMessageToQueue, processAllQueues} = require('./services/messageStore.js');
 const { handleAuth, handleGet, handlePost } = require('./services/messageHandlers.js');
@@ -114,6 +115,8 @@ const handleShutdown = async () => {
     safeWrite('✅ Heartbeat monitoring stopped');
     await telegramService.stop();
     safeWrite('✅ Telegram остановлен');
+    notificationService.get().stop();
+    safeWrite('✅ Служба уведомлений остановлена');
     await videoHub.stop();
     safeWrite('✅ Видео остановлено');
     if (MODBUS_ENABLED) {
@@ -268,6 +271,13 @@ if (VIDEO_ENABLED) {
   videoHub.watch();
 } else {
   logger.logInfoMessage('[Serverapp] - Видео отключено (VIDEO_ENABLED=false)');
+}
+
+// Уведомления по условиям: проверка раз в NOTIFICATION_CHECK_INTERVAL_MS (docs/notifications.md)
+if (nc.NOTIFICATION_ENABLED) {
+  notificationService.get().start();
+} else {
+  logger.logInfoMessage('[Serverapp] - Уведомления отключены (NOTIFICATION_ENABLED=false)');
 }
 
 function forwardFromTelegram(data) {

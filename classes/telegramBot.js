@@ -47,10 +47,12 @@ class TelegramBot {
     if (signal) signal.addEventListener('abort', onAbort, { once: true });
 
     try {
+      // FormData (файлы) — multipart с заголовком от fetch, остальное — JSON
+      const multipart = typeof FormData !== 'undefined' && params instanceof FormData;
       const res = await this.fetchImpl(`${this.apiBase}/bot${this.token}/${method}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(params),
+        headers: multipart ? undefined : { 'Content-Type': 'application/json' },
+        body: multipart ? params : JSON.stringify(params),
         signal: controller.signal,
       });
 
@@ -91,6 +93,19 @@ class TelegramBot {
       disable_web_page_preview: true,
       ...extra,
     });
+  }
+
+  // Фото из памяти (Buffer JPEG): Bot API принимает файл только в multipart/form-data
+  sendPhoto(chatId, jpeg, { caption = '', filename = 'photo.jpg', ...extra } = {}) {
+    const form = new FormData();
+    form.append('chat_id', String(chatId));
+    if (caption) {
+      form.append('caption', String(caption).slice(0, 1024));
+      form.append('parse_mode', 'HTML');
+    }
+    for (const [k, v] of Object.entries(extra)) form.append(k, String(v));
+    form.append('photo', new Blob([jpeg], { type: 'image/jpeg' }), filename);
+    return this.call('sendPhoto', form);
   }
 
   setMyCommands(commands) {

@@ -63,7 +63,9 @@ const REQUIRED_LEVEL = {
     config: 1,
     statistics: 1,
     schedules: 2,
-    notifications: 2,
+    notification: 1,
+    notificationStatus: 1,
+    notificationSnapshot: 1,
     messages: 1,
     videoSnapshot: 1,
     videoCameras: 1,
@@ -79,9 +81,7 @@ const REQUIRED_LEVEL = {
     addschedules: 2,
     delschedules: 2,
     updateschedules: 2,
-    addnotifications: 2,
-    delnotifications: 2,
-    updatenotifications: 2,
+    notification: 2,
     addstatistics: 2,
     delstatistics: 2,
     updatestatistics: 2,
@@ -134,5 +134,7 @@ module.exports = {
   NO_BROADCAST_POST: new Set([
     'createUser', 'linkUserToDataSource', 'userConfigRequest', 'userConfigEdit',
     'deleteUser', 'resetUserPassword', 'wsConnect', 'videoSubscribe',
+    // Конфигурацию уведомлений рассылает notificationService после записи (всем, включая автора)
+    'notification',
   ]),
 };

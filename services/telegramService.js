@@ -245,15 +245,13 @@ function createTelegramService({
     return reply(chatId, accepted ? '✓ Принято' : 'Приём сообщений сейчас отключён.');
   }
 
-  async function sendToUser(user, msg) {
+  // Отправка с одним повтором при 429 и отвязкой недоступного чата (403 / chat not found)
+  async function deliver(user, send) {
     const chatId = user?.telegram?.chatId;
     if (!chatId) return false;
-    const text = formatNotification(msg);
-    const extra = { disable_notification: SILENT_SEVERITIES.includes(msg.payload.severity) };
-
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
-        await bot.sendMessage(chatId, text, extra);
+        await send(chatId);
         return true;
       } catch (e) {
         if (e.code === 429 && e.retryAfter && e.retryAfter <= 30 && attempt === 0) {
@@ -273,11 +271,29 @@ function createTelegramService({
     return false;
   }
 
+  function sendToUser(user, msg) {
+    const text = formatNotification(msg);
+    const extra = { disable_notification: SILENT_SEVERITIES.includes(msg.payload.severity) };
+    return deliver(user, (chatId) => bot.sendMessage(chatId, text, extra));
+  }
+
   async function sendToUsers(users, msg) {
     let sent = 0;
     for (const user of users) {
       if (await sendToUser(user, msg)) sent++;
       await sleep(40);
+    }
+    return sent;
+  }
+
+  // Кадры камер к уведомлению: photos = [{ jpeg, caption }]; беззвучно — звук уже был у текста
+  async function sendPhotosToUsers(users, photos) {
+    let sent = 0;
+    for (const user of users) {
+      for (const { jpeg, caption } of photos) {
+        if (await deliver(user, (chatId) => bot.sendPhoto(chatId, jpeg, { caption: escapeHtml(caption), disable_notification: true }))) sent++;
+        await sleep(40);
+      }
     }
     return sent;
   }
@@ -309,6 +325,7 @@ function createTelegramService({
     createLinkCode,
     sendToUser,
     sendToUsers,
+    sendPhotosToUsers,
     isStarted: () => started,
   };
 }

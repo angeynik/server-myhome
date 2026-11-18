@@ -20,13 +20,13 @@
 
 ## Структура проекта
 - `serverapp.js` — точка входа: Express, WS-серверы, маршрутизация сообщений. Бизнес-логики не содержит.
-- `services/` — бизнес-логика: `auth`, `authConfig`, `userStore`, `notifyConfig`, `notifyService`, `telegramService`, `videoConfig`, `videoStreamService` (одна камера), `videoHub` (камеры, подписки, доставка), `messageHandlers`, `messageStore`, `configStore`, `validate`, `logger`, `modbusTCPBridge`, `modbusRTUBridge`.
+- `services/` — бизнес-логика: `auth`, `authConfig`, `userStore`, `notifyConfig`, `notifyService`, `telegramService`, `videoConfig`, `videoStreamService` (одна камера), `videoHub` (камеры, подписки, доставка), `notificationRules` (условия, окно контроля — чистые функции), `notificationStore` (файлы уведомлений и кадры), `notificationService` (проверка условий и рассылка событий), `messageHandlers`, `messageStore`, `configStore`, `validate`, `logger`, `modbusTCPBridge`, `modbusRTUBridge`.
 - `classes/` — классы: `wsManager`, `modBusTCPManager`, `telegramBot`.
 - `scripts/` — CLI администрирования (`authAdmin.js`).
 - `tools/` — инструменты разработчика, не загружаются сервером: `modbusSlaveEmulator.js` (эмулятор Modbus TCP-устройства), `modbusDiag.js` (чтение всех тегов карты с устройства), `modbusRtuCheck.js` + `ptyPair.py` (проверка Modbus RTU на виртуальных портах), `videoLoadTest.js` + `fakeFfmpeg.js` (нагрузочная проверка видео без камер).
 - `modBus/` — Modbus RTU (`modbusMaster`, `modbusSlave`, `modbusManager`, `modbusUtils`), к серверу подключается через `services/modbusRTUBridge.js` при `MODBUS_RTU_ENABLED=true` (конфиг `MODBUS_RTU_CONF`). Все обращения Master к шине идут через одну очередь: на RS-485 запросы не должны пересекаться. Slave проверяет CRC входящих кадров и отбрасывает искажённые без ответа; параметры порта (`baudRate`, `parity`, `dataBits`, `stopBits`) у Slave и Master задаются одинаково. Устройство Master различается по `id` (по умолчанию `dID`): несколько устройств одного `dID` обязаны иметь разные `id`, повтор `id` или тега (`dID|request|room|name`) пропускается с ошибкой в логе.
 - `gpio.js` — GPIO через sysfs (замок, датчики двери), включается `MANAGE_DOOR`.
-- `docs/` — инструкции для настройки: `cameras.md`, `modbus-tcp.md`, `modbus-rtu.md`. Меняется поведение или параметр, описанный в инструкции, — инструкция обновляется в том же изменении.
+- `docs/` — инструкции для настройки: `cameras.md`, `modbus-tcp.md`, `modbus-rtu.md`, `notifications.md` (уведомления: алгоритм, протокол, схемы кода сервера и клиента; копия — в репозитории клиента). Меняется поведение или параметр, описанный в инструкции, — инструкция обновляется в том же изменении.
 - `tests/` — Jest: `unit/<модуль>.test.js`, `integration/*.integration.js`, `modbusRTU/*.test.js`, общий `setup.js`, помощники в `helpers/`.
 - Сервис с зависимостями оформляется как фабрика `createXService(deps)` плюс синглтон-обёртка. Так его можно тестировать с фейками.
 
@@ -59,15 +59,15 @@
 | Направление | type | Допустимые request |
 |---|---|---|
 | Vue → сервер | `auth` | `login`, `resume` (без сессии); `logout`, `refresh`, `changePassword`, `profile`, `updateProfile`, `telegramLinkCode`, `telegramUnlink` (нужна сессия) |
-| Vue → сервер | `get` | `config`, `statistics`, `schedules`, `notifications`, `messages`, `videoCameras`, `videoSnapshot`, `videoStatus` |
-| Vue → сервер | `post` | `setpoints`, `system`, `sensors`, `wsConnect`, `videoSubscribe`, `add/del/update` + `schedules` / `notifications` / `statistics`, администрирование: `createUser`, `linkUserToDataSource`, `userConfigRequest`, `userConfigEdit`, `resetUserPassword`, `deleteUser` |
+| Vue → сервер | `get` | `config`, `statistics`, `schedules`, `notification`, `notificationStatus`, `notificationSnapshot`, `messages`, `videoCameras`, `videoSnapshot`, `videoStatus` |
+| Vue → сервер | `post` | `setpoints`, `system`, `sensors`, `wsConnect`, `videoSubscribe`, `notification` (`action: create \| edit \| delete`), `add/del/update` + `schedules` / `statistics`, администрирование: `createUser`, `linkUserToDataSource`, `userConfigRequest`, `userConfigEdit`, `resetUserPassword`, `deleteUser` |
 | NodeRED → сервер | `init` | `init_ws` — регистрация соединения |
 | NodeRED → сервер | `post` | данные датчиков (`payload.room`, `item_name`, `item_value`; необязательно `item_type`, `title`, `group`) |
 | NodeRED → сервер | `message` | `notify` — оповещение |
 | Сервер → Vue | `response` | успешный ответ на запрос |
 | Сервер → Vue | `error` | ошибка запроса, `payload: { message, code? }` |
 | Сервер → Vue | `info` | служебное (`serverConnected`) |
-| Сервер → Vue | `post` | push: данные от NodeRED и других клиентов того же `dID`, кадры камер (`videoSnapshot`) |
+| Сервер → Vue | `post` | push: данные от NodeRED и других клиентов того же `dID`, кадры камер (`videoSnapshot`), события уведомлений (`notificationEvent`) |
 | Сервер → Vue | `message` | push: оповещение |
 | Сервер → NodeRED | `post` | команды от Vue того же `dID`; `message/telegramIn` — текст из Telegram |
 
@@ -126,10 +126,16 @@
   - `cameras.json` перечитывается на лету (`fs.watchFile`, опрос 2 с): изменённые камеры перезапускаются, новые запускаются, удалённые останавливаются и убираются из подписок; порядок — как в файле. Клиентам Vue уходит `response/videoCameras` с новым списком (без запроса). Файл с ошибкой JSON — работающие камеры не трогаются. Наличие ffmpeg проверяется асинхронно при старте, без ffmpeg — ошибка в логе с подсказкой.
   - ffmpeg на камеру кодирует JPEG с частотой `min(previewIntervalMs, fullIntervalMs)`; архив MP4/S3 — только при `archive: true` (у `test` архива нет).
   - Проверка без камер: `tools/videoLoadTest.js` (N камер × M клиентов, доставка, задержка, трафик, CPU/RAM; `--ffmpeg fake` — `tools/fakeFfmpeg.js` без кодирования).
+- Уведомления по условиям (`services/notificationService.js`, подробно — `docs/notifications.md`):
+  - Файлы в `DATA_DIR`: `<dID>_notification.json` — условия `{ "<room>:<section>:<item>": item }` (одно уведомление на параметр), `<dID>_notification_status.json` — статусы `{ id: { status: 'ON'|'OFF', read: 'OFF', eventId, since, value, text, channel, attachments } }`. Статусы пишет только служба; `read` на сервере всегда `'OFF'` (прочтение — только на клиенте). Кадры активных уведомлений — `NOTIFICATION_MEDIA_DIR/<dID>/<eventId>_<cameraId>.jpg`, удаляются при сбросе.
+  - `get/config` отвечает `config`, затем `notification` и `notificationStatus`, если файлы есть (нет файла — нет ответа: уведомлений ещё не создавали). Отдельно — `get/notification`, `get/notificationStatus`; `get/notificationSnapshot { id, cameraId }` → `{ id, cameraId, title, image, mimeType, timestamp }` или `error/notificationSnapshotError` (`NO_SNAPSHOT`).
+  - `post/notification { action: 'create'|'edit'|'delete', configData }` (уровень 2, не пересылается — `NO_BROADCAST_POST`): запись проверяет `notificationStore.validateItem` (Joi), затем служба рассылает `response/notification` (вся конфигурация) **всем** Vue этого `dID`, включая автора, автору — `response/notificationSuccess { action, id }`, и сразу проверяет условия. Ошибка — `error/notificationError` (`BAD_NOTIFICATION`, `LIMIT`, `NOT_FOUND`, `BAD_ACTION`).
+  - Служба раз в `NOTIFICATION_CHECK_INTERVAL_MS` берёт значение `<dID>.json` → `[room][section][item].value`: уведомление ON, если момент в интервалах суток **и** периодах календаря (московское время; пусто — без ограничения) и условие выполнено; иначе OFF (в том числе вне окна контроля). ON держится до сброса, повторных событий нет. Событие — `post/notificationEvent` всем Vue `dID` (независимо от канала: статус нужен для обводки плашки), Telegram — при `channel` `telegram`/`both` (текст + кадры). Удалённое активное уведомление сбрасывается с `reason: 'removed'`.
+  - Значения датчиков попадают в `<dID>.json` через очередь `messageStore` (раз в 15 с), поэтому событие отстаёт от показания до 15 с + интервал проверки.
 
 ### Права доступа (`REQUIRED_LEVEL`)
-- Уровень 1 — просмотр и управление: `get` `config`, `statistics`, `messages`, `videoCameras`, `videoSnapshot`; `post` `setpoints`, `system`, `sensors`, `wsConnect`, `videoSubscribe`.
-- Уровень 2 — настройки: `get` `schedules`, `notifications`; `post` `add/del/update` расписаний, уведомлений, статистики.
+- Уровень 1 — просмотр и управление: `get` `config`, `statistics`, `messages`, `videoCameras`, `videoSnapshot`, `notification`, `notificationStatus`, `notificationSnapshot`; `post` `setpoints`, `system`, `sensors`, `wsConnect`, `videoSubscribe`. Уведомления получают все пользователи `dID`.
+- Уровень 2 — настройки: `get` `schedules`; `post` `notification` (создание, правка, удаление уведомлений), `add/del/update` расписаний и статистики.
 - Уровень 3 — администратор: `get/videoStatus`; `post` `createUser`, `linkUserToDataSource`, `userConfigRequest`, `userConfigEdit`, `resetUserPassword`, `deleteUser`.
 - Неизвестный `request` получает `_default` своего типа (уровень 1). Для запросов, влияющих на безопасность, всегда задавать уровень явно.
 

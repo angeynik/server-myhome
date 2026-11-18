@@ -107,6 +107,12 @@ MTS_S3_FORCE_PATH_STYLE=true
 NOTIFY_DEDUP_TTL_MS=30000          # подавление одинаковых сообщений
 NOTIFY_HISTORY_SIZE=50             # сколько последних сообщений хранить на dID
 
+# ── Уведомления по условиям (docs/notifications.md) ────────────────────
+NOTIFICATION_ENABLED=true
+NOTIFICATION_CHECK_INTERVAL_MS=10000   # как часто проверять условия (не чаще 1000)
+NOTIFICATION_MAX_ITEMS=200            # уведомлений на один dID
+#NOTIFICATION_MEDIA_DIR=              # кадры камер активных уведомлений (по умолчанию $DATA_DIR/notification_media)
+
 # ── Telegram ───────────────────────────────────────────────────────────
 TELEGRAM_ENABLED=false
 TELEGRAM_BOT_TOKEN=                # токен от @BotFather

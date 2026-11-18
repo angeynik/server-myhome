@@ -26,6 +26,24 @@ describe('TelegramBot.call', () => {
     });
   });
 
+  test('sendPhoto: multipart/form-data без JSON-заголовка, файл JPEG и подпись', async () => {
+    const fetchImpl = jest.fn(async () => okResponse({ message_id: 3 }));
+    const bot = new TelegramBot({ token: TOKEN, fetchImpl });
+    await bot.sendPhoto('42', Buffer.from('JPEG'), { caption: 'Ворота', disable_notification: true });
+
+    const [url, opts] = fetchImpl.mock.calls[0];
+    expect(url).toBe(`https://api.telegram.org/bot${TOKEN}/sendPhoto`);
+    expect(opts.headers).toBeUndefined();
+    expect(opts.body).toBeInstanceOf(FormData);
+    expect(opts.body.get('chat_id')).toBe('42');
+    expect(opts.body.get('caption')).toBe('Ворота');
+    expect(opts.body.get('parse_mode')).toBe('HTML');
+    expect(opts.body.get('disable_notification')).toBe('true');
+    const photo = opts.body.get('photo');
+    expect(photo.type).toBe('image/jpeg');
+    expect(Buffer.from(await photo.arrayBuffer()).toString()).toBe('JPEG');
+  });
+
   test('обрезает текст до 4096 символов', async () => {
     const fetchImpl = jest.fn(async () => okResponse({}));
     const bot = new TelegramBot({ token: TOKEN, fetchImpl });
