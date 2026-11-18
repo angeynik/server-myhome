@@ -97,7 +97,7 @@ function createNotificationService({
   }
 
   // ── Событие ON ──────────────────────────────────────────────────────
-  async function activate(dID, item, value) {
+  async function activate(dID, item, value, outbox) {
     const eventId = uuid();
     const since = new Date(now()).toISOString();
     const attachments = [];
@@ -119,12 +119,12 @@ function createNotificationService({
     const text = rules.describe(item, { status: 'ON', value });
     // text и channel — чтобы клиент, открытый позже, показал непрочитанное без конфигурации
     const entry = { status: 'ON', read: 'OFF', eventId, since, value, text, channel: item.channel, attachments };
-    deliver(dID, item, entry, text, photos);
+    outbox.push(() => deliver(dID, item, entry, text, photos));
     return entry;
   }
 
   // ── Сброс (OFF) ─────────────────────────────────────────────────────
-  async function reset(dID, item, prev, { value, reason }) {
+  async function reset(dID, item, prev, { value, reason }, outbox) {
     await store.removeMedia(dID, prev.eventId, (prev.attachments || []).map((a) => a.cameraId))
       .catch((e) => logger.logErrorMessage(`[notificationService] - удаление кадров ${item.id}: ${e.message}`));
     const text = rules.describe(item, { status: 'OFF', value, reason });
@@ -132,7 +132,7 @@ function createNotificationService({
       status: 'OFF', read: 'OFF', eventId: prev.eventId || null, since: new Date(now()).toISOString(),
       text, channel: item.channel, attachments: [],
     };
-    deliver(dID, item, { ...entry, value }, text, [], { reason });
+    outbox.push(() => deliver(dID, item, { ...entry, value }, text, [], { reason }));
     return entry;
   }
 
@@ -166,6 +166,7 @@ function createNotificationService({
 
     const t = now();
     const next = { ...status };
+    const outbox = []; // события рассылаются после записи статуса
     let changed = 0;
 
     for (const item of Object.values(items)) {
@@ -176,10 +177,10 @@ function createNotificationService({
       const value = rules.normalizeValue(raw);
 
       if (met && !active) {
-        next[item.id] = await activate(dID, item, value);
+        next[item.id] = await activate(dID, item, value, outbox);
         changed++;
       } else if (!met && active) {
-        next[item.id] = await reset(dID, item, status[item.id], { value, reason: monitored ? 'condition' : 'window' });
+        next[item.id] = await reset(dID, item, status[item.id], { value, reason: monitored ? 'condition' : 'window' }, outbox);
         changed++;
       }
     }
@@ -189,13 +190,16 @@ function createNotificationService({
       if (items[id]) continue;
       if (entry.status === 'ON') {
         const [room, section, item] = id.split(':');
-        await reset(dID, { id, room, section, item, channel: 'web', condition: null }, entry, { reason: 'removed' });
+        await reset(dID, { id, room, section, item, channel: 'web', condition: null }, entry, { reason: 'removed' }, outbox);
       }
       delete next[id];
       changed++;
     }
 
     if (changed) await store.writeStatus(dID, next);
+    // Рассылка — после записи статуса: клиент сразу по событию запрашивает кадры
+    // (get/notificationSnapshot), а сервер ищет их в файле статусов
+    outbox.forEach((send) => send());
     return { changed };
   }
 

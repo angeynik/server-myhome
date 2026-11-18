@@ -92,6 +92,18 @@ describe('notificationService: события', () => {
     });
   });
 
+  test('событие рассылается после записи статуса: кадр доступен сразу по событию', async () => {
+    const frames = { cam01: { jpeg: Buffer.from('JPEG1'), timestamp: 5, cameraId: 'cam01', title: 'Ворота' } };
+    const { svc, store, sockets } = setup({ items: { [ITEM.id]: { ...ITEM, cameras: ['cam01'] } }, value: 26, frames });
+    let snapshotOnEvent;
+    sockets.a.send.mockImplementation((raw) => {
+      if (JSON.parse(raw).request === 'notificationEvent') snapshotOnEvent = svc.getSnapshot('igumen', ITEM.id, 'cam01');
+    });
+    await svc.checkDID('igumen');
+    expect(store.writeStatus.mock.invocationCallOrder[0]).toBeLessThan(sockets.a.send.mock.invocationCallOrder[0]);
+    expect(await snapshotOnEvent).toMatchObject({ cameraId: 'cam01', image: Buffer.from('JPEG1').toString('base64') });
+  });
+
   test('пока условие выполняется — повторного события нет', async () => {
     const { svc, events } = setup({ value: 26 });
     await svc.checkDID('igumen');
