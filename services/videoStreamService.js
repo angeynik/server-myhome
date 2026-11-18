@@ -277,7 +277,9 @@ function createVideoStreamService({
     const msg = maskUrl(chunk.toString()).trim();
     if (!msg) return;
     if (/error|failed|cannot/i.test(msg)) logger.logErrorMessage(`${tag()} - ffmpeg: ${msg}`);
-    else logger.logDevMessage(`${tag()} - ffmpeg: ${msg}`);
+    // Прогресс ffmpeg (frame=… fps=… раз в секунду на каждую камеру) забивает лог — временно отключён.
+    // Ошибки выше пишутся по-прежнему. Вернуть — раскомментировать строку:
+    // else logger.logDevMessage(`${tag()} - ffmpeg: ${msg}`);
   }
 
   function scheduleRestart() {

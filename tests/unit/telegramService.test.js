@@ -145,6 +145,30 @@ describe('telegramService: регистрация через бота', () => {
     expect(lastReply(bot)).toBe('Подключение отменено.');
   });
 
+  test.each(['secret-42', ' SECRET-42 ', 'SECRET\u200B-42', 'Secret-42'])(
+    'код принимается без учёта регистра, пробелов и невидимых символов: %p',
+    async (input) => {
+      const { bot, say } = setup();
+      await say('привет');
+      await say(input);
+      expect(lastReply(bot)).toContain('Введите логин');
+    },
+  );
+
+  test('кириллические буквы-двойники в коде (русская раскладка) принимаются', async () => {
+    const { bot, say } = setup({ cfg: { TELEGRAM_REGISTRATION_CODE: '7q4SxLX2' } });
+    await say('привет');
+    await say('7q4SхLХ2'); // х и Х — кириллица
+    expect(lastReply(bot)).toContain('Введите логин');
+  });
+
+  test('похожий, но другой код не принимается', async () => {
+    const { bot, say } = setup();
+    await say('привет');
+    await say('SECRET-43');
+    expect(lastReply(bot)).toContain('неверный код');
+  });
+
   test('регистрация через бота выключена (нет кода) — инструкция про код из приложения', async () => {
     const { bot, say } = setup({ cfg: { TELEGRAM_REGISTRATION_CODE: '' } });
     await say('привет');

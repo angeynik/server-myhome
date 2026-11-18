@@ -37,6 +37,8 @@ module.exports = {
   TELEGRAM_BAD_CODE_LOCK_MS: int(env.TELEGRAM_BAD_CODE_LOCK_MS, 24 * 60 * 60 * 1000),
   // Код регистрации в боте (диалог «код → логин → пароль»). Пусто — регистрация через бота выключена
   TELEGRAM_REGISTRATION_CODE: String(env.TELEGRAM_REGISTRATION_CODE || '').trim(),
+  // ВРЕМЕННО: подробный лог подключения к боту (без кода и пароля). По умолчанию включён — отладка регистрации
+  TELEGRAM_DEBUG: bool(env.TELEGRAM_DEBUG, true),
   TELEGRAM_DIALOG_TTL_MS: int(env.TELEGRAM_DIALOG_TTL_MS, 10 * 60 * 1000),   // сколько ждать ответа в диалоге
   // Блокировки чатов (переживают перезапуск сервера)
   TELEGRAM_BLOCKS_FILE: env.TELEGRAM_BLOCKS_FILE

@@ -96,12 +96,48 @@ function generateCode() {
 
 const normalizeCode = (raw) => String(raw || '').replace(/[\s-]/g, '').toUpperCase();
 
+// Код регистрации без пробелов и невидимых символов (копирование, клавиатура телефона),
+// регистр не важен: телефонная клавиатура сама меняет заглавные буквы
+const INVISIBLE_RE = /[\s\u200B-\u200D\u2060\uFEFF]/g;
+// Кириллические буквы, неотличимые от латинских (русская раскладка при наборе кода)
+const LOOKALIKE = {
+  а: 'a', в: 'b', е: 'e', ё: 'e', к: 'k', м: 'm', н: 'h', о: 'o', р: 'p', с: 'c', т: 't', у: 'y', х: 'x',
+};
+const canonCode = (v) => String(v ?? '')
+  .replace(INVISIBLE_RE, '')
+  .toLowerCase()
+  .replace(/[авеёкмнорстух]/g, (ch) => LOOKALIKE[ch]);
+
+// Узор строки по типам символов — для лога без раскрытия кода:
+// L/l — латиница (заглавная/строчная), К/к — кириллица, D — цифра, _ — пробел, ? — прочее
+function charPattern(v) {
+  return [...String(v ?? '')].map((ch) => {
+    if (/[0-9]/.test(ch)) return 'D';
+    if (/[A-Z]/.test(ch)) return 'L';
+    if (/[a-z]/.test(ch)) return 'l';
+    if (/[А-ЯЁ]/.test(ch)) return 'К';
+    if (/[а-яё]/.test(ch)) return 'к';
+    if (/\s/.test(ch)) return '_';
+    return '?';
+  }).join('');
+}
+
 // Сравнение кода регистрации за постоянное время (не выдаёт совпадающий префикс)
 function sameCode(input, expected) {
-  if (!expected) return false;
-  const a = crypto.createHash('sha256').update(String(input).trim()).digest();
-  const b = crypto.createHash('sha256').update(String(expected)).digest();
+  if (!canonCode(expected)) return false;
+  const a = crypto.createHash('sha256').update(canonCode(input)).digest();
+  const b = crypto.createHash('sha256').update(canonCode(expected)).digest();
   return crypto.timingSafeEqual(a, b);
+}
+
+// Почему код не совпал — для лога, без самого кода
+function codeMismatchHint(input, expected) {
+  const a = canonCode(input);
+  const b = canonCode(expected);
+  const parts = [`введено ${a.length} симв., ожидается ${b.length}; узор ввода ${charPattern(input)}, кода ${charPattern(expected)}`];
+  if (String(input).length !== a.length) parts.push('во вводе были пробелы или невидимые символы');
+  if (/^["'].*["']$/.test(String(expected).trim())) parts.push('код в conf.env в кавычках внутри значения');
+  return parts.join('; ');
 }
 
 // Блокировки чатов на диске: { chatId: { count, until } }
@@ -289,7 +325,10 @@ function createTelegramService({
     d.expires = now() + config.TELEGRAM_DIALOG_TTL_MS;
 
     if (d.step === 'code') {
-      if (!sameCode(text, config.TELEGRAM_REGISTRATION_CODE)) return fail(chatId, 'неверный код');
+      if (!sameCode(text, config.TELEGRAM_REGISTRATION_CODE)) {
+        logger.logInfoMessage(`[telegramService] - чат ${chatId}: неверный код регистрации (${codeMismatchHint(text, config.TELEGRAM_REGISTRATION_CODE)})`);
+        return fail(chatId, 'неверный код');
+      }
       d.step = 'login';
       return reply(chatId, ASK_LOGIN);
     }
@@ -380,18 +419,35 @@ function createTelegramService({
     }
   }
 
+  // ВРЕМЕННО: подробный лог подключения (TELEGRAM_DEBUG=true). Код и пароль в лог не попадают:
+  // для кода — длина и узор по типам символов, для пароля — только длина.
+  function debug(chatId, what) {
+    if (config.TELEGRAM_DEBUG) logger.logInfoMessage(`[telegramService] - DEBUG чат ${chatId}: ${what}`);
+  }
+
   async function handleUpdate(update) {
     const m = update?.message;
-    if (!m || !m.chat || m.chat.type !== 'private' || typeof m.text !== 'string') return;
+    if (!m || !m.chat || m.chat.type !== 'private' || typeof m.text !== 'string') {
+      if (m?.chat) debug(m.chat.id, `пропущено (тип чата ${m.chat.type}, текст: ${typeof m.text === 'string'})`);
+      return;
+    }
 
     const chatId = String(m.chat.id);
-    if (isBlocked(chatId)) return; // заблокированный чат — сообщения не обрабатываются
-    if (!allowRate(chatId)) return;
+    if (isBlocked(chatId)) { debug(chatId, `заблокирован до ${new Date(failures.get(chatId).until).toISOString()}`); return; }
+    if (!allowRate(chatId)) { debug(chatId, 'превышен лимит сообщений в минуту'); return; }
+    if (config.TELEGRAM_DEBUG) {
+      const d = activeDialog(chatId);
+      const shown = d?.step === 'code'
+        ? `длина ${m.text.trim().length}, узор ${charPattern(m.text.trim())}`
+        : d?.step === 'password' ? `пароль, длина ${m.text.length}` : `«${m.text.slice(0, 40)}»`;
+      debug(chatId, `сообщение (шаг ${d?.step || 'нет'}, ошибок ${failures.get(chatId)?.count || 0}): ${shown}`);
+    }
 
     const text = m.text.trim().slice(0, config.TELEGRAM_MAX_INPUT_LEN);
     if (!text) return;
 
     const users = await userStore.findAllByTelegramChatId(chatId);
+    debug(chatId, `подключённые записи: ${users.map((u) => `${u.username}(${u.dID})`).join(', ') || 'нет'}`);
     const cmd = /^\/([a-z_]+)(?:@\w+)?(?:\s+(.*))?$/i.exec(text);
     const dialog = activeDialog(chatId);
 
@@ -514,9 +570,12 @@ function createTelegramService({
       logger.logErrorMessage(`[telegramService] - start: ${e.message}`);
     }
     bot.start(handleUpdate, { pollTimeoutS: config.TELEGRAM_POLL_TIMEOUT_S });
+    if (config.TELEGRAM_DEBUG) logger.logInfoMessage('[telegramService] - подробный лог подключения включён (TELEGRAM_DEBUG)');
     logger.logInfoMessage(
       `[telegramService] - запущен${botUsername ? `, бот @${botUsername}` : ''}; ` +
-      `регистрация через бота ${config.TELEGRAM_REGISTRATION_CODE ? 'включена' : 'выключена (нет TELEGRAM_REGISTRATION_CODE)'}`
+      `регистрация через бота ${config.TELEGRAM_REGISTRATION_CODE
+        ? `включена (код регистрации: ${canonCode(config.TELEGRAM_REGISTRATION_CODE).length} симв., узор ${charPattern(config.TELEGRAM_REGISTRATION_CODE)})`
+        : 'выключена (нет TELEGRAM_REGISTRATION_CODE)'}`
     );
   }
 
