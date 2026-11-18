@@ -386,6 +386,14 @@ async function findByTelegramChatId(chatId) {
   return u ? forNotify(u) : null;
 }
 
+// Один чат Telegram может быть привязан к нескольким учётным записям (у каждой свой dID):
+// уведомления всех этих dID приходят в один чат
+async function findAllByTelegramChatId(chatId) {
+  const { users } = await loadUsers();
+  const id = String(chatId);
+  return users.filter((x) => x.telegram?.chatId === id).map(forNotify);
+}
+
 async function findUsersForNotification({ dID, minLevel = 1 }) {
   const { users } = await loadUsers();
   return users
@@ -567,13 +575,13 @@ async function updateOwnProfile(username, patch = {}) {
   });
 }
 
+// Привязка чата к учётной записи. Чат может быть привязан и к другим записям (несколько dID);
+// у записи — один чат: привязка к новому чату заменяет прежний.
 async function setTelegram(username, { chatId, username: tgUsername = null, firstName = null }) {
   if (!chatId) throw authError('BAD_CHAT', 'Не указан chatId');
   const id = String(chatId);
   return mutate((data) => {
     const u = findIn(data, username);
-    const busy = data.users.find((x) => x !== u && x.telegram?.chatId === id);
-    if (busy) throw authError('TELEGRAM_BUSY', 'Этот Telegram-чат уже привязан к другой учётной записи');
     u.telegram = { chatId: id, username: tgUsername, firstName, linkedAt: nowIso() };
     u.updatedAt = nowIso();
     return toPublic(u);
@@ -656,6 +664,7 @@ module.exports = {
   loadUsers,
   findUser,
   findByTelegramChatId,
+  findAllByTelegramChatId,
   findUsersForNotification,
   verifyCredentials,
   registerUser,

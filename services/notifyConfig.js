@@ -32,8 +32,15 @@ module.exports = {
   TELEGRAM_LINK_TTL_MS: int(env.TELEGRAM_LINK_TTL_MS, 10 * 60 * 1000),
   TELEGRAM_MAX_INPUT_LEN: int(env.TELEGRAM_MAX_INPUT_LEN, 1000),
   TELEGRAM_RATE_PER_MIN: int(env.TELEGRAM_RATE_PER_MIN, 20),
+  // Ошибок регистрации (неверный код, логин/пароль) до блокировки чата; блокировка — на сутки
   TELEGRAM_BAD_CODE_LIMIT: int(env.TELEGRAM_BAD_CODE_LIMIT, 5),
-  TELEGRAM_BAD_CODE_LOCK_MS: int(env.TELEGRAM_BAD_CODE_LOCK_MS, 15 * 60 * 1000),
+  TELEGRAM_BAD_CODE_LOCK_MS: int(env.TELEGRAM_BAD_CODE_LOCK_MS, 24 * 60 * 60 * 1000),
+  // Код регистрации в боте (диалог «код → логин → пароль»). Пусто — регистрация через бота выключена
+  TELEGRAM_REGISTRATION_CODE: String(env.TELEGRAM_REGISTRATION_CODE || '').trim(),
+  TELEGRAM_DIALOG_TTL_MS: int(env.TELEGRAM_DIALOG_TTL_MS, 10 * 60 * 1000),   // сколько ждать ответа в диалоге
+  // Блокировки чатов (переживают перезапуск сервера)
+  TELEGRAM_BLOCKS_FILE: env.TELEGRAM_BLOCKS_FILE
+    || require('path').join(env.DATA_DIR || '.configData', 'telegram_blocks.json'),
 
   NOTIFY_DEDUP_TTL_MS: int(env.NOTIFY_DEDUP_TTL_MS, 30 * 1000),
   NOTIFY_HISTORY_SIZE: int(env.NOTIFY_HISTORY_SIZE, 50),

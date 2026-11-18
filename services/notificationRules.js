@@ -105,19 +105,24 @@ function conditionText(condition, unit = '') {
 // Где и что: «Гостиная · Температура»
 const placeOf = (item) => [item.roomTitle || item.group || item.room, item.title || item.item].filter(Boolean).join(' · ');
 
-// Текст события: ON — что произошло, OFF — что снято
-function describe(item, { status, value, reason } = {}) {
+// Части текста события: place — где и что, detail — что произошло (ON) или почему снято (OFF)
+function describeParts(item, { status, value, reason } = {}) {
   const place = placeOf(item);
-  const cond = conditionText(item.condition, item.unit);
   if (status === 'ON') {
-    return `${place}: ${formatValue(value, item.unit)} (условие ${cond})`;
+    return { place, detail: `${formatValue(value, item.unit)} (условие ${conditionText(item.condition, item.unit)})` };
   }
   const why = {
     condition: 'условие больше не выполняется',
     window: 'вне интервала или периода контроля',
     removed: 'уведомление удалено',
   }[reason] || 'сброшено';
-  return `${place}: ${why}${value !== undefined ? `, сейчас ${formatValue(value, item.unit)}` : ''}`;
+  return { place, detail: `${why}${value !== undefined ? `, сейчас ${formatValue(value, item.unit)}` : ''}` };
+}
+
+// Текст события одной строкой: «Гостиная · Температура: 26 °C (условие > 25 °C)»
+function describe(item, opts = {}) {
+  const { place, detail } = describeParts(item, opts);
+  return `${place}: ${detail}`;
 }
 
 module.exports = {
@@ -131,5 +136,6 @@ module.exports = {
   isMonitored,
   formatValue,
   conditionText,
+  describeParts,
   describe,
 };

@@ -162,12 +162,24 @@ describe('userStore: Telegram и получатели', () => {
     expect(await store.findByTelegramChatId(12345)).toBeNull();
   });
 
-  test('один чат нельзя привязать к двум учётным записям', async () => {
+  test('один чат — к нескольким учётным записям (разные dID): findAllByTelegramChatId', async () => {
     loadStore();
     await store.registerUser('ivan', 'longpassword', 1, 'h1');
-    await store.registerUser('petr', 'longpassword', 1, 'h1');
+    await store.registerUser('petr', 'longpassword', 2, 'h2');
     await store.setTelegram('ivan', { chatId: 1 });
-    await expect(store.setTelegram('petr', { chatId: 1 })).rejects.toMatchObject({ code: 'TELEGRAM_BUSY' });
+    await store.setTelegram('petr', { chatId: 1 });
+    expect((await store.findAllByTelegramChatId(1)).map((u) => [u.username, u.dID])).toEqual([['ivan', 'h1'], ['petr', 'h2']]);
+    await store.clearTelegram('ivan');
+    expect((await store.findAllByTelegramChatId(1)).map((u) => u.username)).toEqual(['petr']);
+  });
+
+  test('у записи один чат: привязка к новому чату заменяет прежний', async () => {
+    loadStore();
+    await store.registerUser('ivan', 'longpassword', 1, 'h1');
+    await store.setTelegram('ivan', { chatId: 1 });
+    await store.setTelegram('ivan', { chatId: 2 });
+    expect(await store.findAllByTelegramChatId(1)).toEqual([]);
+    expect((await store.findByTelegramChatId(2)).username).toBe('ivan');
   });
 
   test('findUsersForNotification учитывает dID, уровень и блокировку', async () => {

@@ -108,6 +108,11 @@ class TelegramBot {
     return this.call('sendPhoto', form);
   }
 
+  // Бот может удалять входящие сообщения в личном чате (сообщение с паролем)
+  deleteMessage(chatId, messageId) {
+    return this.call('deleteMessage', { chat_id: chatId, message_id: messageId });
+  }
+
   setMyCommands(commands) {
     return this.call('setMyCommands', { commands });
   }

@@ -1,14 +1,25 @@
 // services/telegramService.js
-// Обмен сообщениями с пользователями через Telegram.
+// Обмен сообщениями с пользователями через Telegram-бота (docs/telegram.md).
 //
-//  Привязка:  VUE → auth/telegramLinkCode → одноразовый код (TTL) →
-//             пользователь отправляет боту «/start КОД» → chatId сохраняется в userStore.
-//  Исходящие: notifyService → sendToUsers() → Bot API.
-//  Входящие:  текст привязанного пользователя → forward({type:'message', request:'telegramIn', ...}).
-//  Работают только личные чаты. Незнакомым чатам отвечаем только инструкцией по привязке.
+//  Регистрация (основной способ), чат ещё не привязан или команда /add:
+//    любое сообщение → «введите код» (TELEGRAM_REGISTRATION_CODE из conf.env) → «введите логин» →
+//    «введите пароль» (сообщение с паролем бот удаляет) → проверка userStore.verifyCredentials →
+//    chatId сохраняется в учётной записи. Неверный код или логин/пароль — «Ошибка подключения»;
+//    после TELEGRAM_BAD_CODE_LIMIT ошибок чат блокируется на TELEGRAM_BAD_CODE_LOCK_MS (сутки):
+//    сообщения из него не обрабатываются. Блокировки хранятся в TELEGRAM_BLOCKS_FILE.
+//  Привязка кодом из приложения (второй способ): VUE → auth/telegramLinkCode → «/start КОД».
+//  Один чат может быть привязан к нескольким учётным записям (у каждой свой dID) —
+//  уведомления всех этих dID приходят в один чат, в сообщении указан dID.
+//  Исходящие: notificationService → sendNotificationEvent (уведомления по условиям),
+//             notifyService → sendToUsers (оповещения NodeRED). Один чат получает сообщение один раз.
+//  Входящие от привязанного чата: команды (/status, /add, /unlink, /mute, /unmute, /help);
+//             прочий текст → forward({type:'message', request:'telegramIn', ...}) для каждого dID чата.
+//  Работают только личные чаты.
 'use strict';
 
 const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
 const logger = require('./logger.js');
 logger.initLogging();
 const nc = require('./notifyConfig.js');
@@ -18,24 +29,31 @@ const CODE_LEN = 8;
 const SEVERITY_ICON = { info: 'ℹ️', ok: '✅', warning: '⚠️', alarm: '🚨' };
 const SILENT_SEVERITIES = ['info', 'ok'];
 const COMMANDS = [
-  { command: 'start', description: 'Привязать аккаунт: /start КОД' },
-  { command: 'status', description: 'Статус привязки' },
+  { command: 'start', description: 'Подключение к системе' },
+  { command: 'status', description: 'Подключённые учётные записи' },
+  { command: 'add', description: 'Подключить ещё одну учётную запись' },
   { command: 'mute', description: 'Отключить оповещения' },
   { command: 'unmute', description: 'Включить оповещения' },
-  { command: 'unlink', description: 'Отвязать аккаунт' },
+  { command: 'unlink', description: 'Отключить учётную запись: /unlink ЛОГИН или все' },
+  { command: 'cancel', description: 'Отменить подключение' },
   { command: 'help', description: 'Справка' },
 ];
 
 const HELP_TEXT = [
   'Команды:',
-  '/start КОД — привязать аккаунт (код выдаёт приложение)',
-  '/status — статус привязки',
+  '/status — подключённые учётные записи',
+  '/add — подключить ещё одну учётную запись (другую конфигурацию)',
   '/mute, /unmute — выключить и включить оповещения',
-  '/unlink — отвязать аккаунт',
-  'Любой другой текст передаётся в систему от вашего имени.',
+  '/unlink ЛОГИН — отключить учётную запись; /unlink без логина — все',
+  '/cancel — отменить подключение',
+  'Остальные команды появятся позже.',
 ].join('\n');
 
-const NOT_LINKED_TEXT = 'Аккаунт не привязан. Получите код в приложении и отправьте /start КОД';
+const NOT_LINKED_TEXT = 'Чат не подключён. Получите код в приложении и отправьте /start КОД';
+const ASK_CODE = 'Для подключения к системе введите код регистрации.\n/cancel — отмена';
+const ASK_LOGIN = 'Код принят. Введите логин учётной записи.';
+const ASK_PASSWORD = 'Введите пароль. Сообщение с паролем будет удалено из чата.';
+const CONNECT_ERROR = 'Ошибка подключения';
 
 const escapeHtml = (s) => String(s ?? '')
   .replace(/&/g, '&amp;')
@@ -44,6 +62,7 @@ const escapeHtml = (s) => String(s ?? '')
 
 const defaultSleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+// Оповещение NodeRED (notifyService): { name: dID, payload: { title, message, severity, room, item_name } }
 function formatNotification(msg) {
   const { title, message, severity = 'info', room, item_name: itemName } = msg.payload;
   const lines = [];
@@ -55,6 +74,20 @@ function formatNotification(msg) {
   return lines.join('\n');
 }
 
+// Уведомление по условию (notificationService):
+//   🚨 Гостиная · Температура            ✅ Снято: Гостиная · Температура
+//   26.4 °C (условие > 25 °C)             условие больше не выполняется, сейчас 24 °C
+//   🕒 18.11.2026, 12:12:00 · igumen      🕒 18.11.2026, 12:40:05 · igumen
+function formatNotificationEvent({ dID, status, place, detail, time }) {
+  const on = status === 'ON';
+  const when = time ? new Date(time).toLocaleString('ru-RU', { timeZone: 'Europe/Moscow' }) : '';
+  return [
+    `${on ? '🚨' : '✅'} <b>${on ? '' : 'Снято: '}${escapeHtml(place)}</b>`,
+    escapeHtml(detail),
+    `🕒 ${escapeHtml(when)} · <i>${escapeHtml(dID)}</i>`,
+  ].join('\n');
+}
+
 function generateCode() {
   let code = '';
   for (let i = 0; i < CODE_LEN; i++) code += CODE_ALPHABET[crypto.randomInt(CODE_ALPHABET.length)];
@@ -63,6 +96,37 @@ function generateCode() {
 
 const normalizeCode = (raw) => String(raw || '').replace(/[\s-]/g, '').toUpperCase();
 
+// Сравнение кода регистрации за постоянное время (не выдаёт совпадающий префикс)
+function sameCode(input, expected) {
+  if (!expected) return false;
+  const a = crypto.createHash('sha256').update(String(input).trim()).digest();
+  const b = crypto.createHash('sha256').update(String(expected)).digest();
+  return crypto.timingSafeEqual(a, b);
+}
+
+// Блокировки чатов на диске: { chatId: { count, until } }
+function fileBlockStore(file) {
+  return {
+    load() {
+      try {
+        return JSON.parse(fs.readFileSync(file, 'utf8'));
+      } catch {
+        return {};
+      }
+    },
+    save(data) {
+      try {
+        fs.mkdirSync(path.dirname(path.resolve(file)), { recursive: true });
+        const tmp = `${file}.${process.pid}.tmp`;
+        fs.writeFileSync(tmp, JSON.stringify(data, null, 2));
+        fs.renameSync(tmp, file);
+      } catch (e) {
+        logger.logErrorMessage(`[telegramService] - блокировки ${file}: ${e.message}`);
+      }
+    },
+  };
+}
+
 function createTelegramService({
   bot,
   userStore,
@@ -70,13 +134,84 @@ function createTelegramService({
   config = nc,
   now = Date.now,
   sleep = defaultSleep,
+  blockStore = null,
 }) {
   const linkCodes = new Map();
-  const failures = new Map();
+  const failures = new Map(); // chatId -> { count, until }
+  const dialogs = new Map();  // chatId -> { step: 'code'|'login'|'password', username, expires }
   const rates = new Map();
   let botUsername = null;
   let started = false;
 
+  // ── Блокировки ───────────────────────────────────────────────────────
+  if (blockStore) {
+    const t = now();
+    for (const [chatId, f] of Object.entries(blockStore.load() || {})) {
+      if (f && f.until > t) failures.set(chatId, { count: f.count, until: f.until });
+    }
+  }
+  const persistBlocks = () => blockStore && blockStore.save(Object.fromEntries(failures));
+
+  function isBlocked(chatId) {
+    const f = failures.get(chatId);
+    return Boolean(f && f.count >= config.TELEGRAM_BAD_CODE_LIMIT && f.until > now());
+  }
+
+  // Ошибка подключения; true — чат только что заблокирован
+  function registerFailure(chatId) {
+    const t = now();
+    const f = failures.get(chatId) || { count: 0, until: 0 };
+    if (f.until && f.until < t) {
+      f.count = 0;
+      f.until = 0;
+    }
+    f.count++;
+    const blocked = f.count >= config.TELEGRAM_BAD_CODE_LIMIT;
+    if (blocked) f.until = t + config.TELEGRAM_BAD_CODE_LOCK_MS;
+    failures.set(chatId, f);
+    persistBlocks();
+    return blocked;
+  }
+
+  function clearFailures(chatId) {
+    if (failures.delete(chatId)) persistBlocks();
+  }
+
+  const attemptsLeft = (chatId) => config.TELEGRAM_BAD_CODE_LIMIT - (failures.get(chatId)?.count || 0);
+
+  function allowRate(chatId) {
+    const t = now();
+    const list = (rates.get(chatId) || []).filter((ts) => t - ts < 60000);
+    if (list.length >= config.TELEGRAM_RATE_PER_MIN) {
+      rates.set(chatId, list);
+      return false;
+    }
+    list.push(t);
+    rates.set(chatId, list);
+    return true;
+  }
+
+  async function reply(chatId, text) {
+    try {
+      await bot.sendMessage(chatId, text);
+      return true;
+    } catch (e) {
+      logger.logErrorMessage(`[telegramService] - reply(${chatId}): ${e.message}`);
+      return false;
+    }
+  }
+
+  // Ошибка подключения: счётчик, блокировка, ответ
+  async function fail(chatId, why) {
+    if (registerFailure(chatId)) {
+      dialogs.delete(chatId);
+      logger.logInfoMessage(`[telegramService] - чат ${chatId} заблокирован: ${config.TELEGRAM_BAD_CODE_LIMIT} ошибок подключения`);
+      return reply(chatId, `⛔ ${CONNECT_ERROR}. Слишком много ошибок — сообщения из этого чата не принимаются 24 часа.`);
+    }
+    return reply(chatId, `❌ ${CONNECT_ERROR}: ${why}. Осталось попыток: ${attemptsLeft(chatId)}.`);
+  }
+
+  // ── Привязка кодом из приложения (/start КОД) ─────────────────────
   function purgeCodes() {
     const t = now();
     for (const [code, entry] of linkCodes) {
@@ -107,111 +242,141 @@ function createTelegramService({
     return entry || null;
   }
 
-  function isBlocked(chatId) {
-    const f = failures.get(chatId);
-    return Boolean(f && f.count >= config.TELEGRAM_BAD_CODE_LIMIT && f.until > now());
+  async function attach(chatId, from, username) {
+    const user = await userStore.setTelegram(username, {
+      chatId,
+      username: from?.username || null,
+      firstName: from?.first_name || null,
+    });
+    clearFailures(chatId);
+    dialogs.delete(chatId);
+    logger.logInfoMessage(`[telegramService] - подключение: ${user.username} (${user.dID}) ↔ чат ${chatId}`);
+    return reply(
+      chatId,
+      `✅ Подключена учётная запись <b>${escapeHtml(user.username)}</b> (конфигурация <i>${escapeHtml(user.dID)}</i>).\n` +
+      'Уведомления этой конфигурации будут приходить в этот чат.\n/add — подключить ещё одну учётную запись.'
+    );
   }
 
-  function registerFailure(chatId) {
-    const t = now();
-    const f = failures.get(chatId) || { count: 0, until: 0 };
-    if (f.until && f.until < t) {
-      f.count = 0;
-      f.until = 0;
-    }
-    f.count++;
-    if (f.count >= config.TELEGRAM_BAD_CODE_LIMIT) f.until = t + config.TELEGRAM_BAD_CODE_LOCK_MS;
-    failures.set(chatId, f);
-  }
-
-  function allowRate(chatId) {
-    const t = now();
-    const list = (rates.get(chatId) || []).filter((ts) => t - ts < 60000);
-    if (list.length >= config.TELEGRAM_RATE_PER_MIN) {
-      rates.set(chatId, list);
-      return false;
-    }
-    list.push(t);
-    rates.set(chatId, list);
-    return true;
-  }
-
-  async function reply(chatId, text) {
-    try {
-      await bot.sendMessage(chatId, text);
-      return true;
-    } catch (e) {
-      logger.logErrorMessage(`[telegramService] - reply(${chatId}): ${e.message}`);
-      return false;
-    }
-  }
-
-  async function link(chat, from, rawCode) {
+  async function linkByAppCode(chat, from, rawCode) {
     const chatId = String(chat.id);
-    if (isBlocked(chatId)) return reply(chatId, 'Слишком много неверных кодов. Попробуйте позже.');
-
     const entry = consumeCode(normalizeCode(rawCode));
-    if (!entry) {
-      registerFailure(chatId);
-      return reply(chatId, 'Код недействителен или истёк. Получите новый в приложении.');
-    }
-
+    if (!entry) return fail(chatId, 'код недействителен или истёк');
     try {
-      const user = await userStore.setTelegram(entry.username, {
-        chatId,
-        username: from?.username || null,
-        firstName: from?.first_name || null,
-      });
-      failures.delete(chatId);
-      logger.logInfoMessage(`[telegramService] - link: ${user.username} ↔ chat ${chatId}`);
-      return reply(
-        chatId,
-        `✅ Аккаунт <b>${escapeHtml(user.username)}</b> привязан (источник ${escapeHtml(user.dID)}, уровень ${user.permissionLevel}).`
-      );
+      return await attach(chatId, from, entry.username);
     } catch (e) {
-      logger.logErrorMessage(`[telegramService] - link: ${e.message}`);
-      if (e.code === 'TELEGRAM_BUSY') {
-        return reply(chatId, 'Этот чат уже привязан к другой учётной записи. Отправьте /unlink и повторите.');
-      }
-      return reply(chatId, 'Не удалось привязать аккаунт.');
+      logger.logErrorMessage(`[telegramService] - linkByAppCode: ${e.message}`);
+      return reply(chatId, 'Не удалось подключить учётную запись.');
     }
   }
 
-  async function handleCommand(chat, from, cmd, arg, user) {
-    const chatId = String(chat.id);
+  // ── Регистрация: код → логин → пароль ─────────────────────────────
+  function activeDialog(chatId) {
+    const d = dialogs.get(chatId);
+    if (d && d.expires > now()) return d;
+    dialogs.delete(chatId);
+    return null;
+  }
+
+  function startRegistration(chatId) {
+    if (!config.TELEGRAM_REGISTRATION_CODE) return reply(chatId, NOT_LINKED_TEXT);
+    dialogs.set(chatId, { step: 'code', username: null, expires: now() + config.TELEGRAM_DIALOG_TTL_MS });
+    return reply(chatId, ASK_CODE);
+  }
+
+  async function continueRegistration(m, text, d) {
+    const chatId = String(m.chat.id);
+    d.expires = now() + config.TELEGRAM_DIALOG_TTL_MS;
+
+    if (d.step === 'code') {
+      if (!sameCode(text, config.TELEGRAM_REGISTRATION_CODE)) return fail(chatId, 'неверный код');
+      d.step = 'login';
+      return reply(chatId, ASK_LOGIN);
+    }
+
+    if (d.step === 'login') {
+      d.username = text;
+      d.step = 'password';
+      return reply(chatId, ASK_PASSWORD);
+    }
+
+    // step === 'password': сообщение с паролем убираем из чата сразу
+    if (m.message_id && bot.deleteMessage) {
+      await bot.deleteMessage(chatId, m.message_id)
+        .catch((e) => logger.logDevMessage(`[telegramService] - удаление сообщения с паролем: ${e.message}`));
+    }
+    const username = d.username;
+    d.step = 'login';
+    d.username = null;
+    let user = null;
+    try {
+      user = await userStore.verifyCredentials(username, text);
+    } catch (e) {
+      logger.logErrorMessage(`[telegramService] - verifyCredentials: ${e.message}`);
+    }
+    if (!user || user.disabled) {
+      logger.logInfoMessage(`[telegramService] - чат ${chatId}: неверный логин или пароль (${String(username).slice(0, 32)})`);
+      const r = await fail(chatId, 'неверный логин или пароль');
+      if (dialogs.has(chatId)) await reply(chatId, 'Введите логин учётной записи.');
+      return r;
+    }
+    try {
+      return await attach(chatId, m.from, user.username);
+    } catch (e) {
+      logger.logErrorMessage(`[telegramService] - подключение ${user.username}: ${e.message}`);
+      dialogs.delete(chatId);
+      return reply(chatId, 'Не удалось подключить учётную запись.');
+    }
+  }
+
+  // ── Команды ──────────────────────────────────────────────────────────
+  const accountLine = (u) => `• <b>${escapeHtml(u.username)}</b> — конфигурация <i>${escapeHtml(u.dID)}</i>, уровень ${u.permissionLevel}` +
+    `${u.disabled ? ' (отключена)' : ''}`;
+
+  async function handleCommand(m, cmd, arg, users) {
+    const chatId = String(m.chat.id);
     switch (cmd) {
       case 'start':
       case 'link':
-        if (arg) return link(chat, from, arg);
-        if (user) return reply(chatId, `Привязан аккаунт <b>${escapeHtml(user.username)}</b>.\n${HELP_TEXT}`);
-        return reply(chatId, NOT_LINKED_TEXT);
+        if (arg) return linkByAppCode(m.chat, m.from, arg);
+        if (users.length) return reply(chatId, `Чат подключён.\n${users.map(accountLine).join('\n')}\n\n${HELP_TEXT}`);
+        return startRegistration(chatId);
+
+      case 'add':
+      case 'register':
+        return startRegistration(chatId);
+
+      case 'cancel':
+        dialogs.delete(chatId);
+        return reply(chatId, 'Подключение отменено.');
 
       case 'help':
-        return reply(chatId, HELP_TEXT);
-
-      case 'unlink':
-        if (!user) return reply(chatId, NOT_LINKED_TEXT);
-        await userStore.clearTelegram(user.username);
-        return reply(chatId, 'Аккаунт отвязан.');
+        return reply(chatId, users.length ? HELP_TEXT : 'Отправьте любое сообщение, чтобы подключиться к системе.');
 
       case 'status':
-        if (!user) return reply(chatId, NOT_LINKED_TEXT);
+        if (!users.length) return reply(chatId, NOT_LINKED_TEXT);
         return reply(
           chatId,
-          `Аккаунт: <b>${escapeHtml(user.username)}</b>\nИсточник: ${escapeHtml(user.dID)}\n` +
-          `Уровень: ${user.permissionLevel}\n` +
-          `Оповещения: ${user.notify?.telegram === false ? 'выключены' : 'включены'} ` +
-          `(от «${user.notify?.minSeverity || 'info'}»)`
+          `Подключённые учётные записи:\n${users.map(accountLine).join('\n')}\n` +
+          `Оповещения: ${users.some((u) => u.notify?.telegram !== false) ? 'включены' : 'выключены'}`
         );
+
+      case 'unlink': {
+        if (!users.length) return reply(chatId, NOT_LINKED_TEXT);
+        const targets = arg ? users.filter((u) => u.username.toLowerCase() === arg.toLowerCase()) : users;
+        if (!targets.length) return reply(chatId, `Учётная запись «${escapeHtml(arg)}» к этому чату не подключена.`);
+        for (const u of targets) await userStore.clearTelegram(u.username);
+        return reply(chatId, `Отключено: ${targets.map((u) => `<b>${escapeHtml(u.username)}</b>`).join(', ')}.`);
+      }
 
       case 'mute':
       case 'unmute':
-        if (!user) return reply(chatId, NOT_LINKED_TEXT);
-        await userStore.updateOwnProfile(user.username, { notify: { telegram: cmd === 'unmute' } });
+        if (!users.length) return reply(chatId, NOT_LINKED_TEXT);
+        for (const u of users) await userStore.updateOwnProfile(u.username, { notify: { telegram: cmd === 'unmute' } });
         return reply(chatId, cmd === 'mute' ? '🔕 Оповещения выключены.' : '🔔 Оповещения включены.');
 
       default:
-        return reply(chatId, HELP_TEXT);
+        return reply(chatId, users.length ? HELP_TEXT : NOT_LINKED_TEXT);
     }
   }
 
@@ -220,32 +385,47 @@ function createTelegramService({
     if (!m || !m.chat || m.chat.type !== 'private' || typeof m.text !== 'string') return;
 
     const chatId = String(m.chat.id);
+    if (isBlocked(chatId)) return; // заблокированный чат — сообщения не обрабатываются
     if (!allowRate(chatId)) return;
 
     const text = m.text.trim().slice(0, config.TELEGRAM_MAX_INPUT_LEN);
     if (!text) return;
 
-    const user = await userStore.findByTelegramChatId(chatId);
+    const users = await userStore.findAllByTelegramChatId(chatId);
     const cmd = /^\/([a-z_]+)(?:@\w+)?(?:\s+(.*))?$/i.exec(text);
-    if (cmd) return handleCommand(m.chat, m.from, cmd[1].toLowerCase(), (cmd[2] || '').trim(), user);
+    const dialog = activeDialog(chatId);
 
-    if (!user) return reply(chatId, NOT_LINKED_TEXT);
-    if (user.disabled) return reply(chatId, 'Учётная запись отключена.');
+    // Пароль может начинаться с «/» — в шаге пароля команды не разбираются (кроме /cancel)
+    if (cmd && !(dialog?.step === 'password' && cmd[1].toLowerCase() !== 'cancel')) {
+      if (dialog && cmd[1].toLowerCase() !== 'cancel') dialogs.delete(chatId);
+      return handleCommand(m, cmd[1].toLowerCase(), (cmd[2] || '').trim(), users);
+    }
+    if (dialog) return continueRegistration(m, text, dialog);
 
-    const accepted = forward({
-      type: 'message',
-      request: 'telegramIn',
-      name: user.dID,
-      payload: {
-        level: user.permissionLevel,
-        message: text,
-        from: { source: 'telegram', username: user.username, uid: user.uid },
-      },
-    });
+    // Чат не подключён — любое сообщение начинает регистрацию
+    if (!users.length) return startRegistration(chatId);
+
+    // Команды из Telegram появятся позже; пока текст передаётся в систему (NodeRED) по каждому dID чата
+    const active = users.filter((u) => !u.disabled);
+    if (!active.length) return reply(chatId, 'Учётная запись отключена.');
+    let accepted = false;
+    for (const u of active) {
+      accepted = forward({
+        type: 'message',
+        request: 'telegramIn',
+        name: u.dID,
+        payload: {
+          level: u.permissionLevel,
+          message: text,
+          from: { source: 'telegram', username: u.username, uid: u.uid },
+        },
+      }) || accepted;
+    }
     return reply(chatId, accepted ? '✓ Принято' : 'Приём сообщений сейчас отключён.');
   }
 
-  // Отправка с одним повтором при 429 и отвязкой недоступного чата (403 / chat not found)
+  // ── Отправка ─────────────────────────────────────────────────────────
+  // Одна попытка повтора при 429; недоступный чат (403 / chat not found) отвязывается
   async function deliver(user, send) {
     const chatId = user?.telegram?.chatId;
     if (!chatId) return false;
@@ -271,6 +451,17 @@ function createTelegramService({
     return false;
   }
 
+  // Один чат может быть привязан к нескольким записям одного dID — сообщение ему один раз
+  function uniqueChats(users) {
+    const seen = new Set();
+    return users.filter((u) => {
+      const id = u?.telegram?.chatId;
+      if (!id || seen.has(id)) return false;
+      seen.add(id);
+      return true;
+    });
+  }
+
   function sendToUser(user, msg) {
     const text = formatNotification(msg);
     const extra = { disable_notification: SILENT_SEVERITIES.includes(msg.payload.severity) };
@@ -279,22 +470,36 @@ function createTelegramService({
 
   async function sendToUsers(users, msg) {
     let sent = 0;
-    for (const user of users) {
+    for (const user of uniqueChats(users)) {
       if (await sendToUser(user, msg)) sent++;
       await sleep(40);
     }
     return sent;
   }
 
-  // Кадры камер к уведомлению: photos = [{ jpeg, caption }]; беззвучно — звук уже был у текста
+  // Кадры камер: photos = [{ jpeg, caption }]; беззвучно — звук уже был у текста
   async function sendPhotosToUsers(users, photos) {
     let sent = 0;
-    for (const user of users) {
+    for (const user of uniqueChats(users)) {
       for (const { jpeg, caption } of photos) {
         if (await deliver(user, (chatId) => bot.sendPhoto(chatId, jpeg, { caption: escapeHtml(caption), disable_notification: true }))) sent++;
         await sleep(40);
       }
     }
+    return sent;
+  }
+
+  // Уведомление по условию: текст (событие — со звуком, сброс — беззвучно), затем кадры камер
+  async function sendNotificationEvent(users, event, photos = []) {
+    const text = formatNotificationEvent(event);
+    const extra = { disable_notification: event.status !== 'ON' };
+    let sent = 0;
+    const recipients = uniqueChats(users);
+    for (const user of recipients) {
+      if (await deliver(user, (chatId) => bot.sendMessage(chatId, text, extra))) sent++;
+      await sleep(40);
+    }
+    if (photos.length) await sendPhotosToUsers(recipients, photos);
     return sent;
   }
 
@@ -309,7 +514,10 @@ function createTelegramService({
       logger.logErrorMessage(`[telegramService] - start: ${e.message}`);
     }
     bot.start(handleUpdate, { pollTimeoutS: config.TELEGRAM_POLL_TIMEOUT_S });
-    logger.logInfoMessage(`[telegramService] - запущен${botUsername ? `, бот @${botUsername}` : ''}`);
+    logger.logInfoMessage(
+      `[telegramService] - запущен${botUsername ? `, бот @${botUsername}` : ''}; ` +
+      `регистрация через бота ${config.TELEGRAM_REGISTRATION_CODE ? 'включена' : 'выключена (нет TELEGRAM_REGISTRATION_CODE)'}`
+    );
   }
 
   async function stop() {
@@ -326,6 +534,8 @@ function createTelegramService({
     sendToUser,
     sendToUsers,
     sendPhotosToUsers,
+    sendNotificationEvent,
+    isBlocked,
     isStarted: () => started,
   };
 }
@@ -336,7 +546,12 @@ function init({ forward } = {}) {
   if (instance) return instance;
   const TelegramBot = require('../classes/telegramBot.js');
   const bot = new TelegramBot({ token: nc.TELEGRAM_BOT_TOKEN, apiBase: nc.TELEGRAM_API_BASE });
-  instance = createTelegramService({ bot, userStore: require('./userStore.js'), forward });
+  instance = createTelegramService({
+    bot,
+    userStore: require('./userStore.js'),
+    forward,
+    blockStore: fileBlockStore(nc.TELEGRAM_BLOCKS_FILE),
+  });
   return instance;
 }
 
@@ -349,4 +564,6 @@ async function stop() {
   await current.stop();
 }
 
-module.exports = { createTelegramService, formatNotification, escapeHtml, init, get, stop };
+module.exports = {
+  createTelegramService, formatNotification, formatNotificationEvent, fileBlockStore, escapeHtml, init, get, stop,
+};

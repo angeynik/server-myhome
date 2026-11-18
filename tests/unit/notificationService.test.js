@@ -48,7 +48,7 @@ function setup({ items = { [ITEM.id]: ITEM }, value = 20, users = [], frames = {
       : [{ clientId: 'other', connection: { ws: sockets.other } }])),
   };
   const auth = { getSession: jest.fn((id) => ({ a: { dID: 'igumen', level: 1 }, other: { dID: 'x', level: 3 } }[id])) };
-  const tg = { sendToUsers: jest.fn(async (u) => u.length), sendPhotosToUsers: jest.fn(async () => 1) };
+  const tg = { sendNotificationEvent: jest.fn(async (u) => u.length) };
 
   const svc = createNotificationService({
     store,
@@ -146,17 +146,26 @@ describe('notificationService: каналы и кадры', () => {
   test('канал web — Telegram не используется', async () => {
     const { svc, tg } = setup({ value: 26, users });
     await svc.checkDID('igumen');
-    expect(tg.sendToUsers).not.toHaveBeenCalled();
+    expect(tg.sendNotificationEvent).not.toHaveBeenCalled();
   });
 
   test('канал both — веб и Telegram привязанным пользователям, у кого Telegram не выключен', async () => {
-    const { svc, tg, events } = setup({ items: { [ITEM.id]: { ...ITEM, channel: 'both' } }, value: 26, users });
+    const { svc, tg, events, setValue } = setup({ items: { [ITEM.id]: { ...ITEM, channel: 'both' } }, value: 26, users });
     await svc.checkDID('igumen');
     await new Promise((r) => setImmediate(r));
     expect(events()).toHaveLength(1);
-    const [recipients, msg] = tg.sendToUsers.mock.calls[0];
+    const [recipients, event] = tg.sendNotificationEvent.mock.calls[0];
     expect(recipients.map((u) => u.username)).toEqual(['a']);
-    expect(msg).toMatchObject({ name: 'igumen', payload: { severity: 'alarm', message: expect.stringContaining('26 °C') } });
+    expect(event).toEqual({
+      dID: 'igumen', status: 'ON', place: 'Гостиная · Температура', detail: '26 °C (условие > 25 °C)', time: '2026-06-15T07:00:00.000Z',
+    });
+
+    setValue(20); // сброс тоже уходит в Telegram — с причиной
+    await svc.checkDID('igumen');
+    await new Promise((r) => setImmediate(r));
+    expect(tg.sendNotificationEvent.mock.calls[1][1]).toMatchObject({
+      status: 'OFF', detail: 'условие больше не выполняется, сейчас 20 °C',
+    });
   });
 
   test('канал telegram — в веб всё равно приходит статус (обводка плашки)', async () => {
@@ -173,7 +182,7 @@ describe('notificationService: каналы и кадры', () => {
     await new Promise((r) => setImmediate(r));
 
     expect(events()[0].payload.attachments).toEqual([{ cameraId: 'cam01', title: 'Ворота', timestamp: 5 }]); // у cam02 кадра нет
-    expect(tg.sendPhotosToUsers.mock.calls[0][1]).toEqual([{ jpeg: frames.cam01.jpeg, caption: 'Ворота · Гостиная' }]);
+    expect(tg.sendNotificationEvent.mock.calls[0][2]).toEqual([{ jpeg: frames.cam01.jpeg, caption: 'Ворота · Гостиная · igumen' }]);
     expect(await svc.getSnapshot('igumen', ITEM.id, 'cam01')).toMatchObject({ image: Buffer.from('JPEG1').toString('base64'), title: 'Ворота' });
 
     setValue(1);

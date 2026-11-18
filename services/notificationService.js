@@ -70,17 +70,9 @@ function createNotificationService({
     const users = await userStore.findUsersForNotification({ dID, minLevel: 1 });
     const recipients = users.filter((u) => u.telegram?.chatId && u.notify?.telegram !== false);
     if (recipients.length === 0) return 0;
-    const sent = await tg.sendToUsers(recipients, {
-      name: dID,
-      payload: {
-        title: event.status === 'ON' ? `Уведомление: ${item.title || item.item}` : `Снято: ${item.title || item.item}`,
-        message: event.text,
-        severity: event.status === 'ON' ? 'alarm' : 'ok',
-        room: item.roomTitle || item.group || item.room,
-      },
-    });
-    if (photos.length && tg.sendPhotosToUsers) await tg.sendPhotosToUsers(recipients, photos);
-    return sent;
+    // Формат для Telegram: место, что произошло, время и dID (чат может получать несколько dID)
+    const { place, detail } = rules.describeParts(item, { status: event.status, value: event.value, reason: event.reason });
+    return tg.sendNotificationEvent(recipients, { dID, status: event.status, place, detail, time: event.time }, photos);
   }
 
   function eventPayload(item, entry, extra = {}) {
@@ -119,7 +111,7 @@ function createNotificationService({
       try {
         await store.saveMedia(dID, eventId, cameraId, frame.jpeg);
         attachments.push({ cameraId, title: frame.title, timestamp: frame.timestamp });
-        photos.push({ jpeg: frame.jpeg, caption: `${frame.title} · ${item.roomTitle || item.room}` });
+        photos.push({ jpeg: frame.jpeg, caption: `${frame.title} · ${item.roomTitle || item.room} · ${dID}` });
       } catch (e) {
         logger.logErrorMessage(`[notificationService] - кадр ${cameraId}: ${e.message}`);
       }

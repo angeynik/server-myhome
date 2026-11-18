@@ -113,13 +113,18 @@ NOTIFICATION_CHECK_INTERVAL_MS=10000   # как часто проверять у
 NOTIFICATION_MAX_ITEMS=200            # уведомлений на один dID
 #NOTIFICATION_MEDIA_DIR=              # кадры камер активных уведомлений (по умолчанию $DATA_DIR/notification_media)
 
-# ── Telegram ───────────────────────────────────────────────────────────
+# ── Telegram (настройка — docs/telegram.md) ────────────────────────────
 TELEGRAM_ENABLED=false
 TELEGRAM_BOT_TOKEN=                # токен от @BotFather
+# Код регистрации в боте: пользователь пишет боту → вводит этот код → логин → пароль.
+# Пусто — регистрация через бота выключена (остаётся только код из приложения: /start КОД)
+TELEGRAM_REGISTRATION_CODE=
+TELEGRAM_DIALOG_TTL_MS=600000      # сколько бот ждёт ответа в диалоге регистрации (10 минут)
 TELEGRAM_POLL_TIMEOUT_S=25
-TELEGRAM_LINK_TTL_MS=600000        # срок жизни кода привязки (10 минут)
+TELEGRAM_LINK_TTL_MS=600000        # срок жизни одноразового кода из приложения (10 минут)
 TELEGRAM_MAX_INPUT_LEN=1000        # максимум символов во входящем сообщении
 TELEGRAM_RATE_PER_MIN=20           # лимит входящих сообщений с одного чата
-TELEGRAM_BAD_CODE_LIMIT=5          # неверных кодов до блокировки чата
-TELEGRAM_BAD_CODE_LOCK_MS=900000
+TELEGRAM_BAD_CODE_LIMIT=5          # ошибок подключения (код, логин/пароль) до блокировки чата
+TELEGRAM_BAD_CODE_LOCK_MS=86400000 # блокировка чата — сутки
+#TELEGRAM_BLOCKS_FILE=             # блокировки чатов (по умолчанию $DATA_DIR/telegram_blocks.json)
 #TELEGRAM_API_BASE=https://api.telegram.org
