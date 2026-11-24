@@ -130,8 +130,21 @@ class TelegramBot {
     return this.call('deleteMessage', { chat_id: chatId, message_id: messageId });
   }
 
-  setMyCommands(commands) {
-    return this.call('setMyCommands', { commands });
+  // Меню команд («/» в поле ввода). scope — { type: 'default' | 'all_private_chats' | … },
+  // languageCode — 'ru', 'en'…; без них — общий список. Telegram показывает самый точный из заданных.
+  setMyCommands(commands, { scope, languageCode } = {}) {
+    return this.call('setMyCommands', {
+      commands,
+      ...(scope ? { scope } : {}),
+      ...(languageCode ? { language_code: languageCode } : {}),
+    });
+  }
+
+  getMyCommands({ scope, languageCode } = {}) {
+    return this.call('getMyCommands', {
+      ...(scope ? { scope } : {}),
+      ...(languageCode ? { language_code: languageCode } : {}),
+    });
   }
 
   getUpdates({ offset, timeout = 25, signal } = {}) {

@@ -614,16 +614,49 @@ function createTelegramService({
     return sent;
   }
 
+  // Меню команд: Telegram показывает самый точный из заданных списков (личные чаты важнее общего,
+  // язык пользователя важнее списка без языка). Если в @BotFather когда-то задали список для «ru»
+  // или личных чатов, общий список его не перекрывает — поэтому пишем полный список во все варианты.
+  const MENU_VARIANTS = [
+    {},
+    { languageCode: 'ru' },
+    { languageCode: 'en' },
+    { scope: { type: 'all_private_chats' } },
+    { scope: { type: 'all_private_chats' }, languageCode: 'ru' },
+    { scope: { type: 'all_private_chats' }, languageCode: 'en' },
+  ];
+
+  async function syncCommands() {
+    const failed = [];
+    for (const v of MENU_VARIANTS) {
+      try {
+        await bot.setMyCommands(COMMANDS, v);
+      } catch (e) {
+        failed.push(`${v.scope?.type || 'default'}/${v.languageCode || '—'}: ${e.message}`);
+      }
+    }
+    if (failed.length) logger.logErrorMessage(`[telegramService] - меню команд не записано: ${failed.join('; ')}`);
+    try {
+      const shown = await bot.getMyCommands({ scope: { type: 'all_private_chats' }, languageCode: 'ru' });
+      logger.logInfoMessage(
+        `[telegramService] - меню команд: ${(shown || []).map((c) => `/${c.command}`).join(' ')} ` +
+        `(${(shown || []).length} из ${COMMANDS.length}, личные чаты, ru)`
+      );
+    } catch (e) {
+      logger.logErrorMessage(`[telegramService] - проверка меню команд: ${e.message}`);
+    }
+  }
+
   async function start() {
     if (started) return;
     started = true;
     try {
       const me = await bot.getMe();
       botUsername = me?.username || null;
-      await bot.setMyCommands(COMMANDS);
     } catch (e) {
       logger.logErrorMessage(`[telegramService] - start: ${e.message}`);
     }
+    await syncCommands();
     bot.start(handleUpdate, { pollTimeoutS: config.TELEGRAM_POLL_TIMEOUT_S });
     if (config.TELEGRAM_DEBUG) logger.logInfoMessage('[telegramService] - подробный лог подключения включён (TELEGRAM_DEBUG)');
     logger.logInfoMessage(

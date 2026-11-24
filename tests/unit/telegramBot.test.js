@@ -44,6 +44,15 @@ describe('TelegramBot.call', () => {
     expect(Buffer.from(await photo.arrayBuffer()).toString()).toBe('JPEG');
   });
 
+  test('setMyCommands: область и язык передаются только если заданы', async () => {
+    const fetchImpl = jest.fn(async () => okResponse(true));
+    const bot = new TelegramBot({ token: TOKEN, fetchImpl });
+    await bot.setMyCommands([{ command: 'info', description: 'x' }]);
+    expect(JSON.parse(fetchImpl.mock.calls[0][1].body)).toEqual({ commands: [{ command: 'info', description: 'x' }] });
+    await bot.setMyCommands([], { scope: { type: 'all_private_chats' }, languageCode: 'ru' });
+    expect(JSON.parse(fetchImpl.mock.calls[1][1].body)).toEqual({ commands: [], scope: { type: 'all_private_chats' }, language_code: 'ru' });
+  });
+
   test('обрезает текст до 4096 символов', async () => {
     const fetchImpl = jest.fn(async () => okResponse({}));
     const bot = new TelegramBot({ token: TOKEN, fetchImpl });

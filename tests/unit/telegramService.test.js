@@ -31,6 +31,7 @@ function setup({ linked = [], forwardResult = true, cfg = {}, blocks = {} } = {}
     deleteMessage: jest.fn(async () => true),
     getMe: jest.fn(async () => ({ username: 'my_bot' })),
     setMyCommands: jest.fn(async () => true),
+    getMyCommands: jest.fn(async () => []),
     start: jest.fn(),
     stop: jest.fn(async () => {}),
   };
@@ -454,6 +455,24 @@ describe('telegramService: отправка', () => {
 });
 
 describe('telegramService: жизненный цикл и форматирование', () => {
+  test('меню команд записывается во все варианты (общий, личные чаты, ru, en) — перекрывает список из BotFather', async () => {
+    const { service, bot } = setup();
+    await service.start();
+    const variants = bot.setMyCommands.mock.calls.map(([, v]) => `${v.scope?.type || 'default'}/${v.languageCode || '-'}`);
+    expect(variants).toEqual(['default/-', 'default/ru', 'default/en', 'all_private_chats/-', 'all_private_chats/ru', 'all_private_chats/en']);
+    const names = bot.setMyCommands.mock.calls[0][0].map((c) => c.command);
+    expect(names).toEqual(expect.arrayContaining(['info', 'set', 'alarm', 'photo', 'object', 'help', 'status', 'add', 'cancel']));
+    expect(bot.getMyCommands).toHaveBeenCalledWith({ scope: { type: 'all_private_chats' }, languageCode: 'ru' });
+  });
+
+  test('сбой одного варианта меню не мешает остальным и запуску', async () => {
+    const { service, bot } = setup();
+    bot.setMyCommands.mockRejectedValueOnce(new Error('Bad Request'));
+    await service.start();
+    expect(bot.setMyCommands).toHaveBeenCalledTimes(6);
+    expect(bot.start).toHaveBeenCalled();
+  });
+
   test('start регистрирует команды и запускает polling, stop останавливает', async () => {
     const { service, bot } = setup();
     await service.start();
