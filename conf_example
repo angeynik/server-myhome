@@ -128,4 +128,5 @@ TELEGRAM_RATE_PER_MIN=20           # лимит входящих сообщен�
 TELEGRAM_BAD_CODE_LIMIT=5          # ошибок подключения (код, логин/пароль) до блокировки чата
 TELEGRAM_BAD_CODE_LOCK_MS=86400000 # блокировка чата — сутки
 #TELEGRAM_BLOCKS_FILE=             # блокировки чатов (по умолчанию $DATA_DIR/telegram_blocks.json)
+#TELEGRAM_CHATS_FILE=              # выбранный в чате объект /object (по умолчанию $DATA_DIR/telegram_chats.json)
 #TELEGRAM_API_BASE=https://api.telegram.org

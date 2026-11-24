@@ -43,6 +43,9 @@ module.exports = {
   // Блокировки чатов (переживают перезапуск сервера)
   TELEGRAM_BLOCKS_FILE: env.TELEGRAM_BLOCKS_FILE
     || require('path').join(env.DATA_DIR || '.configData', 'telegram_blocks.json'),
+  // Выбранный в чате объект (/object): { chatId: dID }
+  TELEGRAM_CHATS_FILE: env.TELEGRAM_CHATS_FILE
+    || require('path').join(env.DATA_DIR || '.configData', 'telegram_chats.json'),
 
   NOTIFY_DEDUP_TTL_MS: int(env.NOTIFY_DEDUP_TTL_MS, 30 * 1000),
   NOTIFY_HISTORY_SIZE: int(env.NOTIFY_HISTORY_SIZE, 50),

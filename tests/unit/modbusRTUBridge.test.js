@@ -104,6 +104,23 @@ describe('modbusRTUBridge', () => {
     }));
   });
 
+  test('onResult: успех записи, отказ устройства, только чтение (для бота и commandGateway)', async () => {
+    const { bridge, manager, broadcast } = setup();
+    await bridge.init({ broadcast });
+    const onResult = jest.fn();
+    bridge.handleCommand(null, { type: 'post', request: 'setpoints', name: 'boiler', payload: { room: 'room01', setKey: 'sp', value: 21 } }, { onResult });
+    await flush();
+    expect(onResult).toHaveBeenLastCalledWith({ ok: true, value: 21 });
+
+    manager.writeToDevice.mockRejectedValueOnce(new Error('Timed out'));
+    bridge.handleCommand(null, { type: 'post', request: 'setpoints', name: 'boiler', payload: { room: 'room01', setKey: 'sp', value: 22 } }, { onResult });
+    await flush();
+    expect(onResult).toHaveBeenLastCalledWith({ ok: false, error: 'Не удалось записать значение в устройство', code: 'MODBUS_ERROR' });
+
+    bridge.handleCommand(null, { type: 'post', request: 'sensors', name: 'boiler', payload: { room: 'boiler_room', item_name: 'temp', value: 1 } }, { onResult });
+    expect(onResult).toHaveBeenLastCalledWith(expect.objectContaining({ ok: false, code: 'READ_ONLY' }));
+  });
+
   test('уставка находится по setKey, как у моста TCP', async () => {
     const { bridge, manager, broadcast } = setup();
     await bridge.init({ broadcast });

@@ -208,6 +208,13 @@ describe('telegramService: несколько учётных записей на
     expect(lastReply(bot)).toContain('не подключена');
   });
 
+  test('текст без команды в систему (NodeRED) не пересылается — подсказка /help', async () => {
+    const { forward, bot, say } = setup({ linked: [{}, { username: 'petr', uid: 'u-2', dID: 'd2', permissionLevel: 1 }] });
+    await say('включи свет');
+    expect(forward).not.toHaveBeenCalled();
+    expect(lastReply(bot)).toContain('/help');
+  });
+
   test('/mute и /unmute — для всех записей чата', async () => {
     const { userStore, say } = setup({ linked: [{}, { username: 'petr', dID: 'd2' }] });
     await say('/mute');
@@ -218,14 +225,69 @@ describe('telegramService: несколько учётных записей на
     expect(userStore.updateOwnProfile).toHaveBeenLastCalledWith('petr', { notify: { telegram: true } });
   });
 
-  test('текст привязанного чата уходит в систему по каждому dID', async () => {
-    const { forward, bot, say } = setup({ linked: [{}, { username: 'petr', uid: 'u-2', dID: 'd2', permissionLevel: 1 }] });
-    await say('включи свет');
-    expect(forward.mock.calls.map(([m]) => [m.name, m.payload.from.username, m.payload.level])).toEqual([
-      ['d1', 'ivan', 2], ['d2', 'petr', 1],
-    ]);
-    expect(forward.mock.calls[0][0]).toMatchObject({ type: 'message', request: 'telegramIn', payload: { message: 'включи свет' } });
-    expect(lastReply(bot)).toBe('✓ Принято');
+});
+
+describe('telegramService: команды объекта и кнопки', () => {
+  function withCommands() {
+    const commands = { command: jest.fn(async () => true), text: jest.fn(async () => false), callback: jest.fn(async () => true), cancel: jest.fn(() => true) };
+    const ctx = setup({ linked: [{}] });
+    const service = createTelegramService({
+      bot: ctx.bot, userStore: ctx.userStore, config, now: () => 1000, sleep: async () => {}, commands,
+    });
+    const say = (text) => service.handleUpdate({ message: { message_id: 1, text, chat: { id: 42, type: 'private' }, from: {} } });
+    return { ...ctx, service, commands, say };
+  }
+
+  test('/info, /set, /alarm, /photo, /object — в telegramCommands с аргументом', async () => {
+    const { commands, say } = withCommands();
+    await say('/info спальня');
+    expect(commands.command).toHaveBeenCalledWith('42', 'info', 'спальня', expect.any(Array));
+  });
+
+  test('форма с косой чертой: /info/all и /set/Спальня-Температура', async () => {
+    const { commands, say } = withCommands();
+    await say('/info/all');
+    expect(commands.command).toHaveBeenLastCalledWith('42', 'info', 'all', expect.any(Array));
+    await say('/set/Спальня-Температура');
+    expect(commands.command).toHaveBeenLastCalledWith('42', 'set', 'Спальня-Температура', expect.any(Array));
+  });
+
+  test('нажатие кнопки — telegramCommands.callback; неподключённый чат — ответ на нажатие', async () => {
+    const { commands, service, bot, userStore } = withCommands();
+    bot.answerCallbackQuery = jest.fn(async () => true);
+    const cq = { id: 'q1', data: 'i:a', message: { message_id: 5, chat: { id: 42, type: 'private' } } };
+    await service.handleUpdate({ callback_query: cq });
+    expect(commands.callback).toHaveBeenCalledWith(cq, expect.any(Array));
+    userStore.findAllByTelegramChatId.mockResolvedValueOnce([]);
+    await service.handleUpdate({ callback_query: cq });
+    expect(bot.answerCallbackQuery).toHaveBeenCalledWith('q1', 'Чат не подключён');
+  });
+
+  test('текст: сначала ввод значения для /set; /cancel отменяет изменение', async () => {
+    const { commands, say, bot } = withCommands();
+    commands.text.mockResolvedValueOnce(true);
+    await say('22.5');
+    expect(commands.text).toHaveBeenCalledWith('42', '22.5', expect.any(Array));
+    await say('/cancel');
+    expect(lastReply(bot)).toBe('Изменение отменено.');
+  });
+
+  test('нажатия кнопок не расходуют лимит сообщений (свой лимит, втрое больше)', async () => {
+    const { commands, service, say } = withCommands();
+    const cq = { id: 'q', data: 's:d:1', message: { message_id: 5, chat: { id: 42, type: 'private' } } };
+    for (let i = 0; i < 60; i++) await service.handleUpdate({ callback_query: cq });
+    await service.handleUpdate({ callback_query: cq });
+    expect(commands.callback).toHaveBeenCalledTimes(Math.min(61, config.TELEGRAM_RATE_PER_MIN * 3));
+    await say('/info');
+    expect(commands.command).toHaveBeenCalled();
+  });
+
+  test('неподключённый чат: /info — подсказка подключиться', async () => {
+    const { commands, service, bot, userStore } = withCommands();
+    userStore.findAllByTelegramChatId.mockResolvedValueOnce([]);
+    await service.handleUpdate({ message: { message_id: 1, text: '/info', chat: { id: 42, type: 'private' }, from: {} } });
+    expect(commands.command).not.toHaveBeenCalled();
+    expect(lastReply(bot)).toContain('не подключён');
   });
 });
 
@@ -265,34 +327,22 @@ describe('telegramService: входящие сообщения', () => {
     expect(bot.sendMessage).not.toHaveBeenCalled();
   });
 
-  test('если приём отключён — сообщаем об этом', async () => {
-    const { bot, say } = setup({ linked: [{}], forwardResult: false });
-    await say('привет');
-    expect(lastReply(bot)).toContain('отключён');
-  });
-
   test('отключённая учётная запись не пересылает сообщения', async () => {
     const { forward, say } = setup({ linked: [{ disabled: true }] });
     await say('привет');
     expect(forward).not.toHaveBeenCalled();
   });
 
-  test('слишком длинный текст обрезается', async () => {
-    const { forward, say } = setup({ linked: [{}] });
-    await say('x'.repeat(500));
-    expect(forward.mock.calls[0][0].payload.message).toHaveLength(100);
-  });
-
   test('ограничение частоты по чату', async () => {
-    const { forward, say } = setup({ linked: [{}], cfg: { TELEGRAM_RATE_PER_MIN: 5 } });
+    const { bot, say } = setup({ linked: [{}], cfg: { TELEGRAM_RATE_PER_MIN: 5 } });
     for (let i = 0; i < 8; i++) await say(`m${i}`);
-    expect(forward).toHaveBeenCalledTimes(5);
+    expect(bot.sendMessage).toHaveBeenCalledTimes(5);
   });
 
   test('неизвестная команда — справка', async () => {
     const { bot, say } = setup({ linked: [{}] });
     await say('/foo');
-    expect(lastReply(bot)).toContain('Команды');
+    expect(lastReply(bot)).toContain('Что умеет бот');
   });
 });
 

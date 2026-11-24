@@ -108,6 +108,23 @@ class TelegramBot {
     return this.call('sendPhoto', form);
   }
 
+  // Ответ на нажатие кнопки (убирает «часики» у кнопки; text — всплывающая подсказка)
+  answerCallbackQuery(callbackQueryId, text = '') {
+    return this.call('answerCallbackQuery', { callback_query_id: callbackQueryId, ...(text ? { text: String(text).slice(0, 200) } : {}) });
+  }
+
+  // Правка сообщения бота (меню /set: значение меняется кнопками в том же сообщении)
+  editMessageText(chatId, messageId, text, extra = {}) {
+    return this.call('editMessageText', {
+      chat_id: chatId,
+      message_id: messageId,
+      text: String(text).slice(0, 4096),
+      parse_mode: 'HTML',
+      disable_web_page_preview: true,
+      ...extra,
+    });
+  }
+
   // Бот может удалять входящие сообщения в личном чате (сообщение с паролем)
   deleteMessage(chatId, messageId) {
     return this.call('deleteMessage', { chat_id: chatId, message_id: messageId });
@@ -120,7 +137,8 @@ class TelegramBot {
   getUpdates({ offset, timeout = 25, signal } = {}) {
     return this.call(
       'getUpdates',
-      { offset, timeout, allowed_updates: ['message'] },
+      // callback_query — нажатия inline-кнопок (команды бота)
+      { offset, timeout, allowed_updates: ['message', 'callback_query'] },
       { timeoutMs: (timeout + 10) * 1000, signal }
     );
   }

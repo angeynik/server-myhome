@@ -29,6 +29,11 @@ const CODE_LEN = 8;
 const SEVERITY_ICON = { info: 'ℹ️', ok: '✅', warning: '⚠️', alarm: '🚨' };
 const SILENT_SEVERITIES = ['info', 'ok'];
 const COMMANDS = [
+  { command: 'info', description: 'Состояние объекта: все, комната или параметр' },
+  { command: 'set', description: 'Изменить уставку или переключатель' },
+  { command: 'alarm', description: 'Уведомления: активные или все' },
+  { command: 'photo', description: 'Кадры камер' },
+  { command: 'object', description: 'Выбрать объект (конфигурацию)' },
   { command: 'start', description: 'Подключение к системе' },
   { command: 'status', description: 'Подключённые учётные записи' },
   { command: 'add', description: 'Подключить ещё одну учётную запись' },
@@ -40,13 +45,24 @@ const COMMANDS = [
 ];
 
 const HELP_TEXT = [
-  'Команды:',
+  '<b>Что умеет бот</b>',
+  '',
+  '/info — состояние объекта; без слов — кнопки выбора:',
+  '   /info все · /info спальня · /info температура · /info камеры',
+  '/set — изменить уставку или переключатель «Состояния устройств»:',
+  '   кнопками или /set спальня температура 22.5 · /set гостиная насос on',
+  '   изменение всегда подтверждается кнопкой',
+  '/alarm — уведомления: /alarm активные · /alarm все',
+  '/photo — кадры камер: /photo все · /photo ворота',
+  '/object — выбрать объект, если чат подключён к нескольким',
+  '',
   '/status — подключённые учётные записи',
-  '/add — подключить ещё одну учётную запись (другую конфигурацию)',
+  '/add — подключить ещё одну учётную запись (другой объект)',
   '/mute, /unmute — выключить и включить оповещения',
-  '/unlink ЛОГИН — отключить учётную запись; /unlink без логина — все',
-  '/cancel — отменить подключение',
-  'Остальные команды появятся позже.',
+  '/unlink ЛОГИН — отключить учётную запись; /unlink — все',
+  '/cancel — отменить подключение или изменение',
+  '',
+  'Слова можно писать с маленькой буквы и сокращать: /info спал',
 ].join('\n');
 
 const NOT_LINKED_TEXT = 'Чат не подключён. Получите код в приложении и отправьте /start КОД';
@@ -171,6 +187,7 @@ function createTelegramService({
   now = Date.now,
   sleep = defaultSleep,
   blockStore = null,
+  commands = null,            // telegramCommands: /info, /set, /alarm, /photo, /object и кнопки
 }) {
   const linkCodes = new Map();
   const failures = new Map(); // chatId -> { count, until }
@@ -215,15 +232,19 @@ function createTelegramService({
 
   const attemptsLeft = (chatId) => config.TELEGRAM_BAD_CODE_LIMIT - (failures.get(chatId)?.count || 0);
 
-  function allowRate(chatId) {
+  // Лимит частоты: сообщения — TELEGRAM_RATE_PER_MIN в минуту; нажатия кнопок считаются отдельно
+  // и с лимитом втрое больше (одно изменение через /set — 5–8 нажатий)
+  function allowRate(chatId, kind = 'message') {
     const t = now();
-    const list = (rates.get(chatId) || []).filter((ts) => t - ts < 60000);
-    if (list.length >= config.TELEGRAM_RATE_PER_MIN) {
-      rates.set(chatId, list);
+    const key = `${kind}:${chatId}`;
+    const limit = config.TELEGRAM_RATE_PER_MIN * (kind === 'button' ? 3 : 1);
+    const list = (rates.get(key) || []).filter((ts) => t - ts < 60000);
+    if (list.length >= limit) {
+      rates.set(key, list);
       return false;
     }
     list.push(t);
-    rates.set(chatId, list);
+    rates.set(key, list);
     return true;
   }
 
@@ -374,6 +395,11 @@ function createTelegramService({
 
   async function handleCommand(m, cmd, arg, users) {
     const chatId = String(m.chat.id);
+    // Команды объекта (/info, /set, /alarm, /photo, /object) — telegramCommands
+    if (commands && ['info', 'set', 'alarm', 'photo', 'object'].includes(cmd)) {
+      if (!users.length) return reply(chatId, 'Чат не подключён. Отправьте любое сообщение, чтобы подключиться.');
+      return commands.command(chatId, cmd, arg, users);
+    }
     switch (cmd) {
       case 'start':
       case 'link':
@@ -386,8 +412,9 @@ function createTelegramService({
         return startRegistration(chatId);
 
       case 'cancel':
-        dialogs.delete(chatId);
-        return reply(chatId, 'Подключение отменено.');
+        if (dialogs.delete(chatId)) return reply(chatId, 'Подключение отменено.');
+        if (commands?.cancel(chatId)) return reply(chatId, 'Изменение отменено.');
+        return reply(chatId, 'Отменено.');
 
       case 'help':
         return reply(chatId, users.length ? HELP_TEXT : 'Отправьте любое сообщение, чтобы подключиться к системе.');
@@ -426,6 +453,7 @@ function createTelegramService({
   }
 
   async function handleUpdate(update) {
+    if (update?.callback_query) return handleCallback(update.callback_query);
     const m = update?.message;
     if (!m || !m.chat || m.chat.type !== 'private' || typeof m.text !== 'string') {
       if (m?.chat) debug(m.chat.id, `пропущено (тип чата ${m.chat.type}, текст: ${typeof m.text === 'string'})`);
@@ -448,7 +476,9 @@ function createTelegramService({
 
     const users = await userStore.findAllByTelegramChatId(chatId);
     debug(chatId, `подключённые записи: ${users.map((u) => `${u.username}(${u.dID})`).join(', ') || 'нет'}`);
-    const cmd = /^\/([a-z_]+)(?:@\w+)?(?:\s+(.*))?$/i.exec(text);
+    // Форма с косой чертой: /info/all → /info all, /set/Спальня-Температура → /set Спальня-Температура
+    const slashForm = text.replace(/^(\/[a-z_]+)\/(\S.*)$/i, (_, c, rest) => `${c} ${rest.replace(/\//g, ' ')}`);
+    const cmd = /^\/([a-z_]+)(?:@\w+)?(?:\s+(.*))?$/i.exec(slashForm);
     const dialog = activeDialog(chatId);
 
     // Пароль может начинаться с «/» — в шаге пароля команды не разбираются (кроме /cancel)
@@ -461,23 +491,48 @@ function createTelegramService({
     // Чат не подключён — любое сообщение начинает регистрацию
     if (!users.length) return startRegistration(chatId);
 
-    // Команды из Telegram появятся позже; пока текст передаётся в систему (NodeRED) по каждому dID чата
     const active = users.filter((u) => !u.disabled);
     if (!active.length) return reply(chatId, 'Учётная запись отключена.');
-    let accepted = false;
-    for (const u of active) {
-      accepted = forward({
-        type: 'message',
-        request: 'telegramIn',
-        name: u.dID,
-        payload: {
-          level: u.permissionLevel,
-          message: text,
-          from: { source: 'telegram', username: u.username, uid: u.uid },
-        },
-      }) || accepted;
+
+    // Число или ON/OFF для открытого изменения (/set)
+    if (commands && await commands.text(chatId, text, active)) return true;
+
+    // Пересылка текста в систему (NodeRED, message/telegramIn) пока отключена: управление —
+    // командами бота. Вернуть — раскомментировать блок и убрать ответ ниже.
+    // let accepted = false;
+    // for (const u of active) {
+    //   accepted = forward({
+    //     type: 'message',
+    //     request: 'telegramIn',
+    //     name: u.dID,
+    //     payload: {
+    //       level: u.permissionLevel,
+    //       message: text,
+    //       from: { source: 'telegram', username: u.username, uid: u.uid },
+    //     },
+    //   }) || accepted;
+    // }
+    // return reply(chatId, accepted ? '✓ Принято' : 'Приём сообщений сейчас отключён.');
+    return reply(chatId, 'Не понял. Команды бота — /help');
+  }
+
+  // Нажатие inline-кнопки (команды объекта)
+  async function handleCallback(cq) {
+    const chatId = String(cq?.message?.chat?.id ?? '');
+    if (!chatId || cq.message.chat.type !== 'private') return;
+    if (isBlocked(chatId) || !allowRate(chatId, 'button')) return;
+    debug(chatId, `кнопка «${String(cq.data).slice(0, 40)}»`);
+    const users = (await userStore.findAllByTelegramChatId(chatId)).filter((u) => !u.disabled);
+    if (!users.length || !commands) {
+      await bot.answerCallbackQuery?.(cq.id, 'Чат не подключён').catch(() => {});
+      return;
     }
-    return reply(chatId, accepted ? '✓ Принято' : 'Приём сообщений сейчас отключён.');
+    try {
+      await commands.callback(cq, users);
+    } catch (e) {
+      logger.logErrorMessage(`[telegramService] - кнопка ${cq.data}: ${e.message}`);
+      await reply(chatId, 'Не удалось выполнить. Попробуйте ещё раз.');
+    }
   }
 
   // ── Отправка ─────────────────────────────────────────────────────────
@@ -601,15 +656,51 @@ function createTelegramService({
 
 let instance = null;
 
-function init({ forward } = {}) {
+// Сообщения бота для команд: отправка с кнопками, правка, фото, ответ на нажатие
+function botUi(bot) {
+  const markup = (keyboard) => (keyboard ? { reply_markup: keyboard } : {});
+  return {
+    send: (chatId, html, keyboard) => bot.sendMessage(chatId, html, markup(keyboard))
+      .catch((e) => { logger.logErrorMessage(`[telegramService] - send(${chatId}): ${e.message}`); return null; }),
+    edit: (chatId, messageId, html, keyboard) => bot.editMessageText(chatId, messageId, html, markup(keyboard))
+      .catch((e) => {
+        // «message is not modified» — значение не изменилось, это не ошибка
+        if (!/not modified/i.test(e.message)) logger.logErrorMessage(`[telegramService] - edit(${chatId}): ${e.message}`);
+        return null;
+      }),
+    photo: (chatId, jpeg, caption) => bot.sendPhoto(chatId, jpeg, { caption: escapeHtml(caption) })
+      .catch((e) => { logger.logErrorMessage(`[telegramService] - photo(${chatId}): ${e.message}`); return null; }),
+    answer: (id, text) => bot.answerCallbackQuery(id, text).catch(() => null),
+  };
+}
+
+// executeCommand — единый механизм команд (commandGateway из serverapp.js)
+function init({ forward, executeCommand } = {}) {
   if (instance) return instance;
   const TelegramBot = require('../classes/telegramBot.js');
+  const { createTelegramCommands } = require('./telegramCommands.js');
+  const { readFileIfExists } = require('./configStore');
+  const videoHub = require('./videoHub.js');
+  const cfg = require('./authConfig');
   const bot = new TelegramBot({ token: nc.TELEGRAM_BOT_TOKEN, apiBase: nc.TELEGRAM_API_BASE });
+  const commands = createTelegramCommands({
+    ui: botUi(bot),
+    readConfig: async (dID) => (await readFileIfExists(dID, 'config'))?.data || {},
+    notificationStore: require('./notificationStore.js').createNotificationStore(),
+    cameras: {
+      list: (dID, level) => videoHub.listCameras({ dID, level }),
+      frame: (dID, cameraId) => videoHub.getFrameFor(dID, cameraId),
+    },
+    executeCommand: executeCommand || (async () => ({ ok: false, error: 'Изменение недоступно' })),
+    requiredLevel: (request) => cfg.REQUIRED_LEVEL.post[request] ?? cfg.REQUIRED_LEVEL.post._default,
+    contextStore: fileBlockStore(nc.TELEGRAM_CHATS_FILE),
+  });
   instance = createTelegramService({
     bot,
     userStore: require('./userStore.js'),
     forward,
     blockStore: fileBlockStore(nc.TELEGRAM_BLOCKS_FILE),
+    commands,
   });
   return instance;
 }

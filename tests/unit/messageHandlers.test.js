@@ -300,3 +300,13 @@ describe('уведомления', () => {
     expect(sent('notificationError')[5]).toMatchObject({ code: 'BAD_NOTIFICATION', action: 'edit', message: 'Неверные данные' });
   });
 });
+
+describe('handlePost: результат для commandGateway', () => {
+  test('успех — { ok: true }; ошибка — { ok: false, error, code }', async () => {
+    readFileSafely.mockResolvedValue({ data: { room01: { setpoints: { sTemp01: { value: 20 } } } }, filePath: '/tmp/x.json' });
+    await expect(post('setpoints', { room: 'room01', setKey: 'sTemp01', value: 22 })).resolves.toEqual({ ok: true });
+    readFileSafely.mockRejectedValue(new Error('диск недоступен'));
+    await expect(post('setpoints', { room: 'room01', setKey: 'sTemp01', value: 22 }))
+      .resolves.toEqual({ ok: false, error: 'диск недоступен', code: 'setpointError' });
+  });
+});

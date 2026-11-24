@@ -327,7 +327,9 @@ function isModbusItem(message) {
   return Boolean(findTag(message));
 }
 
-function handleCommand(clientId, message) {
+// onResult({ ok, value?, error?, code? }) — результат записи для вызывающего (commandGateway, бот);
+// клиенту clientId ошибка по-прежнему уходит как error/modbusWriteError
+function handleCommand(clientId, message, { onResult = () => {} } = {}) {
   const tag = findTag(message);
   if (!tag) return false;
 
@@ -344,6 +346,7 @@ function handleCommand(clientId, message) {
   if (!tag.writable) {
     logger.logErrorMessage(`[modbusBridge] - ❌ тег ${tag.item_name} только для чтения, запись отклонена`);
     sendError(`Тег ${tag.item_name} доступен только для чтения`, 'READ_ONLY');
+    onResult({ ok: false, error: `Тег ${tag.item_name} доступен только для чтения`, code: 'READ_ONLY' });
     return true;
   }
 
@@ -351,10 +354,12 @@ function handleCommand(clientId, message) {
     .then((value) => {
       logger.logInfoMessage(`[modbusBridge] - ✅ записано ${tag.deviceId}/${tag.item_name} = ${value}`);
       publish(tag, value);
+      onResult({ ok: true, value });
     })
     .catch((err) => {
       logger.logErrorMessage(`[modbusBridge] - ❌ запись ${tag.deviceId}/${tag.item_name}: ${err.message}`);
       sendError(err.message, err.code || 'MODBUS_ERROR');
+      onResult({ ok: false, error: err.message, code: err.code || 'MODBUS_ERROR' });
     });
 
   return true;

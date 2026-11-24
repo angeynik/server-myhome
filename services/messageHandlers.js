@@ -346,8 +346,13 @@ const handlePost = async (clientId, data) => {
   let responseRequest  = '';
   let responsePayload  = null;
 
-  const sendError = (request, message, extra = {}) =>
-    wsManager.sendToConnection('VUE_connections', clientId, 'error', request, dID, { message, ...extra });
+  // Первая ошибка запоминается: handlePost возвращает { ok, error } — по нему commandGateway
+  // сообщает результат тем, у кого нет WebSocket-соединения (Telegram-бот)
+  let failure = null;
+  const sendError = (request, message, extra = {}) => {
+    if (!failure) failure = { request, message, code: extra.code };
+    return wsManager.sendToConnection('VUE_connections', clientId, 'error', request, dID, { message, ...extra });
+  };
 
   const sendResponse = (request, payload) =>
     wsManager.sendToConnection('VUE_connections', clientId, 'response', request, dID, payload);
@@ -618,6 +623,7 @@ const handlePost = async (clientId, data) => {
       sendError('fileWriteError', `Не удалось сохранить: ${err.message}`);
     }
   }
+  return failure ? { ok: false, error: failure.message, code: failure.code || failure.request } : { ok: true };
 };
 
 module.exports = {

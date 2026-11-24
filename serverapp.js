@@ -19,6 +19,7 @@ const notifyService = require('./services/notifyService.js');
 const telegramService = require('./services/telegramService.js');
 const videoHub = require('./services/videoHub.js');
 const notificationService = require('./services/notificationService.js');
+const { createCommandGateway } = require('./services/commandGateway.js');
 
 const { addMessageToQueue, processAllQueues} = require('./services/messageStore.js');
 const { handleAuth, handleGet, handlePost } = require('./services/messageHandlers.js');
@@ -237,6 +238,16 @@ if (NODERED_ENABLED) {
 }
 const WSSDash = new WebSocket.Server ({port:wsDashPORT, host: '0.0.0.0' });
 
+// Выполнение команд изменения — общее для приложения (WSSDash) и Telegram-бота
+const commandGateway = createCommandGateway({
+  handlePost,
+  broadcast: (excludeClientId, dID, data) => broadcast(excludeClientId, dID, data),
+  bridges: [
+    { name: 'modbus', enabled: () => MODBUS_ENABLED, handleCommand: (...a) => modbusBridge.handleCommand(...a) },
+    { name: 'modbus-rtu', enabled: () => MODBUS_RTU_ENABLED, handleCommand: (...a) => modbusRtuBridge.handleCommand(...a) },
+  ],
+});
+
 console.log(`WebSocket servers are running nodeRed ws port:${wsRedPORT}`);
 console.log(`WebSocket servers are running  DashBoard (client) ws port:${wsDashPORT}`);
 
@@ -291,7 +302,7 @@ if (nc.TELEGRAM_REQUESTED) {
   if (!nc.TELEGRAM_ENABLED) {
     logger.logErrorMessage('[Serverapp] - TELEGRAM_ENABLED=true, но TELEGRAM_BOT_TOKEN не задан');
   } else {
-    telegramService.init({ forward: forwardFromTelegram }).start()
+    telegramService.init({ forward: forwardFromTelegram, executeCommand: (args) => commandGateway.execute(args) }).start()
       .catch((e) => logger.logErrorMessage(`[Serverapp] - Telegram: ${e.message}`));
   }
 } else {
@@ -479,32 +490,11 @@ WSSDash.on('connection', (ws) => {
         break;
 
       case 'post': {
-        const dID = dashData.data.name;
-        const forwardable = !cfg.NO_BROADCAST_POST.has(request);
-        let handledByModbus = false;
-        if (forwardable) {
-          try {
-            handledByModbus =
-              (MODBUS_ENABLED && modbusBridge.handleCommand(connectionId, dashData.data)) ||
-              (MODBUS_RTU_ENABLED && modbusRtuBridge.handleCommand(connectionId, dashData.data));
-          } catch (error) {
-            logger.logErrorMessage(`[Serverapp] - WSSDash - команда Modbus: ${error.message}`);
-          }
-        }
-        // Команду устройству Modbus мост сам сохраняет в config-файл и рассылает Vue после
-        // подтверждения записи. Если бы её записал и handlePost, при отказе устройства файл
-        // хранил бы непринятое значение, а клиент после modbusWriteError получил бы его же.
-        if (!handledByModbus) handlePost(connectionId, dashData.data);
-
-        // Остальным соединениям того же dID: всем Vue и, если включён, NodeRED
-        // (получателей выбирает broadcast). Раньше без NodeRED не пересылалось и другим Vue.
-        if (forwardable && !handledByModbus) {
-          try {
-            broadcast(connectionId, dID, dashData.data);
-          } catch (error) {
-            logger.logErrorMessage(`[Serverapp] - WSSDash - рассылка post: ${error.message}`);
-          }
-        }
+        // Единый механизм с Telegram-ботом (services/commandGateway.js): команду тега Modbus
+        // выполняет мост (запись в файл и рассылка — после подтверждения устройства), остальное —
+        // handlePost и пересылка другим клиентам того же dID.
+        commandGateway.execute({ dID: dashData.data.name, message: dashData.data, clientId: connectionId })
+          .catch((error) => logger.logErrorMessage(`[Serverapp] - WSSDash - post ${request}: ${error.message}`));
         break;
       }
 

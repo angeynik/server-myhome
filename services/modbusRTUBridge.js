@@ -174,7 +174,8 @@ function createModbusRtuBridge({
   }
 
   // Команда из Vue. true — команда относится к RTU-тегу и обработана здесь (дальше её не пересылать).
-  function handleCommand(clientId, message) {
+  // onResult({ ok, value?, error?, code? }) — результат записи для вызывающего (commandGateway, бот)
+  function handleCommand(clientId, message, { onResult = () => {} } = {}) {
     if (!manager?.master) return false;
     const p = message?.payload || {};
     const room = Array.isArray(p.room) ? p.room[0] : p.room;
@@ -184,9 +185,12 @@ function createModbusRtuBridge({
     const tag = item ? byKey.get(tagKey(message.name, message.request, room, item)) : null;
     if (!tag) return false;
 
-    const sendError = (msg, code) => ws.sendToConnection('VUE_connections', clientId, 'error', 'modbusWriteError', message.name, {
-      room: tag.room, item_name: tag.item_name, message: msg, code,
-    });
+    const sendError = (msg, code) => {
+      ws.sendToConnection('VUE_connections', clientId, 'error', 'modbusWriteError', message.name, {
+        room: tag.room, item_name: tag.item_name, message: msg, code,
+      });
+      onResult({ ok: false, error: msg, code });
+    };
     if (!tag.writable) {
       sendError(`Тег ${tag.item_name} доступен только для чтения`, 'READ_ONLY');
       return true;
@@ -202,6 +206,7 @@ function createModbusRtuBridge({
       .then(() => {
         logger.logInfoMessage(`[modbusRtuBridge] - записано ${tag.dID}/${tag.item_name} = ${value}`);
         publish(tag, value);
+        onResult({ ok: true, value });
       })
       .catch((e) => {
         logger.logErrorMessage(`[modbusRtuBridge] - запись ${tag.dID}/${tag.item_name}: ${e.message}`);
