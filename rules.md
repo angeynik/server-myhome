@@ -111,6 +111,7 @@
   - Сервер добавляет `time`, `payload.id`, `payload.source` и подавляет одинаковые сообщения в течение `NOTIFY_DEDUP_TTL_MS`.
 - От сервера NodeRED получает `post` от Vue (кроме служебных) и `message/telegramIn` с `payload: { level, message, from: { source, username, uid } }`.
 - Не отправлять NodeRED-сообщения чужого `dID`: соединение привязано к одному `dID`.
+- Готовые потоки Node-RED (инициализация устройств, опрос MQTT и команды, коммуникации) — отдельный репозиторий `git@github.com:angeynik/nRed.git`, ветка `main` (инструкция — его `README.md`). Меняется протокол NodeRED — обновляются и потоки.
 
 ### Рассылка
 - `post` от Vue пересылается всем остальным соединениям Vue с тем же `dID` (кроме отправителя) и, если включён NodeRED (`NODERED_ENABLED`), соединениям NodeRED этого `dID`. Сервер добавляет `time`.
