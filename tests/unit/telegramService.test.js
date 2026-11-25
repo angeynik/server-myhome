@@ -460,8 +460,15 @@ describe('telegramService: жизненный цикл и форматирова
     await service.start();
     const variants = bot.setMyCommands.mock.calls.map(([, v]) => `${v.scope?.type || 'default'}/${v.languageCode || '-'}`);
     expect(variants).toEqual(['default/-', 'default/ru', 'default/en', 'all_private_chats/-', 'all_private_chats/ru', 'all_private_chats/en']);
-    const names = bot.setMyCommands.mock.calls[0][0].map((c) => c.command);
-    expect(names).toEqual(expect.arrayContaining(['info', 'set', 'alarm', 'photo', 'object', 'help', 'status', 'add', 'cancel']));
+    // в меню — только основные команды; остальные работают и есть в /help
+    expect(bot.setMyCommands.mock.calls[0][0]).toEqual([
+      { command: 'info', description: 'Состояние объекта' },
+      { command: 'set', description: 'Изменить уставку' },
+      { command: 'alarm', description: 'Уведомления' },
+      { command: 'photo', description: 'Кадры камер' },
+      { command: 'object', description: 'Выбрать объект' },
+      { command: 'help', description: 'Справка' },
+    ]);
     expect(bot.getMyCommands).toHaveBeenCalledWith({ scope: { type: 'all_private_chats' }, languageCode: 'ru' });
   });
 

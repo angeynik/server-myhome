@@ -43,6 +43,7 @@ const MODBUS_RTU_ENABLED = String(process.env.MODBUS_RTU_ENABLED ?? 'false').toL
 
 const logger = require('./services/logger.js');
 logger.initLogging();
+logger.logInfoMessage(`[Serverapp] - версия ${require('./services/version.js').LABEL}`);
 logger.logInfoMessage(
   `[Serverapp] - потоки: VUE=ON, NodeRED=${NODERED_ENABLED ? 'ON' : 'OFF'}, ` +
   `Modbus TCP=${MODBUS_ENABLED ? 'ON' : 'OFF'}, Modbus RTU=${MODBUS_RTU_ENABLED ? 'ON' : 'OFF'}, ` +

@@ -28,19 +28,14 @@ const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const CODE_LEN = 8;
 const SEVERITY_ICON = { info: 'ℹ️', ok: '✅', warning: '⚠️', alarm: '🚨' };
 const SILENT_SEVERITIES = ['info', 'ok'];
+// Меню «/» — только основные команды. Остальные (/start, /status, /add, /mute, /unmute, /unlink,
+// /cancel) работают и описаны в /help, но в меню не показываются.
 const COMMANDS = [
-  { command: 'info', description: 'Состояние объекта: все, комната или параметр' },
-  { command: 'set', description: 'Изменить уставку или переключатель' },
-  { command: 'alarm', description: 'Уведомления: активные или все' },
+  { command: 'info', description: 'Состояние объекта' },
+  { command: 'set', description: 'Изменить уставку' },
+  { command: 'alarm', description: 'Уведомления' },
   { command: 'photo', description: 'Кадры камер' },
-  { command: 'object', description: 'Выбрать объект (конфигурацию)' },
-  { command: 'start', description: 'Подключение к системе' },
-  { command: 'status', description: 'Подключённые учётные записи' },
-  { command: 'add', description: 'Подключить ещё одну учётную запись' },
-  { command: 'mute', description: 'Отключить оповещения' },
-  { command: 'unmute', description: 'Включить оповещения' },
-  { command: 'unlink', description: 'Отключить учётную запись: /unlink ЛОГИН или все' },
-  { command: 'cancel', description: 'Отменить подключение' },
+  { command: 'object', description: 'Выбрать объект' },
   { command: 'help', description: 'Справка' },
 ];
 
