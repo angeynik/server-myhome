@@ -85,7 +85,7 @@ async function writeFileSafely(filePath, content) {
 
 // notification        — <dID>_notification.json: условия уведомлений (services/notificationStore.js)
 // notification_status — <dID>_notification_status.json: статусы уведомлений (ON/OFF, флаг прочтения)
-const CONFIG_TYPES = ['config', 'schedules', 'statistics', 'notification', 'notification_status'];
+const CONFIG_TYPES = ['config', 'schedules', 'statistics', 'notification', 'notification_status', 'scenarios'];
 
 async function readFileSafely(dID, typeConfig = 'config') {
     if (!CONFIG_TYPES.includes(typeConfig)) {

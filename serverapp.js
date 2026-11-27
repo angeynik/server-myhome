@@ -19,6 +19,7 @@ const notifyService = require('./services/notifyService.js');
 const telegramService = require('./services/telegramService.js');
 const videoHub = require('./services/videoHub.js');
 const notificationService = require('./services/notificationService.js');
+const scenarioService = require('./services/scenarioService.js');
 const { createCommandGateway } = require('./services/commandGateway.js');
 
 const { addMessageToQueue, processAllQueues} = require('./services/messageStore.js');
@@ -393,6 +394,9 @@ if (NODERED_ENABLED) {
                     if (checkInputMessage.data.request === 'init_ws') {
                       logger.logDevMessage(`[Serverapp] - WSSNodeRED - Пришло сообщение init_ws: ${JSON.stringify(checkInputMessage.data, null, 2)}`);
                       wsManager.updateConnection('nRED_connections', connectionId, Date.now(), checkInputMessage.data.name);
+                      // Сценарии сервера — в Node-RED (без файла на сервере он работает по своему)
+                      scenarioService.get().sendToNodeRED(dID)
+                        .catch((e) => logger.logErrorMessage(`[Serverapp] - WSSNodeRED - сценарии → ${dID}: ${e.message}`));
                     }
                 break;
               case 'message':

@@ -31,6 +31,13 @@ const mockNotificationService = {
 };
 jest.mock('../../services/notificationService', () => ({ get: () => mockNotificationService }));
 const mockNotificationStore = { list: jest.fn(), readStatus: jest.fn() };
+const mockScenarioService = { applyChange: jest.fn() };
+jest.mock('../../services/scenarioService', () => ({ get: () => mockScenarioService }));
+const mockScenarioStore = { read: jest.fn() };
+jest.mock('../../services/scenarioStore', () => ({
+  createScenarioStore: () => mockScenarioStore,
+  validateSettings: () => ({ tzOffsetMin: 180, manualOverrideSec: 3600, maxCommandsPerMin: 6 }),
+}));
 jest.mock('../../services/notificationStore', () => ({ createNotificationStore: () => mockNotificationStore }));
 jest.mock('../../services/configStore', () => ({
   writeFileSafely: jest.fn(),
@@ -308,5 +315,31 @@ describe('handlePost: результат для commandGateway', () => {
     readFileSafely.mockRejectedValue(new Error('диск недоступен'));
     await expect(post('setpoints', { room: 'room01', setKey: 'sTemp01', value: 22 }))
       .resolves.toEqual({ ok: false, error: 'диск недоступен', code: 'setpointError' });
+  });
+});
+
+describe('сценарии', () => {
+  const get = (request, payload = {}) => handleGet('c1', { type: 'get', request, name: 'd1', payload });
+
+  test('get/scenarios: файл или пустой набор с настройками по умолчанию', async () => {
+    mockScenarioStore.read.mockResolvedValueOnce({ settings: {}, scenarios: { a: {} } });
+    await get('scenarios');
+    expect(sent('scenarios')[5]).toEqual({ settings: {}, scenarios: { a: {} } });
+    wsManager.sendToConnection.mockClear();
+    mockScenarioStore.read.mockResolvedValueOnce(null);
+    await get('scenarios');
+    expect(sent('scenarios')[5]).toEqual({ settings: { tzOffsetMin: 180, manualOverrideSec: 3600, maxCommandsPerMin: 6 }, scenarios: {} });
+  });
+
+  test('post/scenarios: служба получает действие и автора; автору — подтверждение или ошибка с кодом', async () => {
+    mockScenarioService.applyChange.mockResolvedValueOnce({ id: 'a', delivered: 1 });
+    const r = await post('scenarios', { action: 'create', configData: { id: 'a' } });
+    expect(mockScenarioService.applyChange).toHaveBeenCalledWith('d1', 'create', { id: 'a' }, expect.objectContaining({ username: 'boss' }));
+    expect(sent('scenariosSuccess')[5]).toEqual({ action: 'create', id: 'a', delivered: 1 });
+    expect(r).toEqual({ ok: true });
+    mockScenarioService.applyChange.mockRejectedValueOnce(Object.assign(new Error('Неверный сценарий'), { code: 'BAD_SCENARIO' }));
+    const r2 = await post('scenarios', { action: 'edit', configData: {} });
+    expect(sent('scenariosError')[5]).toEqual({ message: 'Неверный сценарий', code: 'BAD_SCENARIO', action: 'edit' });
+    expect(r2).toMatchObject({ ok: false, code: 'BAD_SCENARIO' });
   });
 });

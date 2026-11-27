@@ -29,6 +29,7 @@ npm test
 - [docs/modbus-rtu.md](docs/modbus-rtu.md) — Modbus RTU: RS-485, роли Master/Slave, `modbusConf.json`, проверка без железа.
 - [docs/cameras.md](docs/cameras.md) — видеокамеры и муляжи.
 - [docs/notifications.md](docs/notifications.md) — уведомления по условиям: алгоритм, форматы, протокол, схемы кода сервера и клиента.
+- [docs/scenarios.md](docs/scenarios.md) — сценарии автоматизации: формат условий и действий, протокол; выполняет их Node-RED (репозиторий nRed).
 - [docs/telegram.md](docs/telegram.md) — Telegram-бот: создание, подключение пользователей, несколько конфигураций в одном чате, блокировки.
 
 ## Инструменты

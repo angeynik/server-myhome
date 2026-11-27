@@ -10,9 +10,12 @@ const notifyService   = require('./notifyService.js');
 const telegramService = require('./telegramService.js');
 const videoHub = require('./videoHub.js');
 const notificationService = require('./notificationService.js');
+const scenarioService = require('./scenarioService.js');
 const { createNotificationStore } = require('./notificationStore.js');
+const { createScenarioStore, validateSettings } = require('./scenarioStore.js');
 
 const notificationStore = createNotificationStore();
+const scenarioStore = createScenarioStore();
 
 const { writeFileSafely, readFileSafely } = require('./configStore');
 
@@ -281,6 +284,12 @@ const handleGet = async (clientId, data) => {
         const snap = await notificationService.get().getSnapshot(dID, id, cameraId);
         if (!snap) return sendError('notificationSnapshotError', 'Кадр недоступен', { code: 'NO_SNAPSHOT', id, cameraId });
         sendResponse('notificationSnapshot', snap);
+        break;
+      }
+      // Сценарии (docs/scenarios.md): файла нет — пустой набор с настройками по умолчанию
+      case 'scenarios': {
+        const data = await scenarioStore.read(dID);
+        sendResponse('scenarios', data || { settings: validateSettings({}), scenarios: {} });
         break;
       }
       case 'schedules': {
@@ -565,6 +574,20 @@ const handlePost = async (clientId, data) => {
     }
 
     // ── Statistics ──────────────────────────────────────────────────────
+    // ── Сценарии: create / edit / delete / enable / settings (docs/scenarios.md) ──
+    case 'scenarios': {
+      try {
+        const action = pay.action;
+        const result = await scenarioService.get().applyChange(dID, action, pay.configData || {}, actor);
+        // Набор сценариев всем клиентам dID (и автору) уже разослала служба; автору — подтверждение
+        sendResponse('scenariosSuccess', { action, id: result.id, delivered: result.delivered });
+      } catch (e) {
+        logger.logErrorMessage(`[messageHandlers] - scenarios(${pay.action}): ${e.message}`);
+        sendError('scenariosError', e.message, { code: e.code || 'SCENARIO_ERROR', action: pay.action });
+      }
+      break;
+    }
+
     case 'addstatistics': {
       try {
         const { room: r, param: p, configData } = pay;

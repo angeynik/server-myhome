@@ -63,6 +63,7 @@ const REQUIRED_LEVEL = {
     config: 1,
     statistics: 1,
     schedules: 2,
+    scenarios: 2,
     notification: 1,
     notificationStatus: 1,
     notificationSnapshot: 1,
@@ -82,6 +83,7 @@ const REQUIRED_LEVEL = {
     delschedules: 2,
     updateschedules: 2,
     notification: 2,
+    scenarios: 2,
     addstatistics: 2,
     delstatistics: 2,
     updatestatistics: 2,
@@ -134,7 +136,8 @@ module.exports = {
   NO_BROADCAST_POST: new Set([
     'createUser', 'linkUserToDataSource', 'userConfigRequest', 'userConfigEdit',
     'deleteUser', 'resetUserPassword', 'wsConnect', 'videoSubscribe',
-    // Конфигурацию уведомлений рассылает notificationService после записи (всем, включая автора)
-    'notification',
+    // Конфигурацию уведомлений и сценариев рассылают службы после записи (всем, включая автора;
+    // сценарии — ещё и Node-RED)
+    'notification', 'scenarios',
   ]),
 };
