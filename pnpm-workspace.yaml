@@ -1,2 +1,4 @@
+# Какие зависимости могут запускать скрипты при установке (pnpm блокирует их по умолчанию).
 allowBuilds:
-  '@serialport/bindings-cpp': false
+  '@serialport/bindings-cpp': false  # готовые бинарники (prebuilds) для linux-arm64/x64 уже в пакете
+  '@parcel/watcher': false           # нужен только jest (devDependency); бинарник ставится пакетом @parcel/watcher-<платформа>
